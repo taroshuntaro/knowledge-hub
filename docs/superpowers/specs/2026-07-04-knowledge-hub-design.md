@@ -30,6 +30,7 @@
 - 画像アップロード（ドラッグ&ドロップ / ペースト）
 - カテゴリ（2 階層・admin 管理、記事に 1 つ必須）
 - タグ（フリーフォーム、誰でも作成可）
+- ピックアップ（admin による記事のトップページ固定表示）
 - 日本語全文検索（タイトル + 本文 + タグ、スニペット付き、カテゴリ・タグ・著者絞り込み）
 - コメント（フラット + 1 階層返信、Markdown 対応）
 - リアクション（絵文字プリセット、トグル式）
@@ -113,7 +114,7 @@
 | `sessions` | セッション ID（httpOnly Cookie 用）、user_id, expires_at |
 | `invitations` | 招待トークン。email, token_hash, expires_at, used_at |
 | `password_reset_tokens` | user_id, token_hash, expires_at, used_at |
-| `articles` | author_id, category_id（FK、nullable — 公開時に必須）, title, body_md（Markdown 原文・正）, search_text（平文化、pg_bigm GIN インデックス）, status (draft/published), published_at, updated_at, deleted_at（論理削除） |
+| `articles` | author_id, category_id（FK、nullable — 公開時に必須）, title, body_md（Markdown 原文・正）, search_text（平文化、pg_bigm GIN インデックス）, status (draft/published), published_at, updated_at, deleted_at（論理削除）, pinned_at（nullable、ピックアップ表示） |
 | `article_revisions` | article_id, title, body_md, saved_at。保存時スナップショット |
 | `categories` | name, parent_id（nullable、深さ最大 2）, sort_order。admin 管理 |
 | `tags` / `article_tags` | タグ名（ユニーク）/ 多対多 |
@@ -141,7 +142,7 @@
 | ロール | できること |
 |---|---|
 | `member` | 記事の作成・公開、自分の記事・コメントの編集・削除、コメント・リアクション・ブックマーク |
-| `admin` | member の全権限 + ユーザー管理（招待・無効化・ロール変更）、任意の記事・コメントの削除、カテゴリ管理 |
+| `admin` | member の全権限 + ユーザー管理（招待・無効化・ロール変更）、任意の記事・コメントの削除、カテゴリ管理、ピックアップ管理 |
 
 - 下書きは本人と admin のみ閲覧可。公開記事は全ログインユーザーが閲覧可。
 - **最後の admin は降格・無効化できない**（締め出し防止ガード）。
@@ -184,7 +185,7 @@
 
 | 画面 | パス | 内容 |
 |---|---|---|
-| トップ | `/` | 全記事の新着フィード（部門問わず時系列）。サイドバーにカテゴリツリー・人気タグ |
+| トップ | `/` | ピックアップセクション + 全記事の新着フィード（部門問わず時系列）。サイドバーにカテゴリツリー・人気タグ |
 | カテゴリ | `/categories/:id` | 該当カテゴリ + 配下の記事一覧（時系列） |
 | タグ | `/tags/:name` | タグ別記事一覧 |
 | 検索結果 | `/search` | 全文検索 + カテゴリ・タグ・著者絞り込み |
@@ -212,7 +213,13 @@
 - 削除はゴミ箱（`deleted_at`）へ。本人と admin が復元可能。ゴミ箱からの物理削除は admin のみ。
 - 本人は過去リビジョンの一覧・閲覧・復元が可能（diff 表示は V2）。
 
-### 全文検索
+### ピックアップ（トップ固定表示）
+
+- admin が記事詳細ページのメニューからピン留め・解除する。対象は公開記事のみ。
+- トップページの新着フィード上部に「ピックアップ」セクションとして `pinned_at` 降順で表示。通常フィードからは除外しない（フィードは常に全記事の時系列、という §7 の原則を保つ）。
+- **非公開化・ゴミ箱行きの際はピンを自動解除。** 解除は一方通行で、復元・再公開時に自動復活はしない（古いお知らせが意図せずトップに再登場する事故の防止）。
+- 件数の上限は設けないが、運用ガイドとして常時 3〜5 件程度を README に記す。
+- 期限付きピン（自動解除）・手動並び替えは V1 では作らない。
 
 - `pg_bigm` GIN インデックスによる日本語部分一致検索。対象は `search_text`（タイトル + 本文平文 + タグ）。
 - 結果はヒット箇所前後のスニペット付き。カテゴリ・タグ・著者での絞り込みと併用可。
