@@ -1,4 +1,4 @@
-import { and, count, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { users } from '../db/schema';
 import { AppError } from '../errors';
@@ -57,21 +57,29 @@ export async function updateUserByAdmin(
   targetId: string,
   patch: { role?: 'member' | 'admin'; isActive?: boolean },
 ): Promise<AdminUserView> {
-  const target = await db.query.users.findFirst({ where: eq(users.id, targetId) });
-  if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
+  // 降格判定と更新を1トランザクションにまとめ、アクティブ管理者行を FOR UPDATE で
+  // ロックすることで、複数の管理者を同時に降格して0人になる TOCTOU レースを防ぐ。
+  const row = await db.transaction(async (tx) => {
+    const target = await tx.query.users.findFirst({ where: eq(users.id, targetId) });
+    if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
 
-  const demoting = target.role === 'admin' && (patch.role === 'member' || patch.isActive === false);
-  if (demoting) {
-    const [{ value: activeAdmins }] = await db
-      .select({ value: count() })
-      .from(users)
-      .where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
-    if (activeAdmins <= 1) {
-      throw new AppError('LAST_ADMIN', '最後の管理者は降格・無効化できません', 409);
+    const demoting =
+      target.role === 'admin' && (patch.role === 'member' || patch.isActive === false);
+    if (demoting) {
+      const activeAdmins = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.role, 'admin'), eq(users.isActive, true)))
+        .for('update');
+      if (activeAdmins.length <= 1) {
+        throw new AppError('LAST_ADMIN', '最後の管理者は降格・無効化できません', 409);
+      }
     }
-  }
 
-  const [row] = await db.update(users).set(patch).where(eq(users.id, targetId)).returning();
+    const [updated] = await tx.update(users).set(patch).where(eq(users.id, targetId)).returning();
+    return updated;
+  });
+
   if (patch.isActive === false) await deleteUserSessions(db, targetId);
   return toAdminView(row);
 }
