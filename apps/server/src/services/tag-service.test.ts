@@ -1,7 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestArticle } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
-import { getArticleTagNames, setArticleTags, upsertTags } from './tag-service';
+import {
+  getArticleTagNames,
+  listPopularTags,
+  setArticleTags,
+  upsertTags,
+} from './tag-service';
 
 describe('tag service', () => {
   const ctx = createTestApp();
@@ -22,5 +27,19 @@ describe('tag service', () => {
     expect((await getArticleTagNames(ctx.db, art.id)).sort()).toEqual(['AWS', 'React']);
     await setArticleTags(ctx.db, art.id, ['React', 'Vue']);
     expect((await getArticleTagNames(ctx.db, art.id)).sort()).toEqual(['React', 'Vue']);
+  });
+
+  it('listPopularTags は公開かつ未削除の記事のタグのみ数える', async () => {
+    const pub = await createTestArticle(ctx.db, { status: 'published' });
+    const draft = await createTestArticle(ctx.db, { status: 'draft' });
+    const trashed = await createTestArticle(ctx.db, { status: 'published', deletedAt: new Date() });
+    await setArticleTags(ctx.db, pub.id, ['visible']);
+    await setArticleTags(ctx.db, draft.id, ['draftonly']);
+    await setArticleTags(ctx.db, trashed.id, ['trashedonly']);
+    const popular = await listPopularTags(ctx.db);
+    const names = popular.map((t) => t.name);
+    expect(names).toContain('visible');
+    expect(names).not.toContain('draftonly');
+    expect(names).not.toContain('trashedonly');
   });
 });

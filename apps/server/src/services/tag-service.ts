@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { articles, articleTags, tags } from '../db/schema';
 import type { Db } from '../types';
 
@@ -53,7 +53,7 @@ export async function listPopularTags(
     .from(articleTags)
     .innerJoin(tags, eq(articleTags.tagId, tags.id))
     .innerJoin(articles, eq(articleTags.articleId, articles.id))
-    .where(eq(articles.status, 'published'))
+    .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt)))
     .groupBy(tags.name)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);
