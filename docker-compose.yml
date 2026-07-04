@@ -1,0 +1,24 @@
+services:
+  db:
+    build: ./docker/db
+    environment:
+      POSTGRES_USER: khub
+      POSTGRES_PASSWORD: khub
+      POSTGRES_DB: khub
+    ports:
+      - "5432:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+      - ./docker/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U khub"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+volumes:
+  db-data: {}
