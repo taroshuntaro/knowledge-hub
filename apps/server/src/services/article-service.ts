@@ -82,5 +82,74 @@ export async function updateArticle(
   return row;
 }
 
+async function loadOwned(db: Db, id: string, editor: SessionUser): Promise<ArticleRecord> {
+  const current = await loadEditable(db, id);
+  if (!can(editor, 'article:edit', { authorId: current.authorId })) {
+    throw new AppError('FORBIDDEN', 'この記事を操作する権限がありません', 403);
+  }
+  return current;
+}
+
+export async function publishArticle(db: Db, id: string, editor: SessionUser): Promise<ArticleRecord> {
+  const current = await loadOwned(db, id, editor);
+  if (!current.categoryId) {
+    throw new AppError('VALIDATION', '公開にはカテゴリの指定が必要です', 400);
+  }
+  const [row] = await db
+    .update(articles)
+    .set({ status: 'published', publishedAt: current.publishedAt ?? new Date(), updatedAt: new Date() })
+    .where(eq(articles.id, id))
+    .returning();
+  return row;
+}
+
+export async function unpublishArticle(db: Db, id: string, editor: SessionUser): Promise<ArticleRecord> {
+  await loadOwned(db, id, editor);
+  const [row] = await db
+    .update(articles)
+    .set({ status: 'draft', pinnedAt: null, updatedAt: new Date() })
+    .where(eq(articles.id, id))
+    .returning();
+  return row;
+}
+
+export async function softDeleteArticle(db: Db, id: string, editor: SessionUser): Promise<void> {
+  await loadOwned(db, id, editor);
+  await db.update(articles).set({ deletedAt: new Date(), pinnedAt: null }).where(eq(articles.id, id));
+}
+
+export async function restoreArticle(db: Db, id: string, editor: SessionUser): Promise<void> {
+  const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
+  if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+  if (!can(editor, 'article:edit', { authorId: row.authorId })) {
+    throw new AppError('FORBIDDEN', 'この記事を操作する権限がありません', 403);
+  }
+  await db.update(articles).set({ deletedAt: null }).where(eq(articles.id, id));
+}
+
+export async function purgeArticle(db: Db, id: string, admin: SessionUser): Promise<void> {
+  if (admin.role !== 'admin') throw new AppError('FORBIDDEN', '管理者権限が必要です', 403);
+  await db.delete(articles).where(eq(articles.id, id));
+}
+
+export async function setPinned(
+  db: Db,
+  id: string,
+  admin: SessionUser,
+  pinned: boolean,
+): Promise<ArticleRecord> {
+  if (!can(admin, 'article:pin')) throw new AppError('FORBIDDEN', 'ピン留めには管理者権限が必要です', 403);
+  const current = await loadEditable(db, id);
+  if (pinned && current.status !== 'published') {
+    throw new AppError('VALIDATION', '公開記事のみピン留めできます', 400);
+  }
+  const [row] = await db
+    .update(articles)
+    .set({ pinnedAt: pinned ? new Date() : null })
+    .where(eq(articles.id, id))
+    .returning();
+  return row;
+}
+
 // re-export（read/lifecycle タスクで同ファイルに追記される getArticleTagNames の橋渡し）
 export { getArticleTagNames };
