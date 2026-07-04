@@ -13,4 +13,18 @@ describe('can', () => {
   it('member は user:manage できない', () => {
     expect(can(user('member'), 'user:manage')).toBe(false);
   });
+  it('member は記事を作成できる', () => {
+    expect(can(user('member'), 'article:create')).toBe(true);
+  });
+  it('member は自分の記事のみ編集できる', () => {
+    expect(can(user('member'), 'article:edit', { authorId: '1' })).toBe(true);
+    expect(can(user('member'), 'article:edit', { authorId: '2' })).toBe(false);
+  });
+  it('admin は他人の記事も削除できる', () => {
+    expect(can(user('admin'), 'article:delete', { authorId: '2' })).toBe(true);
+  });
+  it('member はピン留め・カテゴリ管理できない', () => {
+    expect(can(user('member'), 'article:pin')).toBe(false);
+    expect(can(user('member'), 'category:manage')).toBe(false);
+  });
 });
