@@ -1,7 +1,10 @@
-import { boolean, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  boolean, integer, pgEnum, pgTable, text, timestamp, unique, uuid,
+} from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', ['member', 'admin']);
 export const authProviderEnum = pgEnum('auth_provider', ['oidc', 'password']);
+export const articleStatusEnum = pgEnum('article_status', ['draft', 'published']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -42,5 +45,69 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const categories = pgTable('categories', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull(),
+  parentId: uuid('parent_id'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const tags = pgTable('tags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+});
+
+export const articles = pgTable('articles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  authorId: uuid('author_id')
+    .notNull()
+    .references(() => users.id),
+  categoryId: uuid('category_id').references(() => categories.id),
+  title: text('title').notNull(),
+  bodyMd: text('body_md').notNull().default(''),
+  searchText: text('search_text').notNull().default(''),
+  status: articleStatusEnum('status').notNull().default('draft'),
+  pinnedAt: timestamp('pinned_at', { withTimezone: true }),
+  publishedAt: timestamp('published_at', { withTimezone: true }),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  deletedAt: timestamp('deleted_at', { withTimezone: true }),
+});
+
+export const articleTags = pgTable(
+  'article_tags',
+  {
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    tagId: uuid('tag_id')
+      .notNull()
+      .references(() => tags.id, { onDelete: 'cascade' }),
+  },
+  (t) => ({ uq: unique().on(t.articleId, t.tagId) }),
+);
+
+export const articleRevisions = pgTable('article_revisions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  articleId: uuid('article_id')
+    .notNull()
+    .references(() => articles.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  bodyMd: text('body_md').notNull(),
+  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const uploads = pgTable('uploads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  uploaderId: uuid('uploader_id')
+    .notNull()
+    .references(() => users.id),
+  storageKey: text('storage_key').notNull(),
+  mimeType: text('mime_type').notNull(),
+  size: integer('size').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
