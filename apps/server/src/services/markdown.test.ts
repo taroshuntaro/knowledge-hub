@@ -23,4 +23,16 @@ describe('buildSearchText', () => {
     expect(s).toContain('item');
     expect(s).toContain('quote');
   });
+
+  it('識別子内のアンダースコアは保持する（検索語を壊さない）', () => {
+    const s = buildSearchText({ title: 't', bodyMd: 'set API_KEY and my_var_name', tags: [] });
+    expect(s).toContain('API_KEY');
+    expect(s).toContain('my_var_name');
+  });
+
+  it('_強調_ のアンダースコアは除去する', () => {
+    const s = buildSearchText({ title: 't', bodyMd: 'これは _強調_ です', tags: [] });
+    expect(s).toContain('強調');
+    expect(s).not.toContain('_強調_');
+  });
 });
