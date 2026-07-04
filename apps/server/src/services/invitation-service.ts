@@ -44,6 +44,12 @@ export async function acceptInvitation(
   if (!inv || inv.usedAt || inv.expiresAt < new Date()) {
     throw new AppError('INVALID_TOKEN', '招待リンクが無効か、期限切れです', 400);
   }
+  // 同一メールに複数の招待が発行され、別トークンで既に登録済みのケースを
+  // users.email の一意制約違反（500）ではなく明示的なエラーで返す。
+  const existing = await db.query.users.findFirst({ where: eq(users.email, inv.email) });
+  if (existing) {
+    throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
+  }
   const [user] = await db
     .insert(users)
     .values({

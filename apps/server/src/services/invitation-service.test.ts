@@ -1,6 +1,8 @@
+import { randomBytes } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { invitations } from '../db/schema';
 import { createTestUser } from '../test/factories';
+import { hashToken } from './session-service';
 import { createTestApp, resetDb, testConfig } from '../test/helpers';
 import { acceptInvitation, createInvitation } from './invitation-service';
 import { getSessionUser } from './session-service';
@@ -67,5 +69,19 @@ describe('invitation service', () => {
     await expect(
       acceptInvitation(ctx.db, 'bogus-token', { displayName: 'A', password: 'long-enough-password' }),
     ).rejects.toMatchObject({ code: 'INVALID_TOKEN' });
+  });
+
+  it('メールが既に登録済みなら受諾は EMAIL_TAKEN（一意制約違反の500にしない）', async () => {
+    // createInvitation は既存ユーザー宛を弾くため、招待行を直接投入して二重招待を再現する。
+    const token = randomBytes(32).toString('base64url');
+    await ctx.db.insert(invitations).values({
+      email: 'dup@example.com',
+      tokenHash: hashToken(token),
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    await createTestUser(ctx.db, { email: 'dup@example.com' });
+    await expect(
+      acceptInvitation(ctx.db, token, { displayName: 'A', password: 'long-enough-password' }),
+    ).rejects.toMatchObject({ code: 'EMAIL_TAKEN' });
   });
 });
