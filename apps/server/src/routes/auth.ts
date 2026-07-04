@@ -1,4 +1,4 @@
-import { loginSchema } from '@knowledge-hub/shared';
+import { acceptInvitationSchema, loginSchema } from '@knowledge-hub/shared';
 import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { AppError } from '../errors';
@@ -9,6 +9,7 @@ import {
 } from '../middleware/session';
 import { validate } from '../middleware/validate';
 import { loginWithPassword } from '../services/auth-service';
+import { acceptInvitation } from '../services/invitation-service';
 import { RateLimiter } from '../services/rate-limiter';
 import { deleteSession } from '../services/session-service';
 import type { AppEnv } from '../types';
@@ -53,4 +54,17 @@ export const authRoutes = new Hono<AppEnv>()
     clearSessionCookie(c);
     return c.body(null, 204);
   })
-  .get('/me', requireAuth, (c) => c.json(c.get('user')));
+  .get('/me', requireAuth, (c) => c.json(c.get('user')))
+  .post(
+    '/invitations/:token/accept',
+    validate('json', acceptInvitationSchema),
+    async (c) => {
+      const { sid, user } = await acceptInvitation(
+        c.get('db'),
+        c.req.param('token'),
+        c.req.valid('json'),
+      );
+      setSessionCookie(c, sid, c.get('config'));
+      return c.json(user);
+    },
+  );

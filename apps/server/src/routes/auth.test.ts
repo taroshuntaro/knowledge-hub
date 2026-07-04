@@ -97,4 +97,19 @@ describe('auth routes', () => {
     });
     expect(res.status).toBe(403);
   });
+
+  it('招待受諾エンドポイントでユーザー登録できる', async () => {
+    const { createInvitation } = await import('../services/invitation-service');
+    const { testConfig } = await import('../test/helpers');
+    ctx.mailer.sent.length = 0;
+    await createInvitation(ctx.db, ctx.mailer, testConfig(), 'new@example.com');
+    const token = ctx.mailer.sent[0].text.match(/\/invite\/([A-Za-z0-9_-]+)/)![1];
+    const res = await ctx.app.request(`/api/auth/invitations/${token}/accept`, json({
+      displayName: '新人',
+      password: 'long-enough-password',
+    }));
+    expect(res.status).toBe(200);
+    expect((await res.json()).email).toBe('new@example.com');
+    expect(res.headers.get('set-cookie')).toContain('sid=');
+  });
 });
