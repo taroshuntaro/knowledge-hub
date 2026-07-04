@@ -1,4 +1,9 @@
-import { acceptInvitationSchema, loginSchema } from '@knowledge-hub/shared';
+import {
+  acceptInvitationSchema,
+  loginSchema,
+  passwordResetConfirmSchema,
+  passwordResetRequestSchema,
+} from '@knowledge-hub/shared';
 import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import { AppError } from '../errors';
@@ -10,6 +15,10 @@ import {
 import { validate } from '../middleware/validate';
 import { loginWithPassword } from '../services/auth-service';
 import { acceptInvitation } from '../services/invitation-service';
+import {
+  requestPasswordReset,
+  resetPassword,
+} from '../services/password-reset-service';
 import { RateLimiter } from '../services/rate-limiter';
 import { deleteSession } from '../services/session-service';
 import type { AppEnv } from '../types';
@@ -67,4 +76,12 @@ export const authRoutes = new Hono<AppEnv>()
       setSessionCookie(c, sid, c.get('config'));
       return c.json(user);
     },
-  );
+  )
+  .post('/password-reset/request', validate('json', passwordResetRequestSchema), async (c) => {
+    await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), c.req.valid('json').email);
+    return c.body(null, 204);
+  })
+  .post('/password-reset/confirm/:token', validate('json', passwordResetConfirmSchema), async (c) => {
+    await resetPassword(c.get('db'), c.req.param('token'), c.req.valid('json').password);
+    return c.body(null, 204);
+  });
