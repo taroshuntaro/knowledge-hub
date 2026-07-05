@@ -9,7 +9,8 @@ export function HomePage() {
     queryKey: ['pickup'],
     queryFn: async () => {
       const res = await api.api.articles.pickup.$get();
-      return res.ok ? ((await res.json()) as ArticleItem[]) : [];
+      if (!res.ok) throw new Error('failed');
+      return (await res.json()) as ArticleItem[];
     },
   });
   const feed = useInfiniteQuery({
@@ -17,11 +18,14 @@ export function HomePage() {
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const res = await api.api.articles.$get({ query: pageParam ? { cursor: pageParam } : {} });
+      if (!res.ok) throw new Error('failed');
       return res.json();
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = (feed.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
+
+  if (feed.isError || pickup.isError) return <p>読み込みに失敗しました。</p>;
 
   return (
     <div>

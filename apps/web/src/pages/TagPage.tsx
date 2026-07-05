@@ -13,11 +13,13 @@ export function TagPage() {
       const res = await api.api.tags[':name'].articles.$get({
         param: { name }, query: pageParam ? { cursor: pageParam } : {},
       });
+      if (!res.ok) throw new Error('failed');
       return res.json();
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = (q.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
+  if (q.isError) return <p>読み込みに失敗しました。</p>;
   return (
     <section>
       <h2>#{name}</h2>
