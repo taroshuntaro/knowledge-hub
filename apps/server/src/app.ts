@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { errorHandler } from './middleware/error-handler';
 import { originCheck } from './middleware/origin-check';
 import { adminRoutes } from './routes/admin';
+import { articleRoutes } from './routes/articles';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
 import { healthRoutes } from './routes/health';
@@ -25,7 +26,8 @@ export function buildApp(deps: { db: Db; config: Config; mailer: Mailer }) {
     .route('/api/users', userRoutes)
     .route('/api/admin', adminRoutes)
     .route('/api/categories', categoryRoutes)
-    .route('/api/tags', tagRoutes);
+    .route('/api/tags', tagRoutes)
+    .route('/api/articles', articleRoutes);
 }
 
 export type AppType = ReturnType<typeof buildApp>;

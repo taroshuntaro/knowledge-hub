@@ -1,0 +1,57 @@
+import { Hono } from 'hono';
+import { z } from 'zod';
+import { createArticleSchema, listQuerySchema, updateArticleSchema } from '@knowledge-hub/shared';
+import { requireAuth } from '../middleware/session';
+import { validate } from '../middleware/validate';
+import {
+  createArticle, getArticleForViewer, listFeed, listMine, listPickup,
+  publishArticle, purgeArticle, restoreArticle, setPinned, softDeleteArticle,
+  updateArticle, unpublishArticle,
+} from '../services/article-service';
+import type { AppEnv } from '../types';
+
+const mineQuerySchema = listQuerySchema.extend({
+  tab: z.enum(['draft', 'published', 'trash']).default('draft'),
+});
+
+export const articleRoutes = new Hono<AppEnv>()
+  .use(requireAuth)
+  .post('/', validate('json', createArticleSchema), async (c) =>
+    c.json(await createArticle(c.get('db'), c.get('user').id, c.req.valid('json'))),
+  )
+  .get('/', validate('query', listQuerySchema), async (c) =>
+    c.json(await listFeed(c.get('db'), c.req.valid('query'))),
+  )
+  .get('/pickup', async (c) => c.json(await listPickup(c.get('db'))))
+  .get('/mine', validate('query', mineQuerySchema), async (c) => {
+    const { tab, ...page } = c.req.valid('query');
+    return c.json(await listMine(c.get('db'), c.get('user').id, tab, page));
+  })
+  .get('/:id', async (c) => c.json(await getArticleForViewer(c.get('db'), c.req.param('id'), c.get('user'))))
+  .patch('/:id', validate('json', updateArticleSchema), async (c) =>
+    c.json(await updateArticle(c.get('db'), c.req.param('id'), c.get('user'), c.req.valid('json'))),
+  )
+  .post('/:id/publish', async (c) =>
+    c.json(await publishArticle(c.get('db'), c.req.param('id'), c.get('user'))),
+  )
+  .post('/:id/unpublish', async (c) =>
+    c.json(await unpublishArticle(c.get('db'), c.req.param('id'), c.get('user'))),
+  )
+  .delete('/:id', async (c) => {
+    await softDeleteArticle(c.get('db'), c.req.param('id'), c.get('user'));
+    return c.body(null, 204);
+  })
+  .post('/:id/restore', async (c) => {
+    await restoreArticle(c.get('db'), c.req.param('id'), c.get('user'));
+    return c.body(null, 204);
+  })
+  .delete('/:id/purge', async (c) => {
+    await purgeArticle(c.get('db'), c.req.param('id'), c.get('user'));
+    return c.body(null, 204);
+  })
+  .post('/:id/pin', async (c) =>
+    c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), true)),
+  )
+  .post('/:id/unpin', async (c) =>
+    c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), false)),
+  );
