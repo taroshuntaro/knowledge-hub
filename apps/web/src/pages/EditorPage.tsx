@@ -17,6 +17,7 @@ export function EditorPage() {
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -25,14 +26,16 @@ export function EditorPage() {
     if (!routeId) return;
     (async () => {
       const res = await api.api.articles[':id'].$get({ param: { id: routeId } });
-      if (!res.ok) return;
+      if (!res.ok) { setLoadFailed(true); return; }
       const a = await res.json();
       setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
     })();
   }, [routeId]);
 
-  async function save() {
+  // 保存し、成功時は対象記事の id を返す（失敗・タイトル空は null）
+  async function save(): Promise<string | null> {
     setError(null);
+    if (!title.trim()) return null;
     if (id && updatedAt) {
       const res = await api.api.articles[':id'].$patch({
         param: { id }, json: { title, bodyMd, categoryId, tags, expectedUpdatedAt: updatedAt },
@@ -40,15 +43,17 @@ export function EditorPage() {
       if (!res.ok) {
         const b = (await res.json().catch(() => null)) as { message?: string } | null;
         setError(b?.message ?? '保存に失敗しました');
-        return;
+        return null;
       }
       const a = await res.json();
       setUpdatedAt(a.updatedAt); setStatus('保存しました');
+      return id;
     } else {
       const res = await api.api.articles.$post({ json: { title, bodyMd, categoryId, tags } });
-      if (!res.ok) { setError('保存に失敗しました'); return; }
+      if (!res.ok) { setError('保存に失敗しました'); return null; }
       const a = await res.json();
       setId(a.id); setUpdatedAt(a.updatedAt); setStatus('保存しました');
+      return a.id;
     }
   }
 
@@ -63,8 +68,7 @@ export function EditorPage() {
   }, [title, bodyMd, categoryId, tags]);
 
   async function publish() {
-    if (!id) { await save(); }
-    const target = id;
+    const target = id ?? (await save());
     if (!target) return;
     const res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
     if (!res.ok) {
@@ -74,6 +78,10 @@ export function EditorPage() {
     }
     await queryClient.invalidateQueries({ queryKey: ['feed'] });
     navigate(`/articles/${target}`);
+  }
+
+  if (loadFailed) {
+    return <p role="alert" className="form-error">記事の読み込みに失敗しました。</p>;
   }
 
   return (
