@@ -3,7 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import {
-  createArticle, getArticleForViewer, listByCategory, listFeed, publishArticle,
+  createArticle, getArticleForViewer, listByCategory, listFeed, listMine, publishArticle,
 } from './article-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
@@ -61,5 +61,21 @@ describe('article read', () => {
     const p2 = await listFeed(ctx.db, { limit: 2, cursor: p1.nextCursor! });
     expect(p2.items).toHaveLength(1);
     expect(p2.nextCursor).toBeNull();
+  });
+
+  it('listMine はカーソルで続きを取得でき重複しない', async () => {
+    const u = await createTestUser(ctx.db);
+    const c = await createTestCategory(ctx.db);
+    for (let i = 0; i < 3; i++) {
+      await createArticle(ctx.db, u.id, { title: `下書き${i}`, bodyMd: '', categoryId: c.id, tags: [] });
+    }
+    const p1 = await listMine(ctx.db, u.id, 'draft', { limit: 2 });
+    expect(p1.items).toHaveLength(2);
+    expect(p1.nextCursor).not.toBeNull();
+    const p2 = await listMine(ctx.db, u.id, 'draft', { limit: 2, cursor: p1.nextCursor! });
+    expect(p2.items).toHaveLength(1);
+    expect(p2.nextCursor).toBeNull();
+    const allIds = [...p1.items, ...p2.items].map((i) => i.id);
+    expect(new Set(allIds).size).toBe(3);
   });
 });

@@ -179,12 +179,12 @@ const LIST_COLUMNS = {
   updatedAt: articles.updatedAt,
 };
 
-function encodeCursor(item: { publishedAt: Date | null; id: string }): string {
-  return Buffer.from(`${item.publishedAt?.toISOString() ?? ''}|${item.id}`).toString('base64url');
+function encodeCursor(sortKey: Date | null, id: string): string {
+  return Buffer.from(`${sortKey?.toISOString() ?? ''}|${id}`).toString('base64url');
 }
-function decodeCursor(cursor: string): { publishedAt: string; id: string } {
-  const [publishedAt, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { publishedAt, id };
+function decodeCursor(cursor: string): { sortKey: string; id: string } {
+  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
+  return { sortKey, id };
 }
 
 async function pagePublished(
@@ -199,8 +199,8 @@ async function pagePublished(
         (() => {
           const c = decodeCursor(page.cursor!);
           return or(
-            lt(articles.publishedAt, new Date(c.publishedAt)),
-            and(eq(articles.publishedAt, new Date(c.publishedAt)), lt(articles.id, c.id)),
+            lt(articles.publishedAt, new Date(c.sortKey)),
+            and(eq(articles.publishedAt, new Date(c.sortKey)), lt(articles.id, c.id)),
           );
         })(),
       )
@@ -213,7 +213,8 @@ async function pagePublished(
     .orderBy(desc(articles.publishedAt), desc(articles.id))
     .limit(page.limit + 1);
   const items = rows.slice(0, page.limit);
-  const nextCursor = rows.length > page.limit ? encodeCursor(items[items.length - 1]) : null;
+  const last = items[items.length - 1];
+  const nextCursor = rows.length > page.limit ? encodeCursor(last.publishedAt, last.id) : null;
   return { items, nextCursor };
 }
 
@@ -227,7 +228,7 @@ export async function listPickup(db: Db): Promise<ArticleListItem[]> {
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt), sql`${articles.pinnedAt} is not null`))
-    .orderBy(desc(articles.pinnedAt));
+    .orderBy(desc(articles.pinnedAt), desc(articles.id));
 }
 
 export async function listByCategory(db: Db, categoryId: string, page: { cursor?: string; limit: number }) {
@@ -261,15 +262,28 @@ export async function listMine(
     tab === 'trash'
       ? and(eq(articles.authorId, authorId), sql`${articles.deletedAt} is not null`)
       : and(eq(articles.authorId, authorId), isNull(articles.deletedAt), eq(articles.status, tab));
+  const where = page.cursor
+    ? and(
+        filter,
+        (() => {
+          const c = decodeCursor(page.cursor!);
+          return or(
+            lt(articles.updatedAt, new Date(c.sortKey)),
+            and(eq(articles.updatedAt, new Date(c.sortKey)), lt(articles.id, c.id)),
+          );
+        })(),
+      )
+    : filter;
   const rows = await db
     .select(LIST_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
-    .where(filter)
+    .where(where)
     .orderBy(desc(articles.updatedAt), desc(articles.id))
     .limit(page.limit + 1);
   const items = rows.slice(0, page.limit);
-  const nextCursor = rows.length > page.limit ? encodeCursor(items[items.length - 1]) : null;
+  const last = items[items.length - 1];
+  const nextCursor = rows.length > page.limit ? encodeCursor(last.updatedAt, last.id) : null;
   return { items, nextCursor };
 }
 
