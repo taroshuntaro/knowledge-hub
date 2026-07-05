@@ -21,6 +21,10 @@ export function buildApp(deps: { db: Db; config: Config; mailer: Mailer; storage
       c.set('storage', deps.storage);
       await next();
     })
+    .use(async (c, next) => {
+      await next();
+      c.res.headers.set('X-Content-Type-Options', 'nosniff');
+    })
     .use(originCheck)
     .onError(errorHandler)
     .route('/healthz', healthRoutes)
