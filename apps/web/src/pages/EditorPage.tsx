@@ -6,6 +6,10 @@ import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import { CategorySelect } from '../components/CategorySelect';
 import { TagInput } from '../components/TagInput';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { useTheme } from '@/lib/theme';
 
 export function EditorPage() {
   const { id: routeId } = useParams();
@@ -20,6 +24,7 @@ export function EditorPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const theme = useTheme();
 
   // 既存記事の読み込み
   useEffect(() => {
@@ -81,20 +86,31 @@ export function EditorPage() {
   }
 
   if (loadFailed) {
-    return <p role="alert" className="form-error">記事の読み込みに失敗しました。</p>;
+    return <p role="alert" className="text-destructive">記事の読み込みに失敗しました。</p>;
   }
 
   return (
-    <section className="editor">
-      <label>タイトル<input value={title} onChange={(e) => setTitle(e.target.value)} /></label>
-      <label>カテゴリ<CategorySelect value={categoryId} onChange={setCategoryId} /></label>
-      <label>タグ<TagInput value={tags} onChange={setTags} /></label>
-      <CodeMirror value={bodyMd} height="400px" extensions={[markdown()]} onChange={setBodyMd} />
-      {error && <p role="alert" className="form-error">{error}</p>}
-      {status && <p role="status">{status}</p>}
-      <div className="editor-actions">
-        <button type="button" onClick={save}>下書き保存</button>
-        <button type="button" onClick={publish}>公開する</button>
+    <section className="mx-auto flex max-w-3xl flex-col gap-5">
+      <div className="grid gap-1.5">
+        <Label htmlFor="editor-title">タイトル</Label>
+        <Input id="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="editor-category">カテゴリ</Label>
+        <CategorySelect id="editor-category" value={categoryId} onChange={setCategoryId} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor="editor-tags">タグ</Label>
+        <TagInput id="editor-tags" value={tags} onChange={setTags} />
+      </div>
+      <div className="overflow-hidden rounded-lg border">
+        <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
+      </div>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
+      <div className="flex gap-2">
+        <Button type="button" variant="outline" onClick={save}>下書き保存</Button>
+        <Button type="button" onClick={publish}>公開する</Button>
       </div>
     </section>
   );
