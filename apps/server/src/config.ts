@@ -9,6 +9,12 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().default(1025),
   SMTP_FROM: z.string().default('knowledge-hub@example.com'),
   PASSWORD_AUTH_ENABLED: z.enum(['true', 'false']).default('true'),
+  S3_ENDPOINT: z.string().optional(),
+  S3_REGION: z.string().default('us-east-1'),
+  S3_BUCKET: z.string().default('knowledge-hub'),
+  S3_ACCESS_KEY_ID: z.string().default('minioadmin'),
+  S3_SECRET_ACCESS_KEY: z.string().default('minioadmin'),
+  S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('true'),
 });
 
 export type Config = {
@@ -20,6 +26,12 @@ export type Config = {
   smtpPort: number;
   smtpFrom: string;
   passwordAuthEnabled: boolean;
+  s3Endpoint?: string;
+  s3Region: string;
+  s3Bucket: string;
+  s3AccessKeyId: string;
+  s3SecretAccessKey: string;
+  s3ForcePathStyle: boolean;
 };
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
@@ -33,5 +45,11 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     smtpPort: e.SMTP_PORT,
     smtpFrom: e.SMTP_FROM,
     passwordAuthEnabled: e.PASSWORD_AUTH_ENABLED === 'true',
+    s3Endpoint: e.S3_ENDPOINT,
+    s3Region: e.S3_REGION,
+    s3Bucket: e.S3_BUCKET,
+    s3AccessKeyId: e.S3_ACCESS_KEY_ID,
+    s3SecretAccessKey: e.S3_SECRET_ACCESS_KEY,
+    s3ForcePathStyle: e.S3_FORCE_PATH_STYLE === 'true',
   };
 }

@@ -5,7 +5,7 @@ import { inject } from 'vitest';
 import { buildApp } from '../app';
 import type { Config } from '../config';
 import * as schema from '../db/schema';
-import type { Db, Mailer } from '../types';
+import type { Db, Mailer, Storage } from '../types';
 
 export function testConfig(): Config {
   return {
@@ -17,6 +17,11 @@ export function testConfig(): Config {
     smtpPort: 1025,
     smtpFrom: 'test@example.com',
     passwordAuthEnabled: true,
+    s3Region: 'us-east-1',
+    s3Bucket: 'test',
+    s3AccessKeyId: 'test',
+    s3SecretAccessKey: 'test',
+    s3ForcePathStyle: true,
   };
 }
 
@@ -32,12 +37,26 @@ export function createFakeMailer(): Mailer & { sent: SentMail[] } {
   };
 }
 
+export function createFakeStorage(): Storage & { store: Map<string, { body: Buffer; contentType: string }> } {
+  const store = new Map<string, { body: Buffer; contentType: string }>();
+  return {
+    store,
+    async put(key, body, contentType) {
+      store.set(key, { body, contentType });
+    },
+    async get(key) {
+      return store.get(key) ?? null;
+    },
+  };
+}
+
 export function createTestApp() {
   const pool = new pg.Pool({ connectionString: inject('dbUrl') });
   const db: Db = drizzle(pool, { schema });
   const mailer = createFakeMailer();
-  const app = buildApp({ db, config: testConfig(), mailer });
-  return { app, db, pool, mailer };
+  const storage = createFakeStorage();
+  const app = buildApp({ db, config: testConfig(), mailer, storage });
+  return { app, db, pool, mailer, storage };
 }
 
 export async function resetDb(db: Db) {
