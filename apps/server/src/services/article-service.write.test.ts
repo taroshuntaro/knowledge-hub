@@ -2,9 +2,9 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { articleRevisions } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { createTestUser } from '../test/factories';
+import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
-import { createArticle, updateArticle } from './article-service';
+import { createArticle, publishArticle, updateArticle } from './article-service';
 import { getArticleTagNames } from './tag-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
@@ -58,5 +58,29 @@ describe('article write', () => {
         expectedUpdatedAt: new Date(a.updatedAt.getTime() - 1000).toISOString(),
       }),
     ).rejects.toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('公開記事のカテゴリを外そうとすると VALIDATION', async () => {
+    const u = await createTestUser(ctx.db);
+    const cat = await createTestCategory(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: '', categoryId: cat.id, tags: [] });
+    const published = await publishArticle(ctx.db, a.id, asUser(u.id));
+    await expect(
+      updateArticle(ctx.db, a.id, asUser(u.id), {
+        title: 't', bodyMd: '', categoryId: null, tags: [],
+        expectedUpdatedAt: published.updatedAt.toISOString(),
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('下書きはカテゴリなしに更新できる', async () => {
+    const u = await createTestUser(ctx.db);
+    const cat = await createTestCategory(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: '', categoryId: cat.id, tags: [] });
+    const updated = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 't', bodyMd: '', categoryId: null, tags: [],
+      expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    expect(updated.categoryId).toBeNull();
   });
 });

@@ -3,7 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import {
-  createArticle, publishArticle, setPinned, softDeleteArticle, unpublishArticle,
+  createArticle, publishArticle, purgeArticle, setPinned, softDeleteArticle, unpublishArticle,
 } from './article-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
@@ -70,5 +70,26 @@ describe('article lifecycle', () => {
     });
     expect(row?.deletedAt).not.toBeNull();
     expect(row?.pinnedAt).toBeNull();
+  });
+
+  it('ゴミ箱にない記事の完全削除は CONFLICT', async () => {
+    const u = await createTestUser(ctx.db);
+    const admin = await createTestUser(ctx.db, { role: 'admin' });
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: '', tags: [] });
+    await expect(purgeArticle(ctx.db, a.id, asUser(admin.id, 'admin'))).rejects.toMatchObject({
+      code: 'CONFLICT',
+    });
+  });
+
+  it('ゴミ箱の記事は完全削除できる', async () => {
+    const u = await createTestUser(ctx.db);
+    const admin = await createTestUser(ctx.db, { role: 'admin' });
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: '', tags: [] });
+    await softDeleteArticle(ctx.db, a.id, asUser(u.id));
+    await purgeArticle(ctx.db, a.id, asUser(admin.id, 'admin'));
+    const row = await ctx.db.query.articles.findFirst({
+      where: (t, { eq }) => eq(t.id, a.id),
+    });
+    expect(row).toBeUndefined();
   });
 });

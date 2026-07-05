@@ -67,6 +67,9 @@ export async function updateArticle(
   if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
     throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
   }
+  if (current.status === 'published' && !input.categoryId) {
+    throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
+  }
   const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
   const [row] = await db
     .update(articles)
@@ -131,6 +134,11 @@ export async function restoreArticle(db: Db, id: string, editor: SessionUser): P
 
 export async function purgeArticle(db: Db, id: string, admin: SessionUser): Promise<void> {
   if (admin.role !== 'admin') throw new AppError('FORBIDDEN', '管理者権限が必要です', 403);
+  const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
+  if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+  if (!row.deletedAt) {
+    throw new AppError('CONFLICT', 'ゴミ箱にある記事のみ完全削除できます', 409);
+  }
   await db.delete(articles).where(eq(articles.id, id));
 }
 

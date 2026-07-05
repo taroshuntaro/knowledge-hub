@@ -71,9 +71,7 @@ export async function deleteCategory(
     throw new AppError('CATEGORY_NOT_EMPTY', '記事があるため移行先を指定してください', 409);
   }
   await db.transaction(async (tx) => {
-    if (reassignToId) {
-      await tx.update(articles).set({ categoryId: reassignToId }).where(eq(articles.categoryId, id));
-    }
+    await tx.update(articles).set({ categoryId: reassignToId ?? null }).where(eq(articles.categoryId, id));
     await tx.delete(categories).where(eq(categories.id, id));
   });
 }

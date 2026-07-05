@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type { SessionUser } from '@knowledge-hub/shared';
 import { articles } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { createTestArticle, createTestCategory } from '../test/factories';
@@ -8,6 +9,11 @@ import {
   deleteCategory,
   listCategoryTree,
 } from './category-service';
+import { publishArticle, softDeleteArticle } from './article-service';
+
+const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
+  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '',
+});
 
 describe('category service', () => {
   const ctx = createTestApp();
@@ -59,6 +65,15 @@ describe('category service', () => {
   it('子も記事もないカテゴリは reassignToId なしで削除できる', async () => {
     const cat = await createTestCategory(ctx.db, { name: '空カテゴリ' });
     await deleteCategory(ctx.db, cat.id);
+    expect(await listCategoryTree(ctx.db)).toHaveLength(0);
+  });
+
+  it('ゴミ箱の記事のみ残るカテゴリは reassignToId なしで削除できる', async () => {
+    const cat = await createTestCategory(ctx.db, { name: 'ゴミ箱カテゴリ' });
+    const art = await createTestArticle(ctx.db, { categoryId: cat.id });
+    await publishArticle(ctx.db, art.id, asUser(art.authorId));
+    await softDeleteArticle(ctx.db, art.id, asUser(art.authorId));
+    await expect(deleteCategory(ctx.db, cat.id)).resolves.not.toThrow();
     expect(await listCategoryTree(ctx.db)).toHaveLength(0);
   });
 });
