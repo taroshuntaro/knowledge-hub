@@ -1,11 +1,27 @@
 import type { SessionUser } from '@knowledge-hub/shared';
 
-// フェーズ2以降: 'article:edit' | 'article:delete' 等を追加し、resource 引数を導入する
-export type Action = 'user:manage';
+export type Action =
+  | 'user:manage'
+  | 'article:create'
+  | 'article:edit'
+  | 'article:delete'
+  | 'article:pin'
+  | 'category:manage';
 
-export function can(user: SessionUser, action: Action): boolean {
+export function can(
+  user: SessionUser,
+  action: Action,
+  resource?: { authorId?: string },
+): boolean {
   switch (action) {
     case 'user:manage':
+    case 'article:pin':
+    case 'category:manage':
       return user.role === 'admin';
+    case 'article:create':
+      return true;
+    case 'article:edit':
+    case 'article:delete':
+      return user.role === 'admin' || resource?.authorId === user.id;
   }
 }
