@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:contrast": "node scripts/check-contrast.mjs"
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.3.1",
@@ -38,6 +39,7 @@
     "@types/react": "^19.0.4",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.4.0",
+    "culori": "^4.0.2",
     "jsdom": "^25.0.1",
     "typescript": "^5.7.2",
     "vite": "^7.0.0",

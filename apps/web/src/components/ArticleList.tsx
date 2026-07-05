@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { EmptyState } from '@/components/EmptyState';
 import { ArticleCard, type ArticleItem } from './ArticleCard';
 
 export function ArticleList({
@@ -8,11 +10,13 @@ export function ArticleList({
   onLoadMore: () => void;
   emptyText?: string;
 }) {
-  if (items.length === 0) return <p>{emptyText}</p>;
+  if (items.length === 0) return <EmptyState message={emptyText} />;
   return (
-    <div className="article-list">
+    <div className="flex flex-col gap-3">
       {items.map((it) => <ArticleCard key={it.id} item={it} />)}
-      {hasMore && <button type="button" onClick={onLoadMore}>もっと見る</button>}
+      {hasMore && (
+        <Button type="button" variant="outline" className="self-center" onClick={onLoadMore}>もっと見る</Button>
+      )}
     </div>
   );
 }
