@@ -14,7 +14,11 @@
     "hono": "^4.6.16",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router": "^7.1.1"
+    "react-markdown": "^9.0.1",
+    "react-router": "^7.1.1",
+    "rehype-raw": "^7.0.0",
+    "rehype-sanitize": "^6.0.0",
+    "remark-gfm": "^4.0.0"
   },
   "devDependencies": {
     "@knowledge-hub/server": "workspace:*",

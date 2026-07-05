@@ -2,6 +2,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
 import { AdminUsersPage } from './pages/AdminUsersPage';
+import { ArticleDetailPage } from './pages/ArticleDetailPage';
 import { HomePage } from './pages/HomePage';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
@@ -24,6 +25,7 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/admin', element: <AdminUsersPage /> },
+      { path: '/articles/:id', element: <ArticleDetailPage /> },
     ],
   },
 ]);
