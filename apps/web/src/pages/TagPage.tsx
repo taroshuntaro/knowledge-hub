@@ -19,10 +19,10 @@ export function TagPage() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = (q.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
-  if (q.isError) return <p>読み込みに失敗しました。</p>;
+  if (q.isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
   return (
     <section>
-      <h2>#{name}</h2>
+      <h2 className="mb-4 text-xl font-bold tracking-tight">#{name}</h2>
       <ArticleList items={items} hasMore={!!q.hasNextPage} onLoadMore={() => q.fetchNextPage()} />
     </section>
   );
