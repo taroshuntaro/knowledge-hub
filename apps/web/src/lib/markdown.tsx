@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 
 export function Markdown({ source }: { source: string }) {
   return (
-    <div className="markdown-body">
+    <div className="prose max-w-none">
       <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw, rehypeSanitize]}>
         {source}
       </ReactMarkdown>

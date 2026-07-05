@@ -5,6 +5,10 @@ import { api } from '../api/client';
 import { useArticle } from '../api/articles';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import { Separator } from '../components/ui/separator';
+import { Loading } from '../components/Loading';
 
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -19,9 +23,9 @@ export function ArticleDetailPage() {
   const navigate = useNavigate();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  if (isLoading) return <p>読み込み中…</p>;
-  if (isError) return <p>読み込みに失敗しました。</p>;
-  if (!article) return <p>記事が見つかりません。</p>;
+  if (isLoading) return <Loading />;
+  if (isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
+  if (!article) return <p className="text-muted-foreground">記事が見つかりません。</p>;
 
   const canEdit = me && (me.role === 'admin' || me.id === article.authorId);
   const canPin = me?.role === 'admin' && article.status === 'published';
@@ -47,24 +51,35 @@ export function ArticleDetailPage() {
   }
 
   return (
-    <article>
-      {article.status === 'draft' && <p className="badge">下書き</p>}
-      {article.deletedAt && <p className="badge">削除済み</p>}
-      <h1>{article.title}</h1>
-      <p className="meta">
+    <article className="mx-auto max-w-[42rem]">
+      <div className="flex gap-2">
+        {article.status === 'draft' && <Badge variant="secondary">下書き</Badge>}
+        {article.deletedAt && <Badge variant="outline">削除済み</Badge>}
+      </div>
+      <h1 className="mt-3 text-3xl font-bold leading-snug tracking-tight">{article.title}</h1>
+      <p className="mt-3 text-sm text-muted-foreground">
         {article.authorName}
         {article.tags.length > 0 && (
-          <span> ・ {article.tags.map((t) => <Link key={t} to={`/tags/${encodeURIComponent(t)}`}>#{t}</Link>)}</span>
+          <span className="ml-2 inline-flex flex-wrap gap-1.5">
+            {article.tags.map((t) => (
+              <Link key={t} to={`/tags/${encodeURIComponent(t)}`} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
+                #{t}
+              </Link>
+            ))}
+          </span>
         )}
       </p>
-      {canEdit && <Link to={`/articles/${id}/edit`}>編集</Link>}
-      {canPin && <button type="button" onClick={togglePin}>{article.pinnedAt ? 'ピン解除' : 'ピン留め'}</button>}
-      {canEdit && (
-        <button type="button" onClick={moveToTrash}>
-          ゴミ箱へ
-        </button>
-      )}
-      {actionError && <p role="status">{actionError}</p>}
+      <div className="mt-4 flex items-center gap-2">
+        {canEdit && (
+          <Button asChild variant="outline" size="sm">
+            <Link to={`/articles/${id}/edit`}>編集</Link>
+          </Button>
+        )}
+        {canPin && <Button type="button" variant="outline" size="sm" onClick={togglePin}>{article.pinnedAt ? 'ピン解除' : 'ピン留め'}</Button>}
+        {canEdit && <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={moveToTrash}>ゴミ箱へ</Button>}
+      </div>
+      {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}
+      <Separator className="my-6" />
       <Markdown source={article.bodyMd} />
     </article>
   );

@@ -25,13 +25,19 @@ export function MyArticlesPage() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
   const items = (q.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
-  if (q.isError) return <p>読み込みに失敗しました。</p>;
+  if (q.isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
   return (
     <section>
-      <h2>マイ記事</h2>
-      <nav className="tabs">
+      <h2 className="mb-4 text-xl font-bold tracking-tight">マイ記事</h2>
+      <nav className="mb-4 inline-flex rounded-lg bg-muted p-1" aria-label="記事の絞り込み">
         {TABS.map((t) => (
-          <button key={t.key} type="button" aria-pressed={tab === t.key} onClick={() => setTab(t.key)}>
+          <button
+            key={t.key}
+            type="button"
+            aria-pressed={tab === t.key}
+            onClick={() => setTab(t.key)}
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+          >
             {t.label}
           </button>
         ))}

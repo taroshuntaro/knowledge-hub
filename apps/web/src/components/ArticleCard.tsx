@@ -7,10 +7,12 @@ export type ArticleItem = {
 
 export function ArticleCard({ item }: { item: ArticleItem }) {
   return (
-    <article className="article-card">
-      <h3><Link to={`/articles/${item.id}`}>{item.title}</Link></h3>
-      <p className="excerpt">{item.excerpt}</p>
-      <p className="meta">{item.authorName}</p>
+    <article className="group rounded-xl border bg-card p-5 text-card-foreground transition-colors hover:border-ring/40">
+      <h3 className="text-lg font-semibold leading-snug">
+        <Link to={`/articles/${item.id}`} className="hover:underline">{item.title}</Link>
+      </h3>
+      {item.excerpt && <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.excerpt}</p>}
+      <p className="mt-3 text-xs text-muted-foreground">{item.authorName}</p>
     </article>
   );
 }

@@ -2,6 +2,8 @@ import { Link, Outlet, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
+import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function Layout() {
   const { data: me } = useMe();
@@ -15,20 +17,24 @@ export function Layout() {
   }
 
   return (
-    <div className="layout">
-      <header className="header">
-        <Link to="/" className="brand">knowledge-hub</Link>
-        <nav>
-          <Link to="/articles/new">記事を書く</Link>
-          <Link to="/me/articles">マイ記事</Link>
-          {me?.role === 'admin' && <Link to="/admin/categories">カテゴリ</Link>}
-          {me?.role === 'admin' && <Link to="/admin">管理</Link>}
-          <Link to="/settings">設定</Link>
-          <span className="me">{me?.displayName}</span>
-          <button type="button" onClick={onLogout}>ログアウト</button>
-        </nav>
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+        {/* h-14 固定だと 375px で nav の折返しがはみ出すため min-h-14 にしている */}
+        <div className="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 px-4 py-2">
+          <Link to="/" className="text-lg font-bold tracking-tight">knowledge-hub</Link>
+          <nav className="flex flex-wrap items-center gap-1 text-sm">
+            <Link to="/articles/new" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">記事を書く</Link>
+            <Link to="/me/articles" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">マイ記事</Link>
+            {me?.role === 'admin' && <Link to="/admin/categories" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">カテゴリ</Link>}
+            {me?.role === 'admin' && <Link to="/admin" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">管理</Link>}
+            <Link to="/settings" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">設定</Link>
+            <span className="hidden px-2 text-muted-foreground sm:inline">{me?.displayName}</span>
+            <ThemeToggle />
+            <Button type="button" variant="outline" size="sm" onClick={onLogout}>ログアウト</Button>
+          </nav>
+        </div>
       </header>
-      <main className="content">
+      <main className="mx-auto max-w-5xl px-4 py-8">
         <Outlet />
       </main>
     </div>

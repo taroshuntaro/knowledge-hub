@@ -1,0 +1,122 @@
+@import 'tailwindcss';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * デザイントークン（Phase 2b-1 で確定）
+ * 方向性: エディトリアル基調（紙面のような地 + ウォームな墨色のインク）に、
+ * テラコッタを 1 アクセント。彩度はごく低く抑え、温かみは「気配」に留める。
+ * 全 fg/bg ペアは scripts/check-contrast.mjs で WCAG AA (4.5:1) を機械検証している。
+ */
+:root {
+  /* 地: ほんのり温かい紙色。カードはわずかに白く浮かせて「机上の紙」に見せる */
+  --background: oklch(0.982 0.005 84);
+  --foreground: oklch(0.25 0.015 55);
+  --card: oklch(0.995 0.003 84);
+  --card-foreground: oklch(0.25 0.015 55);
+  --popover: oklch(0.995 0.003 84);
+  --popover-foreground: oklch(0.25 0.015 55);
+  /* primary は濃い焦茶がかったインク。ボタン・リンクは色でなく濃度で立たせる */
+  --primary: oklch(0.31 0.03 45);
+  --primary-foreground: oklch(0.985 0.005 84);
+  --secondary: oklch(0.945 0.008 80);
+  --secondary-foreground: oklch(0.3 0.02 55);
+  --muted: oklch(0.945 0.008 80);
+  --muted-foreground: oklch(0.5 0.02 55);
+  /* accent はテラコッタの淡い地 + 深いテラコッタ文字。ピン留め等の少量演出に使う */
+  --accent: oklch(0.924 0.045 45);
+  --accent-foreground: oklch(0.43 0.11 40);
+  /* destructive は白文字で AA (4.5) を満たすよう red-700 相当まで深くしている */
+  --destructive: oklch(0.505 0.213 27.518);
+  --destructive-foreground: oklch(0.985 0.005 84);
+  --border: oklch(0.902 0.012 75);
+  --input: oklch(0.902 0.012 75);
+  /* ring はテラコッタ。フォーカスとカード hover にだけ温かみが差す */
+  --ring: oklch(0.56 0.115 42);
+  --radius: 0.625rem;
+}
+
+.dark {
+  /* 灯りを落とした書斎のイメージ。黒でなくウォームチャコール */
+  --background: oklch(0.19 0.012 55);
+  --foreground: oklch(0.93 0.008 80);
+  --card: oklch(0.235 0.012 55);
+  --card-foreground: oklch(0.93 0.008 80);
+  --popover: oklch(0.235 0.012 55);
+  --popover-foreground: oklch(0.93 0.008 80);
+  --primary: oklch(0.92 0.012 80);
+  --primary-foreground: oklch(0.235 0.015 55);
+  --secondary: oklch(0.28 0.012 55);
+  --secondary-foreground: oklch(0.93 0.008 80);
+  --muted: oklch(0.27 0.012 55);
+  --muted-foreground: oklch(0.74 0.015 70);
+  /* ダークではテラコッタを土色の地 + アプリコットの文字に反転 */
+  --accent: oklch(0.3 0.045 40);
+  --accent-foreground: oklch(0.87 0.06 55);
+  /* destructive はエラー本文としても背景/カード上で AA を満たす明るさまで持ち上げ、
+     destructive-foreground は暗色反転（ダーク背景トークン相当）にして塗り上の文字も AA を維持する */
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.19 0.012 55);
+  --border: oklch(0.93 0.01 70 / 12%);
+  --input: oklch(0.93 0.01 70 / 16%);
+  --ring: oklch(0.68 0.09 48);
+}
+
+@theme inline {
+  --font-sans: 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', 'Noto Sans JP', system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+}
+
+/* 記事本文（prose）をトークンに連動させる。.dark でも変数が切り替わるので prose-invert 不要 */
+.prose {
+  --tw-prose-body: var(--foreground);
+  --tw-prose-headings: var(--foreground);
+  --tw-prose-lead: var(--muted-foreground);
+  --tw-prose-links: var(--primary);
+  --tw-prose-bold: var(--foreground);
+  --tw-prose-counters: var(--muted-foreground);
+  --tw-prose-bullets: var(--muted-foreground);
+  --tw-prose-hr: var(--border);
+  --tw-prose-quotes: var(--foreground);
+  --tw-prose-quote-borders: var(--border);
+  --tw-prose-captions: var(--muted-foreground);
+  --tw-prose-code: var(--foreground);
+  --tw-prose-pre-code: var(--card-foreground);
+  --tw-prose-pre-bg: var(--card);
+  --tw-prose-th-borders: var(--border);
+  --tw-prose-td-borders: var(--border);
+}
