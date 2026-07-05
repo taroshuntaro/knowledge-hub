@@ -1,6 +1,8 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { articleRevisions, articles } from '../db/schema';
+import {
+  articleRevisions, articles, articleTags, categories, tags, users,
+} from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { buildSearchText } from './markdown';
@@ -149,6 +151,154 @@ export async function setPinned(
     .where(eq(articles.id, id))
     .returning();
   return row;
+}
+
+export type ArticleListItem = {
+  id: string;
+  title: string;
+  excerpt: string;
+  authorId: string;
+  authorName: string;
+  categoryId: string | null;
+  pinnedAt: Date | null;
+  publishedAt: Date | null;
+  updatedAt: Date;
+};
+export type Page<T> = { items: T[]; nextCursor: string | null };
+export type ArticleDetail = ArticleRecord & { authorName: string; tags: string[] };
+
+const LIST_COLUMNS = {
+  id: articles.id,
+  title: articles.title,
+  excerpt: sql<string>`left(${articles.searchText}, 160)`,
+  authorId: articles.authorId,
+  authorName: users.displayName,
+  categoryId: articles.categoryId,
+  pinnedAt: articles.pinnedAt,
+  publishedAt: articles.publishedAt,
+  updatedAt: articles.updatedAt,
+};
+
+function encodeCursor(item: { publishedAt: Date | null; id: string }): string {
+  return Buffer.from(`${item.publishedAt?.toISOString() ?? ''}|${item.id}`).toString('base64url');
+}
+function decodeCursor(cursor: string): { publishedAt: string; id: string } {
+  const [publishedAt, id] = Buffer.from(cursor, 'base64url').toString().split('|');
+  return { publishedAt, id };
+}
+
+async function pagePublished(
+  db: Db,
+  extraWhere: ReturnType<typeof and>,
+  page: { cursor?: string; limit: number },
+): Promise<Page<ArticleListItem>> {
+  const base = and(eq(articles.status, 'published'), isNull(articles.deletedAt), extraWhere);
+  const where = page.cursor
+    ? and(
+        base,
+        (() => {
+          const c = decodeCursor(page.cursor!);
+          return or(
+            lt(articles.publishedAt, new Date(c.publishedAt)),
+            and(eq(articles.publishedAt, new Date(c.publishedAt)), lt(articles.id, c.id)),
+          );
+        })(),
+      )
+    : base;
+  const rows = await db
+    .select(LIST_COLUMNS)
+    .from(articles)
+    .innerJoin(users, eq(articles.authorId, users.id))
+    .where(where)
+    .orderBy(desc(articles.publishedAt), desc(articles.id))
+    .limit(page.limit + 1);
+  const items = rows.slice(0, page.limit);
+  const nextCursor = rows.length > page.limit ? encodeCursor(items[items.length - 1]) : null;
+  return { items, nextCursor };
+}
+
+export function listFeed(db: Db, page: { cursor?: string; limit: number }) {
+  return pagePublished(db, undefined, page);
+}
+
+export async function listPickup(db: Db): Promise<ArticleListItem[]> {
+  return db
+    .select(LIST_COLUMNS)
+    .from(articles)
+    .innerJoin(users, eq(articles.authorId, users.id))
+    .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt), sql`${articles.pinnedAt} is not null`))
+    .orderBy(desc(articles.pinnedAt));
+}
+
+export async function listByCategory(db: Db, categoryId: string, page: { cursor?: string; limit: number }) {
+  const children = await db.select({ id: categories.id }).from(categories).where(eq(categories.parentId, categoryId));
+  const ids = [categoryId, ...children.map((c) => c.id)];
+  return pagePublished(db, inArray(articles.categoryId, ids), page);
+}
+
+export async function listByTag(db: Db, tagName: string, page: { cursor?: string; limit: number }) {
+  const ids = await db
+    .select({ articleId: articleTags.articleId })
+    .from(articleTags)
+    .innerJoin(tags, eq(articleTags.tagId, tags.id))
+    .where(eq(tags.name, tagName));
+  const articleIds = ids.map((r) => r.articleId);
+  if (articleIds.length === 0) return { items: [], nextCursor: null };
+  return pagePublished(db, inArray(articles.id, articleIds), page);
+}
+
+export function listByAuthor(db: Db, authorId: string, page: { cursor?: string; limit: number }) {
+  return pagePublished(db, eq(articles.authorId, authorId), page);
+}
+
+export async function listMine(
+  db: Db,
+  authorId: string,
+  tab: 'draft' | 'published' | 'trash',
+  page: { cursor?: string; limit: number },
+): Promise<Page<ArticleListItem>> {
+  const filter =
+    tab === 'trash'
+      ? and(eq(articles.authorId, authorId), sql`${articles.deletedAt} is not null`)
+      : and(eq(articles.authorId, authorId), isNull(articles.deletedAt), eq(articles.status, tab));
+  const rows = await db
+    .select(LIST_COLUMNS)
+    .from(articles)
+    .innerJoin(users, eq(articles.authorId, users.id))
+    .where(filter)
+    .orderBy(desc(articles.updatedAt), desc(articles.id))
+    .limit(page.limit + 1);
+  const items = rows.slice(0, page.limit);
+  const nextCursor = rows.length > page.limit ? encodeCursor(items[items.length - 1]) : null;
+  return { items, nextCursor };
+}
+
+export async function getArticleForViewer(
+  db: Db,
+  id: string,
+  viewer: SessionUser,
+): Promise<ArticleDetail> {
+  const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
+  if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+  const isOwnerOrAdmin = viewer.role === 'admin' || viewer.id === row.authorId;
+  const visible = row.status === 'published' && !row.deletedAt;
+  if (!visible && !isOwnerOrAdmin) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+  const [author] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, row.authorId));
+  const tagNames = await getArticleTagNames(db, id);
+  return { ...row, authorName: author?.name ?? '', tags: tagNames };
+}
+
+export async function listRevisions(db: Db, id: string, editor: SessionUser) {
+  const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
+  if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+  if (!can(editor, 'article:edit', { authorId: row.authorId })) {
+    throw new AppError('FORBIDDEN', '権限がありません', 403);
+  }
+  return db
+    .select({ id: articleRevisions.id, title: articleRevisions.title, savedAt: articleRevisions.savedAt })
+    .from(articleRevisions)
+    .where(eq(articleRevisions.articleId, id))
+    .orderBy(desc(articleRevisions.savedAt));
 }
 
 // re-export（read/lifecycle タスクで同ファイルに追記される getArticleTagNames の橋渡し）
