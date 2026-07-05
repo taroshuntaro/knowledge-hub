@@ -1,6 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
+import { AuthShell } from '@/components/AuthShell';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export function PasswordResetConfirmPage() {
   const { token } = useParams<{ token: string }>();
@@ -24,16 +28,15 @@ export function PasswordResetConfirmPage() {
   }
 
   return (
-    <main className="auth-page">
-      <form onSubmit={onSubmit} className="auth-form">
-        <h1>新しいパスワード</h1>
-        <label>
-          パスワード（12文字以上）
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
-        </label>
-        {error && <p role="alert" className="form-error">{error}</p>}
-        <button type="submit">パスワードを設定</button>
+    <AuthShell title="新しいパスワード">
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <div className="grid gap-1.5">
+          <Label htmlFor="new-password">パスワード（12文字以上）</Label>
+          <Input id="new-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={12} />
+        </div>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+        <Button type="submit">パスワードを設定</Button>
       </form>
-    </main>
+    </AuthShell>
   );
 }
