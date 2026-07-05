@@ -19,6 +19,9 @@ export function Layout() {
       <header className="header">
         <Link to="/" className="brand">knowledge-hub</Link>
         <nav>
+          <Link to="/articles/new">記事を書く</Link>
+          <Link to="/me/articles">マイ記事</Link>
+          {me?.role === 'admin' && <Link to="/admin/categories">カテゴリ</Link>}
           {me?.role === 'admin' && <Link to="/admin">管理</Link>}
           <Link to="/settings">設定</Link>
           <span className="me">{me?.displayName}</span>

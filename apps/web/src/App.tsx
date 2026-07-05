@@ -1,9 +1,11 @@
 import { createBrowserRouter, RouterProvider } from 'react-router';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
+import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ArticleDetailPage } from './pages/ArticleDetailPage';
 import { CategoryPage } from './pages/CategoryPage';
+import { EditorPage } from './pages/EditorPage';
 import { HomePage } from './pages/HomePage';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
@@ -28,10 +30,13 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/admin', element: <AdminUsersPage /> },
+      { path: '/articles/new', element: <EditorPage /> },
+      { path: '/articles/:id/edit', element: <EditorPage /> },
       { path: '/articles/:id', element: <ArticleDetailPage /> },
       { path: '/categories/:id', element: <CategoryPage /> },
       { path: '/tags/:name', element: <TagPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
+      { path: '/admin/categories', element: <AdminCategoriesPage /> },
     ],
   },
 ]);

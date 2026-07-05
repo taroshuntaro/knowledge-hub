@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@codemirror/lang-markdown": "^6.3.1",
     "@knowledge-hub/shared": "workspace:*",
     "@tanstack/react-query": "^5.64.1",
     "hono": "^4.6.16",
@@ -18,7 +19,8 @@
     "react-router": "^7.1.1",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
-    "remark-gfm": "^4.0.0"
+    "remark-gfm": "^4.0.0",
+    "@uiw/react-codemirror": "^4.23.6"
   },
   "devDependencies": {
     "@knowledge-hub/server": "workspace:*",
