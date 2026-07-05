@@ -24,6 +24,9 @@ const pairs = [
   ['secondary-foreground', 'secondary', 4.5],
   ['accent-foreground', 'accent', 4.5],
   ['destructive-foreground', 'destructive', 4.5],
+  ['destructive', 'background', 4.5],
+  ['destructive', 'card', 4.5],
+  ['primary', 'background', 4.5],
 ];
 
 let failed = false;

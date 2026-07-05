@@ -54,9 +54,10 @@
   /* ダークではテラコッタを土色の地 + アプリコットの文字に反転 */
   --accent: oklch(0.3 0.045 40);
   --accent-foreground: oklch(0.87 0.06 55);
-  /* ダーク側も白文字で AA を満たす深さを維持する */
-  --destructive: oklch(0.505 0.213 27.518);
-  --destructive-foreground: oklch(0.985 0.005 84);
+  /* destructive はエラー本文としても背景/カード上で AA を満たす明るさまで持ち上げ、
+     destructive-foreground は暗色反転（ダーク背景トークン相当）にして塗り上の文字も AA を維持する */
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: oklch(0.19 0.012 55);
   --border: oklch(0.93 0.01 70 / 12%);
   --input: oklch(0.93 0.01 70 / 16%);
   --ring: oklch(0.68 0.09 48);
