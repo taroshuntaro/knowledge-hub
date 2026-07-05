@@ -31,7 +31,7 @@ docs/            設計書・実装計画
 ```bash
 pnpm install
 cp .env.example apps/server/.env                # server は apps/server/.env を読む。値は必要に応じて調整
-docker compose up -d                            # PostgreSQL + Mailpit
+docker compose up -d                            # PostgreSQL + Mailpit + MinIO（画像バケットは自動作成）
 pnpm --filter @knowledge-hub/server db:migrate  # マイグレーション適用
 pnpm --filter @knowledge-hub/server seed:admin  # 初期 admin 作成
 
