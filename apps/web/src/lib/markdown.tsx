@@ -14,7 +14,7 @@ const schema = {
     ...defaultSchema.attributes,
     // フェンスの言語クラスを明示的に許可（defaultSchema の内容に依存しない）
     code: [...(defaultSchema.attributes?.code ?? []), ['className', /^language-./]],
-    input: [['type', 'checkbox'], 'checked', 'disabled'],
+    input: [['type', 'checkbox'], 'checked', ['disabled', true]],
   },
 };
 
