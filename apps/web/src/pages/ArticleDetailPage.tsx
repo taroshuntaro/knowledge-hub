@@ -11,6 +11,7 @@ import { Separator } from '../components/ui/separator';
 import { Loading } from '../components/Loading';
 import { CommentSection } from '../components/CommentSection';
 import { ReactionBar } from '../components/ReactionBar';
+import { BookmarkButton } from '../components/BookmarkButton';
 
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -72,6 +73,7 @@ export function ArticleDetailPage() {
         )}
       </p>
       <div className="mt-4 flex items-center gap-2">
+        <BookmarkButton articleId={article.id} />
         {canEdit && (
           <Button asChild variant="outline" size="sm">
             <Link to={`/articles/${id}/edit`}>編集</Link>

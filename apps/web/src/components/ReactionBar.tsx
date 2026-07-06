@@ -1,14 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { REACTION_EMOJIS, type ReactionEmoji } from '@knowledge-hub/shared';
+import { REACTION_EMOJIS, type ArticleEngagement, type ReactionEmoji } from '@knowledge-hub/shared';
 import { api } from '../api/client';
 import { cn } from '@/lib/utils';
-
-type Engagement = {
-  reactions: Record<string, number>;
-  myReactions: string[];
-  bookmarked: boolean;
-  commentCount: number;
-};
 
 type ReactionVars = { emoji: ReactionEmoji; adding: boolean };
 
@@ -21,7 +14,7 @@ export function ReactionBar({ articleId }: { articleId: string }) {
     queryFn: async () => {
       const res = await api.api.articles[':id'].engagement.$get({ param: { id: articleId } });
       if (!res.ok) throw new Error('failed');
-      return (await res.json()) as Engagement;
+      return (await res.json()) as ArticleEngagement;
     },
   });
 
@@ -43,8 +36,8 @@ export function ReactionBar({ articleId }: { articleId: string }) {
     },
     onMutate: async ({ emoji, adding }: ReactionVars) => {
       await queryClient.cancelQueries({ queryKey });
-      const previous = queryClient.getQueryData<Engagement>(queryKey);
-      queryClient.setQueryData<Engagement>(queryKey, (old) => {
+      const previous = queryClient.getQueryData<ArticleEngagement>(queryKey);
+      queryClient.setQueryData<ArticleEngagement>(queryKey, (old) => {
         if (!old) return old;
         const nextCount = Math.max(0, (old.reactions[emoji] ?? 0) + (adding ? 1 : -1));
         const myReactions = adding

@@ -8,3 +8,10 @@ export type SessionUser = {
   avatarUrl: string | null;
   bio: string;
 };
+
+export type ArticleEngagement = {
+  reactions: Record<string, number>;
+  myReactions: string[];
+  bookmarked: boolean;
+  commentCount: number;
+};
