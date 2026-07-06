@@ -120,6 +120,66 @@ describe('SettingsPage アバターアップロード', () => {
     );
   });
 
+  it('プレビュー選択後に me が同じ avatarUrl で再フェッチされてもプレビューは失われない', async () => {
+    const originalAvatarUrl = '/api/uploads/33333333-3333-3333-3333-333333333333';
+    getMeMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'u1',
+        email: 'user@example.com',
+        displayName: '太郎',
+        role: 'member',
+        avatarUrl: originalAvatarUrl,
+        bio: '',
+      }),
+    });
+    uploadImageMock.mockResolvedValue({ url: '/api/uploads/44444444-4444-4444-4444-444444444444' });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <SettingsPage />
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => expect(document.querySelector('img')).toHaveAttribute('src', originalAvatarUrl));
+
+    const file = new File(['(binary)'], 'avatar.png', { type: 'image/png' });
+    const input = document.querySelector('#settings-avatar') as HTMLInputElement;
+    await userEvent.upload(input, file);
+
+    await waitFor(() =>
+      expect(document.querySelector('img')).toHaveAttribute(
+        'src',
+        '/api/uploads/44444444-4444-4444-4444-444444444444',
+      ),
+    );
+
+    // バックグラウンドで me が再フェッチされる（同じ avatarUrl だが新しいオブジェクト参照）
+    getMeMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'u1',
+        email: 'user@example.com',
+        displayName: '太郎',
+        role: 'member',
+        avatarUrl: originalAvatarUrl,
+        bio: '',
+      }),
+    });
+    await queryClient.refetchQueries({ queryKey: ['me'] });
+
+    // 選択したプレビューが元の avatarUrl に巻き戻されていないこと
+    await waitFor(() =>
+      expect(document.querySelector('img')).toHaveAttribute(
+        'src',
+        '/api/uploads/44444444-4444-4444-4444-444444444444',
+      ),
+    );
+  });
+
   it('アップロード失敗時は profileMsg にエラーメッセージを表示する', async () => {
     uploadImageMock.mockRejectedValue(new Error('画像のアップロードに失敗しました（テスト）'));
     renderPage();

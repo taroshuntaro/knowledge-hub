@@ -41,7 +41,7 @@ export function SearchPage() {
   }
 
   const query = useInfiniteQuery({
-    queryKey: ['search', q, categoryId, tag],
+    queryKey: ['search', q, categoryId, tag, authorId],
     initialPageParam: undefined as string | undefined,
     enabled: q.length > 0,
     queryFn: async ({ pageParam }) => {

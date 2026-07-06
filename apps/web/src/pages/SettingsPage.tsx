@@ -23,7 +23,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (me) setAvatarUrl(me.avatarUrl ?? null);
-  }, [me]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.avatarUrl]);
 
   async function onSelectAvatar(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
