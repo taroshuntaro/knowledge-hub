@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useTheme } from '@/lib/theme';
 import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
+import { Markdown } from '@/lib/markdown';
 
 type EditorMode = 'rich' | 'source';
 
@@ -180,8 +181,13 @@ export function EditorPage() {
       {mode === 'rich' ? (
         <RichEditor key={richKey} initialMarkdown={bodyMd} onChangeMarkdown={setBodyMd} />
       ) : (
-        <div className="overflow-hidden rounded-lg border">
-          <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="overflow-hidden rounded-lg border">
+            <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
+          </div>
+          <div className="max-h-[480px] overflow-y-auto rounded-lg border bg-card px-4 py-3" aria-label="プレビュー">
+            <Markdown source={bodyMd} />
+          </div>
         </div>
       )}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
