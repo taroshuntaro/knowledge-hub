@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestUser, TEST_PASSWORD } from '../test/factories';
+import { createTestArticle, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 
 describe('user routes', () => {
@@ -39,5 +39,38 @@ describe('user routes', () => {
     const newCookie = (res.headers.get('set-cookie') ?? '').split(';')[0];
     expect((await ctx.app.request('/api/auth/me', { headers: { cookie } })).status).toBe(401);
     expect((await ctx.app.request('/api/auth/me', { headers: { cookie: newCookie } })).status).toBe(200);
+  });
+
+  it('GET /api/users/:id で公開プロフィールが取得できる', async () => {
+    const cookie = await loginCookie('viewer@example.com');
+    const author = await createTestUser(ctx.db, { displayName: '公開太郎' });
+    const res = await ctx.app.request(`/api/users/${author.id}`, { headers: { cookie } });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ id: author.id, displayName: '公開太郎' });
+    expect(body).not.toHaveProperty('email');
+  });
+
+  it('GET /api/users/:id/articles は本人の下書きを含まない', async () => {
+    const cookie = await loginCookie('viewer2@example.com');
+    const author = await createTestUser(ctx.db);
+    await createTestArticle(ctx.db, { authorId: author.id, title: '公開記事', status: 'published' });
+    await createTestArticle(ctx.db, { authorId: author.id, title: '下書き記事', status: 'draft' });
+    const res = await ctx.app.request(`/api/users/${author.id}/articles?limit=20`, {
+      headers: { cookie },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    const titles = body.items.map((a: { title: string }) => a.title);
+    expect(titles).toContain('公開記事');
+    expect(titles).not.toContain('下書き記事');
+  });
+
+  it('不正な UUID 形式の :id は 404（500 にならない）', async () => {
+    const cookie = await loginCookie('viewer3@example.com');
+    const res1 = await ctx.app.request('/api/users/abc', { headers: { cookie } });
+    expect(res1.status).toBe(404);
+    const res2 = await ctx.app.request('/api/users/abc/articles?limit=20', { headers: { cookie } });
+    expect(res2.status).toBe(404);
   });
 });
