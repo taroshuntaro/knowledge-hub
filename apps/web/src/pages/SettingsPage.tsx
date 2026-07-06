@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,7 +47,7 @@ export function SettingsPage() {
       <h2 className="text-xl font-bold tracking-tight">アカウント設定</h2>
       <Card>
         <CardHeader>
-          <CardTitle>プロフィール</CardTitle>
+          <h3 className="leading-none font-semibold">プロフィール</h3>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSaveProfile} className="flex flex-col gap-4">
@@ -66,7 +66,7 @@ export function SettingsPage() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>パスワード変更</CardTitle>
+          <h3 className="leading-none font-semibold">パスワード変更</h3>
         </CardHeader>
         <CardContent>
           <form onSubmit={onChangePassword} className="flex flex-col gap-4">

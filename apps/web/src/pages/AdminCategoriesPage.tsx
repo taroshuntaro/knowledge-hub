@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ export function AdminCategoriesPage() {
       <h2 className="mb-4 text-xl font-bold tracking-tight">カテゴリ管理</h2>
       <Card>
         <CardHeader>
-          <CardTitle>カテゴリを追加</CardTitle>
+          <h3 className="leading-none font-semibold">カテゴリを追加</h3>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
