@@ -5,11 +5,14 @@ import { loadConfig } from './config';
 import { createDb } from './db/client';
 import { logger } from './logger';
 import { createSmtpMailer } from './services/mailer';
+import { createBigmSearchService } from './services/search-service';
 import { createS3Storage } from './services/storage';
 
 const config = loadConfig();
 const { db, pool } = createDb(config.databaseUrl);
-const app = buildApp({ db, config, mailer: createSmtpMailer(config), storage: createS3Storage(config) });
+const app = buildApp({
+  db, config, mailer: createSmtpMailer(config), storage: createS3Storage(config), search: createBigmSearchService(),
+});
 
 // 本番: ビルド済み SPA を配信（開発時は Vite dev server が担当するため 404 になるだけで無害）
 app.use('*', serveStatic({ root: '../web/dist' }));
