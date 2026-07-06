@@ -6,19 +6,23 @@ import { articleRoutes } from './routes/articles';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
 import { healthRoutes } from './routes/health';
+import { searchRoutes } from './routes/search';
 import { tagRoutes } from './routes/tags';
 import { uploadRoutes } from './routes/uploads';
 import { userRoutes } from './routes/users';
 import type { Config } from './config';
-import type { AppEnv, Db, Mailer, Storage } from './types';
+import type { AppEnv, Db, Mailer, SearchService, Storage } from './types';
 
-export function buildApp(deps: { db: Db; config: Config; mailer: Mailer; storage: Storage }) {
+export function buildApp(
+  deps: { db: Db; config: Config; mailer: Mailer; storage: Storage; search: SearchService },
+) {
   return new Hono<AppEnv>()
     .use(async (c, next) => {
       c.set('db', deps.db);
       c.set('config', deps.config);
       c.set('mailer', deps.mailer);
       c.set('storage', deps.storage);
+      c.set('search', deps.search);
       await next();
     })
     .use(async (c, next) => {
@@ -34,7 +38,8 @@ export function buildApp(deps: { db: Db; config: Config; mailer: Mailer; storage
     .route('/api/categories', categoryRoutes)
     .route('/api/tags', tagRoutes)
     .route('/api/articles', articleRoutes)
-    .route('/api/uploads', uploadRoutes);
+    .route('/api/uploads', uploadRoutes)
+    .route('/api/search', searchRoutes);
 }
 
 export type AppType = ReturnType<typeof buildApp>;

@@ -23,6 +23,12 @@ export const changePasswordSchema = z.object({
 export const updateProfileSchema = z.object({
   displayName: z.string().min(1).max(50),
   bio: z.string().max(2000),
+  // アプリ内アップロード URL のみ許可（外部 URL は保存させない）。null で削除、未指定なら変更しない
+  avatarUrl: z
+    .string()
+    .regex(/^\/api\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/)
+    .nullable()
+    .optional(),
 });
 export const updateUserByAdminSchema = z
   .object({

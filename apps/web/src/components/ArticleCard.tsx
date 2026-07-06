@@ -12,7 +12,9 @@ export function ArticleCard({ item }: { item: ArticleItem }) {
         <Link to={`/articles/${item.id}`} className="hover:underline">{item.title}</Link>
       </h3>
       {item.excerpt && <p className="mt-1.5 line-clamp-2 text-sm leading-relaxed text-muted-foreground">{item.excerpt}</p>}
-      <p className="mt-3 text-xs text-muted-foreground">{item.authorName}</p>
+      <p className="mt-3 text-xs text-muted-foreground">
+        <Link to={`/users/${item.authorId}`} className="hover:underline">{item.authorName}</Link>
+      </p>
     </article>
   );
 }

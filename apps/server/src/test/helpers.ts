@@ -5,6 +5,7 @@ import { inject } from 'vitest';
 import { buildApp } from '../app';
 import type { Config } from '../config';
 import * as schema from '../db/schema';
+import { createBigmSearchService } from '../services/search-service';
 import type { Db, Mailer, Storage } from '../types';
 
 export function testConfig(): Config {
@@ -55,7 +56,8 @@ export function createTestApp() {
   const db: Db = drizzle(pool, { schema });
   const mailer = createFakeMailer();
   const storage = createFakeStorage();
-  const app = buildApp({ db, config: testConfig(), mailer, storage });
+  const search = createBigmSearchService();
+  const app = buildApp({ db, config: testConfig(), mailer, storage, search });
   return { app, db, pool, mailer, storage };
 }
 

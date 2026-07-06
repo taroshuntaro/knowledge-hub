@@ -1,7 +1,8 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
+import { uploadImage } from '@/lib/upload';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,14 +14,34 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState(me?.displayName ?? '');
   const [bio, setBio] = useState(me?.bio ?? '');
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(me?.avatarUrl ?? null);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (me) setAvatarUrl(me.avatarUrl ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [me?.avatarUrl]);
+
+  async function onSelectAvatar(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const { url } = await uploadImage(file);
+      setAvatarUrl(url);
+      setProfileMsg(null);
+    } catch (err) {
+      setProfileMsg(err instanceof Error ? err.message : '画像のアップロードに失敗しました');
+    }
+  }
 
   async function onSaveProfile(e: FormEvent) {
     e.preventDefault();
-    const res = await api.api.users.me.$patch({ json: { displayName, bio } });
+    const res = await api.api.users.me.$patch({ json: { displayName, bio, avatarUrl } });
     if (res.ok) {
       await queryClient.invalidateQueries({ queryKey: ['me'] });
       setProfileMsg('保存しました');
@@ -51,6 +72,34 @@ export function SettingsPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={onSaveProfile} className="flex flex-col gap-4">
+            <div className="grid gap-1.5">
+              <Label htmlFor="settings-avatar">アイコン</Label>
+              <div className="flex items-center gap-4">
+                {avatarUrl ? (
+                  <img src={avatarUrl} className="size-16 rounded-full object-cover" alt="" />
+                ) : (
+                  <div className="size-16 rounded-full bg-muted text-xl font-semibold grid place-items-center">
+                    {displayName.charAt(0)}
+                  </div>
+                )}
+                <input
+                  ref={avatarInputRef}
+                  id="settings-avatar"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onSelectAvatar}
+                />
+                <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()}>
+                  画像を選択
+                </Button>
+                {avatarUrl && (
+                  <Button type="button" variant="outline" size="sm" onClick={() => setAvatarUrl(null)}>
+                    画像を削除
+                  </Button>
+                )}
+              </div>
+            </div>
             <div className="grid gap-1.5">
               <Label htmlFor="settings-name">表示名</Label>
               <Input id="settings-name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} required maxLength={50} />

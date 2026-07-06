@@ -4,6 +4,7 @@ import {
   updateArticleSchema,
   listQuerySchema,
   categoryCreateSchema,
+  searchQuerySchema,
 } from './article';
 
 describe('article schemas', () => {
@@ -39,5 +40,20 @@ describe('article schemas', () => {
   it('categoryCreateSchema: name 必須', () => {
     expect(categoryCreateSchema.safeParse({ name: '' }).success).toBe(false);
     expect(categoryCreateSchema.safeParse({ name: 'テック' }).success).toBe(true);
+  });
+
+  it('searchQuerySchema: q 空文字は不可', () => {
+    const r = searchQuerySchema.safeParse({ q: '' });
+    expect(r.success).toBe(false);
+  });
+
+  it('searchQuerySchema: q 101 文字は不可', () => {
+    const r = searchQuerySchema.safeParse({ q: 'a'.repeat(101) });
+    expect(r.success).toBe(false);
+  });
+
+  it('searchQuerySchema: 最小入力を通し limit=20 が既定になる', () => {
+    const r = searchQuerySchema.parse({ q: '検索' });
+    expect(r.limit).toBe(20);
   });
 });
