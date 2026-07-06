@@ -12,6 +12,7 @@ import { LoginPage } from './pages/LoginPage';
 import { MyArticlesPage } from './pages/MyArticlesPage';
 import { PasswordResetConfirmPage } from './pages/PasswordResetConfirmPage';
 import { PasswordResetRequestPage } from './pages/PasswordResetRequestPage';
+import { ProfilePage } from './pages/ProfilePage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TagPage } from './pages/TagPage';
@@ -36,6 +37,7 @@ const router = createBrowserRouter([
       { path: '/articles/:id', element: <ArticleDetailPage /> },
       { path: '/categories/:id', element: <CategoryPage /> },
       { path: '/tags/:name', element: <TagPage /> },
+      { path: '/users/:id', element: <ProfilePage /> },
       { path: '/search', element: <SearchPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
       { path: '/admin/categories', element: <AdminCategoriesPage /> },

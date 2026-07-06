@@ -58,7 +58,7 @@ export function ArticleDetailPage() {
       </div>
       <h1 className="mt-3 text-3xl font-bold leading-snug tracking-tight">{article.title}</h1>
       <p className="mt-3 text-sm text-muted-foreground">
-        {article.authorName}
+        <Link to={`/users/${article.authorId}`} className="hover:underline">{article.authorName}</Link>
         {article.tags.length > 0 && (
           <span className="ml-2 inline-flex flex-wrap gap-1.5">
             {article.tags.map((t) => (
