@@ -1,14 +1,17 @@
+import { useState } from 'react';
 import { Link, Outlet, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function Layout() {
   const { data: me } = useMe();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [searchInput, setSearchInput] = useState('');
 
   async function onLogout() {
     await api.api.auth.logout.$post();
@@ -23,6 +26,22 @@ export function Layout() {
         <div className="mx-auto flex min-h-14 max-w-5xl items-center justify-between gap-4 px-4 py-2">
           <Link to="/" className="text-lg font-bold tracking-tight">knowledge-hub</Link>
           <nav className="flex flex-wrap items-center gap-1 text-sm">
+            <form
+              role="search"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const q = searchInput.trim();
+                if (q) navigate(`/search?q=${encodeURIComponent(q)}`);
+              }}
+            >
+              <Input
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="記事を検索"
+                aria-label="記事を検索"
+                className="h-8 w-36 lg:w-56"
+              />
+            </form>
             <Link to="/articles/new" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">記事を書く</Link>
             <Link to="/me/articles" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">マイ記事</Link>
             {me?.role === 'admin' && <Link to="/admin/categories" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">カテゴリ</Link>}
