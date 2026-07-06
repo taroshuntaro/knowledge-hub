@@ -9,6 +9,9 @@ import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import { Loading } from '../components/Loading';
+import { CommentSection } from '../components/CommentSection';
+import { ReactionBar } from '../components/ReactionBar';
+import { BookmarkButton } from '../components/BookmarkButton';
 
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -29,6 +32,7 @@ export function ArticleDetailPage() {
 
   const canEdit = me && (me.role === 'admin' || me.id === article.authorId);
   const canPin = me?.role === 'admin' && article.status === 'published';
+  const canEngage = article.status === 'published' && !article.deletedAt;
 
   async function togglePin() {
     setActionError(null);
@@ -70,6 +74,7 @@ export function ArticleDetailPage() {
         )}
       </p>
       <div className="mt-4 flex items-center gap-2">
+        {canEngage && <BookmarkButton articleId={article.id} />}
         {canEdit && (
           <Button asChild variant="outline" size="sm">
             <Link to={`/articles/${id}/edit`}>編集</Link>
@@ -81,6 +86,8 @@ export function ArticleDetailPage() {
       {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}
       <Separator className="my-6" />
       <Markdown source={article.bodyMd} />
+      {canEngage && <ReactionBar articleId={article.id} />}
+      {canEngage && <CommentSection articleId={article.id} />}
     </article>
   );
 }

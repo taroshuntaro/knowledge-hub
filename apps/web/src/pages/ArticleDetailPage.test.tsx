@@ -97,4 +97,19 @@ describe('ArticleDetailPage', () => {
     expect(await screen.findByText('読み込みに失敗しました。')).toBeInTheDocument();
     expect(screen.queryByText('記事が見つかりません。')).not.toBeInTheDocument();
   });
+
+  it('下書き記事ではコメント欄・リアクション・ブックマークを表示しない', async () => {
+    getArticle.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ...article, status: 'draft' }),
+    });
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'テスト記事' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'コメント' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'コメントする' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'リアクション' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ブックマーク/ })).not.toBeInTheDocument();
+  });
 });

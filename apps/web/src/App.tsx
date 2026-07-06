@@ -4,6 +4,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ArticleDetailPage } from './pages/ArticleDetailPage';
+import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { EditorPage } from './pages/EditorPage';
 import { HomePage } from './pages/HomePage';
@@ -40,6 +41,7 @@ const router = createBrowserRouter([
       { path: '/users/:id', element: <ProfilePage /> },
       { path: '/search', element: <SearchPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
+      { path: '/me/bookmarks', element: <BookmarksPage /> },
       { path: '/admin/categories', element: <AdminCategoriesPage /> },
     ],
   },

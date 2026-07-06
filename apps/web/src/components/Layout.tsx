@@ -44,6 +44,7 @@ export function Layout() {
             </form>
             <Link to="/articles/new" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">記事を書く</Link>
             <Link to="/me/articles" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">マイ記事</Link>
+            <Link to="/me/bookmarks" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">ブックマーク</Link>
             {me?.role === 'admin' && <Link to="/admin/categories" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">カテゴリ</Link>}
             {me?.role === 'admin' && <Link to="/admin" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">管理</Link>}
             <Link to="/settings" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">設定</Link>

@@ -6,7 +6,9 @@ export type Action =
   | 'article:edit'
   | 'article:delete'
   | 'article:pin'
-  | 'category:manage';
+  | 'category:manage'
+  | 'comment:edit'
+  | 'comment:delete';
 
 export function can(
   user: SessionUser,
@@ -22,6 +24,10 @@ export function can(
       return true;
     case 'article:edit':
     case 'article:delete':
+      return user.role === 'admin' || resource?.authorId === user.id;
+    case 'comment:edit':
+      return resource?.authorId === user.id;
+    case 'comment:delete':
       return user.role === 'admin' || resource?.authorId === user.id;
   }
 }
