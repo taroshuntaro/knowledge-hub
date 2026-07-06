@@ -49,9 +49,11 @@ const BLOCK_LABELS = {
 export function RichEditorToolbar({
   editor,
   onUploadImage,
+  uploading = false,
 }: {
   editor: Editor;
   onUploadImage?: UploadImageFn;
+  uploading?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -224,7 +226,7 @@ export function RichEditorToolbar({
         variant="ghost"
         size="icon-sm"
         aria-label="画像を挿入"
-        disabled={!onUploadImage}
+        disabled={!onUploadImage || uploading}
         onClick={handleImageButtonClick}
       >
         <ImageIcon className="size-4" />

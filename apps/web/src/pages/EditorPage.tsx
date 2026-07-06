@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/theme';
 import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
 import { Markdown } from '@/lib/markdown';
+import { firstImageFile, uploadImage } from '@/lib/upload';
 
 type EditorMode = 'rich' | 'source';
 
@@ -133,6 +134,18 @@ export function EditorPage() {
     navigate(`/articles/${target}`);
   }
 
+  // ソースモード（CodeMirror）での画像 D&D / ペースト。
+  // カーソル位置への挿入には EditorView の API が必要になるため、
+  // v1 ではカーソル位置に関わらず本文末尾に追記する。
+  async function handleSourceImageUpload(file: File) {
+    try {
+      const { url } = await uploadImage(file);
+      setBodyMd((prev) => `${prev}\n\n![](${url})\n`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '画像のアップロードに失敗しました');
+    }
+  }
+
   if (loadFailed) {
     return <p role="alert" className="text-destructive">記事の読み込みに失敗しました。</p>;
   }
@@ -179,10 +192,31 @@ export function EditorPage() {
         </div>
       )}
       {mode === 'rich' ? (
-        <RichEditor key={richKey} initialMarkdown={bodyMd} onChangeMarkdown={setBodyMd} />
+        <RichEditor
+          key={richKey}
+          initialMarkdown={bodyMd}
+          onChangeMarkdown={setBodyMd}
+          onUploadImage={uploadImage}
+          onError={setError}
+        />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-lg border">
+          <div
+            className="overflow-hidden rounded-lg border"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              const file = firstImageFile(e.dataTransfer.files);
+              if (!file) return;
+              e.preventDefault();
+              void handleSourceImageUpload(file);
+            }}
+            onPaste={(e) => {
+              const file = firstImageFile(e.clipboardData?.files);
+              if (!file) return;
+              e.preventDefault();
+              void handleSourceImageUpload(file);
+            }}
+          >
             <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
           </div>
           <div className="max-h-[480px] overflow-y-auto rounded-lg border bg-card px-4 py-3" aria-label="プレビュー">
