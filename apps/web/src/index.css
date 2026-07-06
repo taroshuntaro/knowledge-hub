@@ -124,6 +124,29 @@
   --tw-prose-td-borders: var(--border);
 }
 
+/* コードハイライト（rehype-highlight / lowlight 共通の hljs クラス） */
+.hljs-comment,
+.hljs-quote {
+  color: var(--muted-foreground);
+  font-style: italic;
+}
+.hljs-keyword,
+.hljs-selector-tag {
+  color: var(--accent-foreground);
+}
+.hljs-string,
+.hljs-attr,
+.hljs-number,
+.hljs-literal {
+  color: var(--primary);
+}
+.hljs-title,
+.hljs-name,
+.hljs-built_in {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
 /* リッチエディタのコンテンツ領域。prose と同じトークンで統一する */
 .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
