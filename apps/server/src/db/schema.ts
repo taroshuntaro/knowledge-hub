@@ -1,5 +1,5 @@
 import {
-  boolean, integer, pgEnum, pgTable, text, timestamp, unique, uuid,
+  AnyPgColumn, boolean, index, integer, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', ['member', 'admin']);
@@ -111,3 +111,62 @@ export const uploads = pgTable('uploads', {
   size: integer('size').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const comments = pgTable(
+  'comments',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id),
+    parentId: uuid('parent_id').references((): AnyPgColumn => comments.id, { onDelete: 'cascade' }),
+    bodyMd: text('body_md').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    articleCreatedIdx: index('comments_article_created_idx').on(t.articleId, t.createdAt),
+    parentIdx: index('comments_parent_idx').on(t.parentId),
+  }),
+);
+
+export const reactions = pgTable(
+  'reactions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userArticleEmojiUniq: uniqueIndex('reactions_user_article_emoji_uniq').on(t.userId, t.articleId, t.emoji),
+    articleIdx: index('reactions_article_idx').on(t.articleId),
+  }),
+);
+
+export const bookmarks = pgTable(
+  'bookmarks',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    userArticleUniq: uniqueIndex('bookmarks_user_article_uniq').on(t.userId, t.articleId),
+    userCreatedIdx: index('bookmarks_user_created_idx').on(t.userId, t.createdAt),
+  }),
+);
