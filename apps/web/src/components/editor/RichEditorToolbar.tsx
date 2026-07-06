@@ -163,7 +163,7 @@ export function RichEditorToolbar({
       </Toggle>
       <Toggle
         size="sm"
-        aria-label="打消し線"
+        aria-label="打消し"
         pressed={state.strike}
         onPressedChange={() => editor.chain().focus().toggleStrike().run()}
       >
@@ -250,7 +250,7 @@ export function RichEditorToolbar({
       </Toggle>
       <Toggle
         size="sm"
-        aria-label="番号付きリスト"
+        aria-label="番号付き"
         pressed={state.orderedList}
         onPressedChange={() => editor.chain().focus().toggleOrderedList().run()}
       >
@@ -258,7 +258,7 @@ export function RichEditorToolbar({
       </Toggle>
       <Toggle
         size="sm"
-        aria-label="タスクリスト"
+        aria-label="タスク"
         pressed={state.taskList}
         onPressedChange={() => editor.chain().focus().toggleTaskList().run()}
       >
