@@ -10,6 +10,7 @@ import { Button } from '../components/ui/button';
 import { Separator } from '../components/ui/separator';
 import { Loading } from '../components/Loading';
 import { CommentSection } from '../components/CommentSection';
+import { ReactionBar } from '../components/ReactionBar';
 
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -82,6 +83,7 @@ export function ArticleDetailPage() {
       {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}
       <Separator className="my-6" />
       <Markdown source={article.bodyMd} />
+      <ReactionBar articleId={article.id} />
       <CommentSection articleId={article.id} />
     </article>
   );
