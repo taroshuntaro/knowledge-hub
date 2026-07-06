@@ -56,4 +56,16 @@ describe('upload routes', () => {
     fd.append('file', new File([new Uint8Array([1])], 'x.png', { type: 'image/png' }));
     expect((await ctx.app.request('/api/uploads', { method: 'POST', body: fd })).status).toBe(401);
   });
+
+  it('11MB超のファイルは 413', async () => {
+    const cookie = await login();
+    const fd = new FormData();
+    const largeBuffer = new Uint8Array(11 * 1024 * 1024 + 1);
+    largeBuffer.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+    fd.append('file', new File([largeBuffer], 'large.png', { type: 'image/png' }));
+    const up = await ctx.app.request('/api/uploads', { method: 'POST', body: fd, headers: { cookie } });
+    expect(up.status).toBe(413);
+    const result = await up.json();
+    expect(result.code).toBe('VALIDATION');
+  });
 });

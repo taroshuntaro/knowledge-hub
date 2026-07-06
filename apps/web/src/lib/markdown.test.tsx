@@ -14,4 +14,21 @@ describe('Markdown', () => {
     expect(document.querySelector('script')).toBeNull();
     expect(screen.getByText(/安全/)).toBeInTheDocument();
   });
+
+  it('コードブロックがハイライトされる（hljs クラスが付く）', () => {
+    render(<Markdown source={'```ts\nconst x = 1;\n```'} />);
+    expect(document.querySelector('code.language-ts')).not.toBeNull();
+    expect(document.querySelector('.hljs-keyword')).not.toBeNull();
+  });
+
+  it('タスクリストが無効化チェックボックスとして描画される', () => {
+    render(<Markdown source={'- [x] done\n- [ ] todo'} />);
+    const boxes = document.querySelectorAll('input[type="checkbox"][disabled]');
+    expect(boxes).toHaveLength(2);
+  });
+
+  it('input は checkbox 以外を許可しない（XSS 面の回帰確認）', () => {
+    render(<Markdown source={'<input type="text" value="x">'} />);
+    expect(document.querySelector('input[type="text"]')).toBeNull();
+  });
 });
