@@ -11,9 +11,9 @@ const FIXTURES: Record<string, string> = {
   箇条書き: '- 項目1\n- 項目2\n  - 入れ子',
   番号付きリスト: '1. 手順1\n2. 手順2',
   タスクリスト: '- [ ] 未完了\n- [x] 完了',
-  // breaks: false のため、blockquote 内の隣接行はソフト改行として扱われ 1 つの段落に
-  // マージされる（CommonMark の遅延継続と同じ挙動）。往復後は改行ではなく半角スペース区切りの
-  // 単一行になるのが正準形（ハード改行が必要な場合は明示的な空行で段落を分ける）。
+  // breaks: false のため、blockquote 内の隣接行は同一段落内のソフト改行として扱われ、
+  // マージされる。往復後は改行ではなく半角スペース区切りの単一行になるのが正準形
+  // （ハード改行が必要な場合は明示的な空行で段落を分ける）。
   引用: '> 引用文の一行目 二行目',
   水平線: '前の段落\n\n---\n\n次の段落',
   コードブロック: '```ts\nconst x: number = 1;\nconsole.log(x);\n```',
@@ -26,6 +26,12 @@ describe('markdown-bridge 往復（§6 全記法）', () => {
       expect(roundTrip(md).trimEnd()).toBe(md.trimEnd());
     });
   }
+
+  it('引用: 隣接する行は 1 行にマージされる（CommonMark の同一段落内ソフト改行）', () => {
+    // breaks: false のため、blockquote 内で空行を挟まない隣接行は同一段落として
+    // マージされ、ソフト改行はスペースになる（<br> にはならない）。
+    expect(roundTrip('> 引用文の一行目\n> 二行目').trimEnd()).toBe('> 引用文の一行目 二行目');
+  });
 
   it('全記法を含む複合ドキュメントが無損失で往復する', () => {
     const doc = Object.values(FIXTURES).join('\n\n');
