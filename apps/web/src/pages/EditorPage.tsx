@@ -86,13 +86,19 @@ export function EditorPage() {
     setMode('source');
   }
 
-  // 保存し、成功時は対象記事の id を返す（失敗・タイトル空は null）
-  async function save(): Promise<string | null> {
+  // 保存し、成功時は対象記事の id/updatedAt を返す（失敗・タイトル空は null）。
+  // override を渡すと、id/updatedAt の判定（PATCH か POST か、PATCH の
+  // expectedUpdatedAt）にその値を使う。enqueueSave が直列化チェーンの中で、
+  // 直前の保存が解決した結果をここへ明示的に渡すために使う（詳細は下記）。
+  // override 省略時の挙動・API 呼び出し・エラー処理は従来の save() と同一。
+  async function save(override?: { id: string; updatedAt: string }): Promise<{ id: string; updatedAt: string } | null> {
     setError(null);
     if (!title.trim()) return null;
-    if (id && updatedAt) {
+    const currentId = override?.id ?? id;
+    const currentUpdatedAt = override?.updatedAt ?? updatedAt;
+    if (currentId && currentUpdatedAt) {
       const res = await api.api.articles[':id'].$patch({
-        param: { id }, json: { title, bodyMd, categoryId, tags, expectedUpdatedAt: updatedAt },
+        param: { id: currentId }, json: { title, bodyMd, categoryId, tags, expectedUpdatedAt: currentUpdatedAt },
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -101,34 +107,32 @@ export function EditorPage() {
       }
       const a = await res.json();
       setUpdatedAt(a.updatedAt); setStatus('保存しました');
-      return id;
+      return { id: currentId, updatedAt: a.updatedAt };
     } else {
       const res = await api.api.articles.$post({ json: { title, bodyMd, categoryId, tags } });
       if (!res.ok) { setError('保存に失敗しました'); return null; }
       const a = await res.json();
       setId(a.id); setUpdatedAt(a.updatedAt); setStatus('保存しました');
-      return a.id;
+      return { id: a.id, updatedAt: a.updatedAt };
     }
   }
 
   // 保存の直列化: 前の保存が完了してから次を実行する（新規作成 POST の重複防止）。
   //
-  // save は毎レンダーで新しい closure になり、その時点の id/updatedAt を束縛する。
-  // そのため「実行時点で最新の save」を呼べるよう saveRef 経由で間接化する。
-  // さらに、前の save が id を確定させた（setId/setUpdatedAt を呼んだ）直後は、
-  // その state 更新がまだ React にコミットされておらず、saveRef.current は
-  // 古い closure（id=null のまま）を指している。ここで React の再レンダーを
-  // 1 tick 待つことで、次の呼び出しが確定済みの id を見られるようにする
-  // （待たずに直結すると、直列化していても 2 回目が新規作成 POST になってしまう）。
+  // save は毎レンダーで新しい closure になり、その時点の title/bodyMd/categoryId/tags
+  // を束縛する。実行時点で最新の入力を使えるよう saveRef 経由で間接化する。
+  // 一方 id/updatedAt は closure の再レンダー待ちに依存させない。直前の保存が
+  // 解決した { id, updatedAt } を Promise チェーンでそのまま次のリンクへ
+  // override として渡すことで、React の state コミットタイミングに関係なく
+  // 直列化した 2 回目以降の保存が新規作成 POST ではなく更新 PATCH になる
+  // （setTimeout でレンダーの完了を待つ必要がない、純粋な microtask チェーン）。
   const saveRef = useRef(save);
   saveRef.current = save;
-  const saveChain = useRef<Promise<string | null>>(Promise.resolve(null));
+  const saveChain = useRef<Promise<{ id: string; updatedAt: string } | null>>(Promise.resolve(null));
   function enqueueSave(): Promise<string | null> {
-    const next = saveChain.current
-      .then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
-      .then(() => saveRef.current());
+    const next = saveChain.current.then((prev) => saveRef.current(prev ?? undefined));
     saveChain.current = next.catch(() => null);
-    return next;
+    return next.then((result) => result?.id ?? null);
   }
 
   // 自動保存（2 秒デバウンス。title が空の間は保存しない）
