@@ -5,6 +5,7 @@ import {
 export const userRoleEnum = pgEnum('user_role', ['member', 'admin']);
 export const authProviderEnum = pgEnum('auth_provider', ['oidc', 'password']);
 export const articleStatusEnum = pgEnum('article_status', ['draft', 'published']);
+export const notificationTypeEnum = pgEnum('notification_type', ['comment', 'reply', 'reaction', 'mention']);
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -168,5 +169,28 @@ export const bookmarks = pgTable(
   (t) => ({
     userArticleUniq: uniqueIndex('bookmarks_user_article_uniq').on(t.userId, t.articleId),
     userCreatedIdx: index('bookmarks_user_created_idx').on(t.userId, t.createdAt),
+  }),
+);
+
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    recipientId: uuid('recipient_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    type: notificationTypeEnum('type').notNull(),
+    actorId: uuid('actor_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    commentId: uuid('comment_id').references(() => comments.id, { onDelete: 'cascade' }),
+    readAt: timestamp('read_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    recipientCreatedIdx: index('notifications_recipient_created_idx').on(t.recipientId, t.createdAt),
   }),
 );
