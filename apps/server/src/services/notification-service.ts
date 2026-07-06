@@ -1,5 +1,5 @@
-import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { notifications, users } from '../db/schema';
+import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { articles, notifications, users } from '../db/schema';
 import type { Db } from '../types';
 import { extractMentionedUserIds } from './mention';
 
@@ -122,4 +122,102 @@ export async function notifyArticleMentions(
       articleId: article.id,
     })),
   );
+}
+
+export type NotificationItem = {
+  id: string;
+  type: 'comment' | 'reply' | 'reaction' | 'mention';
+  actorId: string;
+  actorName: string;
+  articleId: string;
+  articleTitle: string;
+  commentId: string | null;
+  readAt: Date | null;
+  createdAt: Date;
+};
+
+export type Page<T> = { items: T[]; nextCursor: string | null };
+
+function encodeCursor(sortKey: Date, id: string): string {
+  return Buffer.from(`${sortKey.toISOString()}|${id}`).toString('base64url');
+}
+function decodeCursor(cursor: string): { sortKey: string; id: string } {
+  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
+  return { sortKey, id };
+}
+
+// 一覧と未読数が共有する可視条件: 対象記事が公開中かつ未削除
+const visibleArticle = () => and(eq(articles.status, 'published'), isNull(articles.deletedAt));
+
+export async function listNotifications(
+  db: Db,
+  userId: string,
+  page: { cursor?: string; limit: number },
+): Promise<Page<NotificationItem>> {
+  const base = and(eq(notifications.recipientId, userId), visibleArticle());
+  // created_at は DB の now()（µs 精度）、カーソルは JS Date（ms 精度）。WHERE と ORDER BY の
+  // 両方で同じ date_trunc('milliseconds', ...) キーを使わないと同一 ms バケット内で行が
+  // 永久欠落しうる（comment/bookmark カーソルと同じ確立パターン）。
+  const createdAtMs = sql`date_trunc('milliseconds', ${notifications.createdAt})`;
+  const where = page.cursor
+    ? and(
+        base,
+        (() => {
+          const c = decodeCursor(page.cursor!);
+          const cursorDate = new Date(c.sortKey);
+          return or(
+            sql`${createdAtMs} < ${cursorDate}`,
+            and(sql`${createdAtMs} = ${cursorDate}`, lt(notifications.id, c.id)),
+          );
+        })(),
+      )
+    : base;
+
+  const rows = await db
+    .select({
+      id: notifications.id,
+      type: notifications.type,
+      actorId: notifications.actorId,
+      actorName: users.displayName,
+      articleId: notifications.articleId,
+      articleTitle: articles.title,
+      commentId: notifications.commentId,
+      readAt: notifications.readAt,
+      createdAt: notifications.createdAt,
+    })
+    .from(notifications)
+    .innerJoin(users, eq(notifications.actorId, users.id))
+    .innerJoin(articles, eq(notifications.articleId, articles.id))
+    .where(where)
+    .orderBy(desc(createdAtMs), desc(notifications.id))
+    .limit(page.limit + 1);
+
+  const items = rows.slice(0, page.limit);
+  const last = items[items.length - 1];
+  const nextCursor = rows.length > page.limit ? encodeCursor(last.createdAt, last.id) : null;
+  return { items, nextCursor };
+}
+
+export async function countUnread(db: Db, userId: string): Promise<number> {
+  const [{ count }] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(notifications)
+    .innerJoin(articles, eq(notifications.articleId, articles.id))
+    .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt), visibleArticle()));
+  return count;
+}
+
+export async function markRead(db: Db, userId: string, id: string): Promise<void> {
+  // 自分の未読のみ更新。他人の id・既読済みは no-op（204 のまま、存在オラクルなし）
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.id, id), eq(notifications.recipientId, userId), isNull(notifications.readAt)));
+}
+
+export async function markAllRead(db: Db, userId: string): Promise<void> {
+  await db
+    .update(notifications)
+    .set({ readAt: new Date() })
+    .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt)));
 }

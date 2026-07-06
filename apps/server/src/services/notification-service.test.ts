@@ -1,8 +1,13 @@
+import { desc, sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { comments, notifications } from '../db/schema';
+import { articles, comments, notifications } from '../db/schema';
 import { createTestArticle, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import {
+  countUnread,
+  listNotifications,
+  markAllRead,
+  markRead,
   notifyArticleMentions,
   notifyCommentCreated,
   notifyCommentMentionsOnEdit,
@@ -218,5 +223,90 @@ describe('notification-service 書き込み', () => {
       });
       expect(await all()).toHaveLength(0);
     });
+  });
+});
+
+describe('notification-service 読み取り', () => {
+  const ctx = createTestApp();
+  beforeEach(() => resetDb(ctx.db));
+  afterAll(() => ctx.pool.end());
+
+  async function seed() {
+    const me = await createTestUser(ctx.db);
+    const actor = await createTestUser(ctx.db, { displayName: 'アクター' });
+    const article = await createTestArticle(ctx.db, {
+      authorId: me.id, title: '対象記事', status: 'published', publishedAt: new Date(),
+    });
+    return { me, actor, article };
+  }
+
+  it('自分宛の通知だけを新しい順に返し、actorName と articleTitle を含む', async () => {
+    const { me, actor, article } = await seed();
+    const other = await createTestUser(ctx.db);
+    await ctx.db.insert(notifications).values([
+      { recipientId: me.id, type: 'comment', actorId: actor.id, articleId: article.id },
+      { recipientId: other.id, type: 'comment', actorId: actor.id, articleId: article.id },
+    ]);
+    const page = await listNotifications(ctx.db, me.id, { limit: 20 });
+    expect(page.items).toHaveLength(1);
+    expect(page.items[0]).toMatchObject({
+      type: 'comment', actorName: 'アクター', articleTitle: '対象記事', articleId: article.id,
+    });
+  });
+
+  it('カーソルページングが動作し、同一 ms 内の µs 差でも行が欠落しない', async () => {
+    const { me, actor, article } = await seed();
+    // 同一 ms・異 µs、かつ「µs が早い行ほど UUID が大きい」逆転を直接 insert して
+    // 丸め漏れ（WHERE/ORDER BY 精度不一致）を決定的に検出する（3b と同じパターン）
+    const bigId = '00000000-0000-4000-8000-00000000000a';
+    const smallId = '00000000-0000-4000-8000-000000000001';
+    await ctx.db.execute(sql`
+      insert into notifications (id, recipient_id, type, actor_id, article_id, created_at) values
+      (${bigId}, ${me.id}, 'comment', ${actor.id}, ${article.id}, '2026-01-01T00:00:00.000100Z'),
+      (${smallId}, ${me.id}, 'reply', ${actor.id}, ${article.id}, '2026-01-01T00:00:00.000900Z')
+    `);
+    const page1 = await listNotifications(ctx.db, me.id, { limit: 1 });
+    expect(page1.nextCursor).not.toBeNull();
+    const page2 = await listNotifications(ctx.db, me.id, { cursor: page1.nextCursor!, limit: 1 });
+    const ids = [...page1.items, ...page2.items].map((n) => n.id);
+    expect(new Set(ids)).toEqual(new Set([bigId, smallId]));
+  });
+
+  it('対象記事がゴミ箱 or 非公開なら一覧にも未読数にも出ない', async () => {
+    const { me, actor, article } = await seed();
+    await ctx.db.insert(notifications).values({
+      recipientId: me.id, type: 'reaction', actorId: actor.id, articleId: article.id,
+    });
+    expect(await countUnread(ctx.db, me.id)).toBe(1);
+    await ctx.db.update(articles).set({ deletedAt: new Date() }).where(sql`id = ${article.id}`);
+    expect(await countUnread(ctx.db, me.id)).toBe(0);
+    expect((await listNotifications(ctx.db, me.id, { limit: 20 })).items).toHaveLength(0);
+  });
+
+  it('markRead は自分の通知のみ既読化し、他人の id では何も起きない', async () => {
+    const { me, actor, article } = await seed();
+    const other = await createTestUser(ctx.db);
+    const [mine] = await ctx.db.insert(notifications).values({
+      recipientId: me.id, type: 'comment', actorId: actor.id, articleId: article.id,
+    }).returning();
+    const [theirs] = await ctx.db.insert(notifications).values({
+      recipientId: other.id, type: 'comment', actorId: actor.id, articleId: article.id,
+    }).returning();
+    await markRead(ctx.db, me.id, mine.id);
+    await markRead(ctx.db, me.id, theirs.id); // 他人のもの → no-op
+    const rows = await ctx.db.select().from(notifications).orderBy(desc(notifications.createdAt));
+    expect(rows.find((r) => r.id === mine.id)?.readAt).not.toBeNull();
+    expect(rows.find((r) => r.id === theirs.id)?.readAt).toBeNull();
+  });
+
+  it('markAllRead で自分の未読が全て既読になり countUnread が 0 になる', async () => {
+    const { me, actor, article } = await seed();
+    await ctx.db.insert(notifications).values([
+      { recipientId: me.id, type: 'comment', actorId: actor.id, articleId: article.id },
+      { recipientId: me.id, type: 'reaction', actorId: actor.id, articleId: article.id },
+    ]);
+    expect(await countUnread(ctx.db, me.id)).toBe(2);
+    await markAllRead(ctx.db, me.id);
+    expect(await countUnread(ctx.db, me.id)).toBe(0);
   });
 });
