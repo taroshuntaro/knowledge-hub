@@ -10,6 +10,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/lib/theme';
+import { RichEditor } from '@/components/editor/RichEditor';
+import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
+
+type EditorMode = 'rich' | 'source';
+
+/**
+ * ソース → リッチ切替時のガード。無損失なら素通り、そうでなければ
+ * 変換後の Markdown を添えて呼び出し側に判断（変換して続行 / キャンセル）を委ねる。
+ */
+export function canEnterRich(bodyMd: string): { ok: true } | { ok: false; converted: string } {
+  if (isLossless(bodyMd)) return { ok: true };
+  return { ok: false, converted: roundTrip(bodyMd) };
+}
 
 export function EditorPage() {
   const { id: routeId } = useParams();
@@ -22,6 +35,11 @@ export function EditorPage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  // 新規記事はリッチが初期値。既存記事は読み込み完了までソースを暫定表示し、
+  // 読み込んだ bodyMd の isLossless 判定でリッチ/ソースを確定する。
+  const [mode, setMode] = useState<EditorMode>(routeId ? 'source' : 'rich');
+  const [richKey, setRichKey] = useState(0);
+  const [richGuard, setRichGuard] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const theme = useTheme();
@@ -34,8 +52,37 @@ export function EditorPage() {
       if (!res.ok) { setLoadFailed(true); return; }
       const a = await res.json();
       setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
+      if (isLossless(a.bodyMd)) {
+        setMode('rich');
+      } else {
+        setMode('source');
+        setStatus('この記事の Markdown はリッチ表示に完全対応していないため、Markdown モードで開きました');
+      }
     })();
   }, [routeId]);
+
+  function handleClickRich() {
+    const guard = canEnterRich(bodyMd);
+    if (guard.ok) {
+      setRichKey((k) => k + 1);
+      setMode('rich');
+    } else {
+      setRichGuard(guard.converted);
+    }
+  }
+
+  function handleConvertAndEnterRich() {
+    if (richGuard === null) return;
+    setBodyMd(richGuard);
+    setRichGuard(null);
+    setRichKey((k) => k + 1);
+    setMode('rich');
+  }
+
+  function handleClickSource() {
+    setRichGuard(null);
+    setMode('source');
+  }
 
   // 保存し、成功時は対象記事の id を返す（失敗・タイトル空は null）
   async function save(): Promise<string | null> {
@@ -103,9 +150,40 @@ export function EditorPage() {
         <Label htmlFor="editor-tags">タグ</Label>
         <TagInput id="editor-tags" value={tags} onChange={setTags} />
       </div>
-      <div className="overflow-hidden rounded-lg border">
-        <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
-      </div>
+      <nav className="inline-flex rounded-lg bg-muted p-1" aria-label="編集モード">
+        <button
+          type="button"
+          aria-pressed={mode === 'rich'}
+          onClick={handleClickRich}
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+        >
+          リッチ
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === 'source'}
+          onClick={handleClickSource}
+          className="rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+        >
+          Markdown
+        </button>
+      </nav>
+      {richGuard !== null && (
+        <div role="alert" className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm">
+          <p>この Markdown はリッチ編集で完全に再現できない可能性があります。変換して続行しますか？</p>
+          <div className="mt-2 flex gap-2">
+            <Button type="button" size="sm" onClick={handleConvertAndEnterRich}>変換して続行</Button>
+            <Button type="button" size="sm" variant="outline" onClick={() => setRichGuard(null)}>キャンセル</Button>
+          </div>
+        </div>
+      )}
+      {mode === 'rich' ? (
+        <RichEditor key={richKey} initialMarkdown={bodyMd} onChangeMarkdown={setBodyMd} />
+      ) : (
+        <div className="overflow-hidden rounded-lg border">
+          <CodeMirror value={bodyMd} height="480px" theme={theme} extensions={[markdown()]} onChange={setBodyMd} />
+        </div>
+      )}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
       <div className="flex gap-2">

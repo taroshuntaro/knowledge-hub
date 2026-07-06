@@ -3,17 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { RichEditor } from './RichEditor';
 
-// jsdom は ProseMirror が参照する一部の Range/Document API を未実装のまま呼ばせて
-// 例外を投げるため、テスト実行時だけ最小のスタブで上書きする（実装コードには手を入れない）。
-Range.prototype.getClientRects = () =>
-  ({
-    length: 0,
-    item: () => null,
-    [Symbol.iterator]: function* () {},
-  }) as unknown as DOMRectList;
-Range.prototype.getBoundingClientRect = () =>
-  ({ top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0, toJSON() {} }) as DOMRect;
-document.elementFromPoint = () => null;
+// jsdom の欠損 API スタブ（Range.getClientRects 等）は複数テストファイルで
+// 必要なため src/test/setup.ts に集約済み。
 
 describe('RichEditor', () => {
   it('初期 Markdown をリッチ表示し、太字トグルで onChangeMarkdown に ** が流れる', async () => {

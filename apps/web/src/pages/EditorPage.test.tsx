@@ -29,7 +29,7 @@ vi.mock('react-router', async (importOriginal) => {
   return { ...actual, useNavigate: () => navigateMock };
 });
 
-import { EditorPage } from './EditorPage';
+import { canEnterRich, EditorPage } from './EditorPage';
 
 function renderNew() {
   render(
@@ -87,5 +87,26 @@ describe('EditorPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('記事の読み込みに失敗しました');
     expect(screen.queryByLabelText('タイトル')).not.toBeInTheDocument();
     expect(postMock).not.toHaveBeenCalled();
+  });
+
+  it('新規記事はリッチモードで開き、Markdown タブでソースに切り替わる', async () => {
+    renderNew();
+    expect(screen.getByRole('button', { name: 'リッチ' })).toHaveAttribute('aria-pressed', 'true');
+    await userEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true');
+  });
+});
+
+describe('canEnterRich（ソース→リッチ切替ガードの純関数）', () => {
+  it('無損失な Markdown はそのままリッチに入れる', () => {
+    expect(canEnterRich('# 見出し1\n\n## 見出し2')).toEqual({ ok: true });
+  });
+
+  it('無損失でない Markdown（生 HTML 混在）は変換後の Markdown を添えて拒否する', () => {
+    const guard = canEnterRich('<div class="x">raw html</div>');
+    expect(guard.ok).toBe(false);
+    if (!guard.ok) {
+      expect(guard.converted).not.toContain('<div');
+    }
   });
 });
