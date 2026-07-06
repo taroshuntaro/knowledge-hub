@@ -1,15 +1,8 @@
 import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
-import { REACTION_EMOJIS } from '@knowledge-hub/shared';
+import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, comments, reactions, users } from '../db/schema';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
-
-export type ArticleEngagement = {
-  reactions: Record<string, number>;
-  myReactions: string[];
-  bookmarked: boolean;
-  commentCount: number;
-};
 
 export type BookmarkedArticle = {
   id: string;
@@ -37,6 +30,7 @@ export async function addReaction(db: Db, userId: string, articleId: string, emo
 }
 
 export async function removeReaction(db: Db, userId: string, articleId: string, emoji: string): Promise<void> {
+  // intentionally not gated on published: allow cleanup after unpublish (always 204, no existence oracle)
   await db
     .delete(reactions)
     .where(and(eq(reactions.userId, userId), eq(reactions.articleId, articleId), eq(reactions.emoji, emoji)));
@@ -50,6 +44,7 @@ export async function addBookmark(db: Db, userId: string, articleId: string): Pr
 }
 
 export async function removeBookmark(db: Db, userId: string, articleId: string): Promise<void> {
+  // intentionally not gated on published: allow cleanup after unpublish (always 204, no existence oracle)
   await db.delete(bookmarks).where(and(eq(bookmarks.userId, userId), eq(bookmarks.articleId, articleId)));
 }
 

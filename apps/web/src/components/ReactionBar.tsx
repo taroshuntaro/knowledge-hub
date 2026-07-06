@@ -14,7 +14,7 @@ export function ReactionBar({ articleId }: { articleId: string }) {
     queryFn: async () => {
       const res = await api.api.articles[':id'].engagement.$get({ param: { id: articleId } });
       if (!res.ok) throw new Error('failed');
-      return (await res.json()) as ArticleEngagement;
+      return await res.json();
     },
   });
 

@@ -1,6 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
-import type { ArticleEngagement } from '@knowledge-hub/shared';
 import { api } from '../api/client';
 import { cn } from '@/lib/utils';
 
@@ -13,7 +12,7 @@ export function BookmarkButton({ articleId }: { articleId: string }) {
     queryFn: async () => {
       const res = await api.api.articles[':id'].engagement.$get({ param: { id: articleId } });
       if (!res.ok) throw new Error('failed');
-      return (await res.json()) as ArticleEngagement;
+      return await res.json();
     },
   });
 

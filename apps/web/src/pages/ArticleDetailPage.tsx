@@ -32,6 +32,7 @@ export function ArticleDetailPage() {
 
   const canEdit = me && (me.role === 'admin' || me.id === article.authorId);
   const canPin = me?.role === 'admin' && article.status === 'published';
+  const canEngage = article.status === 'published' && !article.deletedAt;
 
   async function togglePin() {
     setActionError(null);
@@ -73,7 +74,7 @@ export function ArticleDetailPage() {
         )}
       </p>
       <div className="mt-4 flex items-center gap-2">
-        <BookmarkButton articleId={article.id} />
+        {canEngage && <BookmarkButton articleId={article.id} />}
         {canEdit && (
           <Button asChild variant="outline" size="sm">
             <Link to={`/articles/${id}/edit`}>編集</Link>
@@ -85,8 +86,8 @@ export function ArticleDetailPage() {
       {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}
       <Separator className="my-6" />
       <Markdown source={article.bodyMd} />
-      <ReactionBar articleId={article.id} />
-      <CommentSection articleId={article.id} />
+      {canEngage && <ReactionBar articleId={article.id} />}
+      {canEngage && <CommentSection articleId={article.id} />}
     </article>
   );
 }
