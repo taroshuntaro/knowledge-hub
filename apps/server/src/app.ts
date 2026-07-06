@@ -5,6 +5,8 @@ import { adminRoutes } from './routes/admin';
 import { articleRoutes } from './routes/articles';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
+import { articleCommentRoutes, commentRoutes } from './routes/comments';
+import { articleEngagementRoutes, meRoutes } from './routes/engagement';
 import { healthRoutes } from './routes/health';
 import { searchRoutes } from './routes/search';
 import { tagRoutes } from './routes/tags';
@@ -38,6 +40,10 @@ export function buildApp(
     .route('/api/categories', categoryRoutes)
     .route('/api/tags', tagRoutes)
     .route('/api/articles', articleRoutes)
+    .route('/api/articles', articleCommentRoutes)
+    .route('/api/articles', articleEngagementRoutes)
+    .route('/api/comments', commentRoutes)
+    .route('/api/me', meRoutes)
     .route('/api/uploads', uploadRoutes)
     .route('/api/search', searchRoutes);
 }
