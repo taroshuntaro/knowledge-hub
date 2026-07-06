@@ -131,4 +131,57 @@ describe('RichEditor', () => {
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith('サーバエラー'));
   });
+
+  // Finding 1: アンマウント時に 500ms デバウンス待ちの onChangeMarkdown 呼び出しを
+  // 破棄せずフラッシュする（リッチ→ソース切替での末尾編集ロス防止）。
+  it('アンマウント時に 500ms デバウンス待ちの内容を破棄せずフラッシュする', async () => {
+    const onChange = vi.fn();
+    const { unmount } = render(<RichEditor initialMarkdown="本文" onChangeMarkdown={onChange} />);
+    const content = screen.getByLabelText('本文（リッチエディタ）');
+    await userEvent.click(content);
+    await userEvent.keyboard('追記');
+
+    // 500ms のデバウンスタイマーがまだ発火していない時点でアンマウントする。
+    unmount();
+
+    expect(onChange).toHaveBeenCalled();
+    expect(onChange.mock.calls.at(-1)![0]).toContain('追記');
+  });
+
+  // Finding 2: ツールバーのファイル選択も D&D / ペーストと同じアップロード
+  // ハンドラを経由し、成功時の画像挿入・失敗時の onError 通知が一致すること。
+  it('ツールバーのファイル選択で画像をアップロードし、成功時に画像を挿入する', async () => {
+    const onUploadImage = vi.fn().mockResolvedValue({ url: 'https://example.com/toolbar.png' });
+    const { container } = render(
+      <RichEditor initialMarkdown="本文" onChangeMarkdown={vi.fn()} onUploadImage={onUploadImage} />,
+    );
+    const content = screen.getByLabelText('本文（リッチエディタ）');
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['(binary)'], 'toolbar.png', { type: 'image/png' });
+
+    await userEvent.upload(fileInput, file);
+
+    await waitFor(() => expect(onUploadImage).toHaveBeenCalledWith(file));
+    await waitFor(() => expect(content.querySelector('img')).not.toBeNull());
+    expect(content.querySelector('img')).toHaveAttribute('src', 'https://example.com/toolbar.png');
+  });
+
+  it('ツールバーのファイル選択のアップロード失敗時も onError へ通知する', async () => {
+    const onError = vi.fn();
+    const onUploadImage = vi.fn().mockRejectedValue(new Error('サーバエラー'));
+    const { container } = render(
+      <RichEditor
+        initialMarkdown="本文"
+        onChangeMarkdown={vi.fn()}
+        onUploadImage={onUploadImage}
+        onError={onError}
+      />,
+    );
+    const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['(binary)'], 'toolbar.png', { type: 'image/png' });
+
+    await userEvent.upload(fileInput, file);
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith('サーバエラー'));
+  });
 });

@@ -28,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import type { UploadImageFn } from './RichEditor';
+import type { ImageUploadHandler } from './RichEditor';
 
 /** リンクの href として許可するのは https?:// か / 始まりのみ（設計 §6）。 */
 function isAllowedHref(href: string): boolean {
@@ -52,7 +52,7 @@ export function RichEditorToolbar({
   uploading = false,
 }: {
   editor: Editor;
-  onUploadImage?: UploadImageFn;
+  onUploadImage?: ImageUploadHandler;
   uploading?: boolean;
 }) {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -108,8 +108,9 @@ export function RichEditorToolbar({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !onUploadImage) return;
-    const { url } = await onUploadImage(file);
-    editor.chain().focus().setImage({ src: url }).run();
+    // アップロード実行・画像挿入・失敗時の onError 通知・uploading 状態管理は
+    // すべて RichEditor 側のハンドラ（D&D / ペーストと共通）が行う。
+    await onUploadImage(file);
   };
 
   return (
