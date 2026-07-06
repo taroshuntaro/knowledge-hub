@@ -111,18 +111,38 @@ export function EditorPage() {
     }
   }
 
+  // 保存の直列化: 前の保存が完了してから次を実行する（新規作成 POST の重複防止）。
+  //
+  // save は毎レンダーで新しい closure になり、その時点の id/updatedAt を束縛する。
+  // そのため「実行時点で最新の save」を呼べるよう saveRef 経由で間接化する。
+  // さらに、前の save が id を確定させた（setId/setUpdatedAt を呼んだ）直後は、
+  // その state 更新がまだ React にコミットされておらず、saveRef.current は
+  // 古い closure（id=null のまま）を指している。ここで React の再レンダーを
+  // 1 tick 待つことで、次の呼び出しが確定済みの id を見られるようにする
+  // （待たずに直結すると、直列化していても 2 回目が新規作成 POST になってしまう）。
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  const saveChain = useRef<Promise<string | null>>(Promise.resolve(null));
+  function enqueueSave(): Promise<string | null> {
+    const next = saveChain.current
+      .then(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+      .then(() => saveRef.current());
+    saveChain.current = next.catch(() => null);
+    return next;
+  }
+
   // 自動保存（2 秒デバウンス。title が空の間は保存しない）
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!title.trim()) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void save(); }, 2000);
+    timer.current = setTimeout(() => { void enqueueSave(); }, 2000);
     return () => { if (timer.current) clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, bodyMd, categoryId, tags]);
 
   async function publish() {
-    const target = id ?? (await save());
+    const target = id ?? (await enqueueSave());
     if (!target) return;
     const res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
     if (!res.ok) {
@@ -227,7 +247,7 @@ export function EditorPage() {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
       <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={save}>下書き保存</Button>
+        <Button type="button" variant="outline" onClick={enqueueSave}>下書き保存</Button>
         <Button type="button" onClick={publish}>公開する</Button>
       </div>
     </section>

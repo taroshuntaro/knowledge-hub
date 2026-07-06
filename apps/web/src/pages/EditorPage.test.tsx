@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const postMock = vi.fn();
 const getMock = vi.fn();
+const patchMock = vi.fn();
 const publishMock = vi.fn();
 const navigateMock = vi.fn();
 const uploadImageMock = vi.fn();
@@ -17,6 +18,7 @@ vi.mock('../api/client', () => ({
         $post: (...a: unknown[]) => postMock(...a),
         ':id': {
           $get: (...a: unknown[]) => getMock(...a),
+          $patch: (...a: unknown[]) => patchMock(...a),
           publish: { $post: (...a: unknown[]) => publishMock(...a) },
         },
       },
@@ -67,6 +69,7 @@ describe('EditorPage', () => {
   beforeEach(() => {
     postMock.mockReset();
     getMock.mockReset();
+    patchMock.mockReset();
     publishMock.mockReset();
     navigateMock.mockReset();
     uploadImageMock.mockReset();
@@ -78,6 +81,21 @@ describe('EditorPage', () => {
     await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
     await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
     expect(postMock).toHaveBeenCalled();
+  });
+
+  it('保存が in-flight の間に再度保存しても記事は 1 つしか作られない', async () => {
+    let resolveFirst!: (v: unknown) => void;
+    patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: 'x' }) });
+    postMock
+      .mockReturnValueOnce(new Promise((r) => { resolveFirst = r; }))
+      .mockResolvedValue({ ok: true, json: async () => ({ id: 'a2', updatedAt: 'x' }) });
+    renderNew();
+    await userEvent.type(screen.getByLabelText('タイトル'), 'race');
+    await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
+    await userEvent.click(screen.getByRole('button', { name: '下書き保存' })); // 1 発目が未解決のまま
+    resolveFirst({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-06T00:00:00Z' }) });
+    await waitFor(() => expect(screen.getByText('保存しました')).toBeInTheDocument());
+    expect(postMock).toHaveBeenCalledTimes(1); // 2 回目は id 確定後なので PATCH になる（POST は 1 回）
   });
 
   it('新規記事を公開すると、保存で得た id で公開 API を呼ぶ（自動保存を待たずに）', async () => {
