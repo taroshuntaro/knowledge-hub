@@ -10,6 +10,8 @@
  * 全 fg/bg ペアは scripts/check-contrast.mjs で WCAG AA (4.5:1) を機械検証している。
  */
 :root {
+  /* ネイティブ UI（select ポップアップ・スクロールバー・autofill）もテーマに追従させる */
+  color-scheme: light;
   /* 地: ほんのり温かい紙色。カードはわずかに白く浮かせて「机上の紙」に見せる */
   --background: oklch(0.982 0.005 84);
   --foreground: oklch(0.25 0.015 55);
@@ -38,6 +40,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   /* 灯りを落とした書斎のイメージ。黒でなくウォームチャコール */
   --background: oklch(0.19 0.012 55);
   --foreground: oklch(0.93 0.008 80);

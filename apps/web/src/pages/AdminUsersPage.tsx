@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -53,7 +53,7 @@ export function AdminUsersPage() {
       <h2 className="mb-4 text-xl font-bold tracking-tight">ユーザー管理</h2>
       <Card className="mb-6">
         <CardHeader>
-          <CardTitle>ユーザーを招待</CardTitle>
+          <h3 className="leading-none font-semibold">ユーザーを招待</h3>
         </CardHeader>
         <CardContent>
           <form onSubmit={onInvite} className="flex flex-col gap-4">
