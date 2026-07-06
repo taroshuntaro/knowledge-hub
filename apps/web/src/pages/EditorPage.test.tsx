@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,6 +8,7 @@ const postMock = vi.fn();
 const getMock = vi.fn();
 const publishMock = vi.fn();
 const navigateMock = vi.fn();
+const uploadImageMock = vi.fn();
 
 vi.mock('../api/client', () => ({
   api: {
@@ -27,6 +28,13 @@ vi.mock('../api/client', () => ({
 vi.mock('react-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router')>();
   return { ...actual, useNavigate: () => navigateMock };
+});
+
+// 画像 D&D / ペーストのテスト用に uploadImage だけ差し替える。firstImageFile は
+// 純関数のまま実体を使う（他所で単体テスト済みのためロジックの重複は避ける）。
+vi.mock('@/lib/upload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/upload')>();
+  return { ...actual, uploadImage: (...a: unknown[]) => uploadImageMock(...a) };
 });
 
 import { canEnterRich, EditorPage } from './EditorPage';
@@ -61,6 +69,7 @@ describe('EditorPage', () => {
     getMock.mockReset();
     publishMock.mockReset();
     navigateMock.mockReset();
+    uploadImageMock.mockReset();
   });
 
   it('タイトル入力で下書きを作成する（POST 呼び出し）', async () => {
@@ -94,6 +103,56 @@ describe('EditorPage', () => {
     expect(screen.getByRole('button', { name: 'リッチ' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(screen.getByRole('button', { name: 'Markdown' }));
     expect(screen.getByRole('button', { name: 'Markdown' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  // 以下は Task 5 (c2c34cf) で追加された、ソースモード（CodeMirror）側の画像
+  // D&D / ペースト配線の結合テスト。ラッパー <div> の onDrop/onPaste は React の
+  // 合成イベントとして直接その要素に登録されているため、fireEvent.drop/paste を
+  // ラッパー自身に投げれば ProseMirror のような座標解決なしにハンドラへ届く。
+  // ラッパーには専用の data-testid 等が無いため、EditorPage.tsx 側の
+  // `className="overflow-hidden rounded-lg border"`（ソースモード時のみ描画され、
+  // リッチモードの RichEditor ラッパーとは同時に存在しない）で特定する。
+
+  it('ソースモードで画像をドロップすると本文末尾に ![](url) が追記され、プレビューに反映される', async () => {
+    uploadImageMock.mockResolvedValue({ url: 'https://example.com/photo.png' });
+    renderNew();
+    await userEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    const wrapper = document.querySelector('.overflow-hidden.rounded-lg.border');
+    expect(wrapper).not.toBeNull();
+    const file = new File(['(binary)'], 'photo.png', { type: 'image/png' });
+
+    fireEvent.drop(wrapper!, { dataTransfer: { files: [file], getData: () => '' } });
+
+    await waitFor(() => expect(uploadImageMock).toHaveBeenCalledWith(file));
+    const preview = screen.getByLabelText('プレビュー');
+    await waitFor(() => expect(preview.querySelector('img')).not.toBeNull());
+    expect(preview.querySelector('img')).toHaveAttribute('src', 'https://example.com/photo.png');
+  });
+
+  it('ソースモードでの画像ドロップが失敗すると alert でエラーメッセージを表示する', async () => {
+    uploadImageMock.mockRejectedValue(new Error('画像のアップロードに失敗しました（テスト）'));
+    renderNew();
+    await userEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    const wrapper = document.querySelector('.overflow-hidden.rounded-lg.border');
+    expect(wrapper).not.toBeNull();
+    const file = new File(['(binary)'], 'photo.png', { type: 'image/png' });
+
+    fireEvent.drop(wrapper!, { dataTransfer: { files: [file], getData: () => '' } });
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('画像のアップロードに失敗しました（テスト）');
+  });
+
+  it('ソースモードで画像以外をドロップしても uploadImage は呼ばれない', async () => {
+    renderNew();
+    await userEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+    const wrapper = document.querySelector('.overflow-hidden.rounded-lg.border');
+    expect(wrapper).not.toBeNull();
+    const textFile = new File(['plain text'], 'note.txt', { type: 'text/plain' });
+
+    fireEvent.drop(wrapper!, { dataTransfer: { files: [textFile], getData: () => '' } });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(uploadImageMock).not.toHaveBeenCalled();
   });
 });
 
