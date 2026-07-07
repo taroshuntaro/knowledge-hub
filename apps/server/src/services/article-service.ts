@@ -298,14 +298,20 @@ export async function listMine(
     tab === 'trash'
       ? and(eq(articles.authorId, authorId), sql`${articles.deletedAt} is not null`)
       : and(eq(articles.authorId, authorId), isNull(articles.deletedAt), eq(articles.status, tab));
+  // articles.updatedAt は DB の now()（マイクロ秒精度）で入るが、カーソルは JS Date
+  // （ミリ秒精度）で encode するため、WHERE と ORDER BY の両方で
+  // date_trunc('milliseconds', ...) に丸めた同じキーを使う。丸めないと、同一 ms
+  // バケット内で生タイムスタンプ順と id 順がずれる行がある場合に、次ページで
+  // 一部の行が永久に欠落し得る（comment-service / engagement-service と同型のバグ）。
+  const updatedAtMs = sql`date_trunc('milliseconds', ${articles.updatedAt})`;
   const where = page.cursor
     ? and(
         filter,
         (() => {
           const c = decodeCursor(page.cursor!);
           return or(
-            lt(articles.updatedAt, new Date(c.sortKey)),
-            and(eq(articles.updatedAt, new Date(c.sortKey)), lt(articles.id, c.id)),
+            sql`${updatedAtMs} < ${new Date(c.sortKey)}`,
+            and(sql`${updatedAtMs} = ${new Date(c.sortKey)}`, lt(articles.id, c.id)),
           );
         })(),
       )
@@ -315,7 +321,7 @@ export async function listMine(
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .where(where)
-    .orderBy(desc(articles.updatedAt), desc(articles.id))
+    .orderBy(desc(updatedAtMs), desc(articles.id))
     .limit(page.limit + 1);
   const items = rows.slice(0, page.limit);
   const last = items[items.length - 1];
