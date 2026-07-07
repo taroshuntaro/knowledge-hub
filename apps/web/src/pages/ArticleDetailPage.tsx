@@ -7,8 +7,8 @@ import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Separator } from '../components/ui/separator';
 import { Loading } from '../components/Loading';
+import { Avatar } from '../components/Avatar';
 import { CommentSection } from '../components/CommentSection';
 import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
@@ -16,6 +16,11 @@ import { BookmarkButton } from '../components/BookmarkButton';
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
   return body?.message ?? fallback;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
 export function ArticleDetailPage() {
@@ -54,40 +59,72 @@ export function ArticleDetailPage() {
     navigate('/me/articles');
   }
 
+  const authorName = article.authorName;
+  const date = formatDate(article.publishedAt ?? article.updatedAt);
+
   return (
     <article className="mx-auto max-w-[42rem]">
-      <div className="flex gap-2">
+      <Link to="/" className="text-sm text-muted-foreground hover:underline">← フィードに戻る</Link>
+      <div className="mt-3 flex gap-2">
         {article.status === 'draft' && <Badge variant="secondary">下書き</Badge>}
         {article.deletedAt && <Badge variant="outline">削除済み</Badge>}
       </div>
-      <h1 className="mt-3 text-3xl font-bold leading-snug tracking-tight">{article.title}</h1>
-      <p className="mt-3 text-sm text-muted-foreground">
-        <Link to={`/users/${article.authorId}`} className="hover:underline">{article.authorName}</Link>
-        {article.tags.length > 0 && (
-          <span className="ml-2 inline-flex flex-wrap gap-1.5">
-            {article.tags.map((t) => (
-              <Link key={t} to={`/tags/${encodeURIComponent(t)}`} className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground">
-                #{t}
-              </Link>
-            ))}
-          </span>
+      {article.heroImage && (
+        <img
+          src={article.heroImage}
+          alt={article.title}
+          className="mt-3 aspect-[16/9] w-full rounded-xl object-cover"
+        />
+      )}
+      <h1 className="mt-4 text-3xl font-bold leading-snug tracking-tight">{article.title}</h1>
+      <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
+        {article.categoryName && article.categoryId && (
+          <Link to={`/categories/${article.categoryId}`} className="rounded-full bg-accent px-2.5 py-0.5 text-xs font-bold text-accent-foreground hover:underline">
+            {article.categoryName}
+          </Link>
         )}
-      </p>
-      <div className="mt-4 flex items-center gap-2">
-        {canEngage && <BookmarkButton articleId={article.id} />}
+        <Link to={`/users/${article.authorId}`} className="flex items-center gap-1.5 hover:underline">
+          <Avatar name={authorName} src={article.authorAvatarUrl} alt="" className="size-5" />
+          {authorName}
+        </Link>
+        <span aria-hidden="true">·</span>
+        <span>{date}</span>
+        {article.tags.map((t) => (
+          <Link key={t} to={`/tags/${encodeURIComponent(t)}`} className="rounded-full border px-2.5 py-0.5 text-xs hover:bg-muted">
+            {t}
+          </Link>
+        ))}
+      </div>
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-b pb-4">
         {canEdit && (
-          <Button asChild variant="outline" size="sm">
+          <Button asChild size="sm">
             <Link to={`/articles/${id}/edit`}>編集</Link>
           </Button>
         )}
+        {canEngage && <BookmarkButton articleId={article.id} />}
         {canPin && <Button type="button" variant="outline" size="sm" onClick={togglePin}>{article.pinnedAt ? 'ピン解除' : 'ピン留め'}</Button>}
-        {canEdit && <Button type="button" variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={moveToTrash}>ゴミ箱へ</Button>}
+        {canEdit && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="ml-auto border-destructive text-destructive hover:text-destructive"
+            onClick={moveToTrash}
+          >
+            ゴミ箱へ
+          </Button>
+        )}
       </div>
       {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}
-      <Separator className="my-6" />
-      <Markdown source={article.bodyMd} />
-      {canEngage && <ReactionBar articleId={article.id} />}
-      {canEngage && <CommentSection articleId={article.id} />}
+      <div className="mt-6">
+        <Markdown source={article.bodyMd} />
+      </div>
+      {canEngage && (
+        <div className="mt-6 space-y-6">
+          <ReactionBar articleId={article.id} />
+          <CommentSection articleId={article.id} />
+        </div>
+      )}
     </article>
   );
 }
