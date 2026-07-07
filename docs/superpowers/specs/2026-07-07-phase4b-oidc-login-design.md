@@ -50,7 +50,7 @@
 5. コールバックへの直接アクセス・リプレイは state 照合と一度きりの Cookie 削除で拒否される
 
 ### 4.3 ディスカバリの初期化
-IdP ディスカバリ（`.well-known/openid-configuration` 取得）は**初回ログイン試行時に遅延実行しメモ化**。失敗時はメモ化せず `AppError('OIDC_UNAVAILABLE', ..., 503)`（次回再試行）。IdP 停止がアプリ起動を妨げない。dev/test の http issuer には `allowInsecureRequests` を許可（`nodeEnv !== 'production'` のときのみ）。
+IdP ディスカバリ（`.well-known/openid-configuration` 取得）は**初回ログイン試行時に遅延実行しメモ化**。失敗時はメモ化せず `AppError('OIDC_UNAVAILABLE', ..., 503)` を投げ（次回再試行）、ルート側で捕捉して `/login?error=oidc_unavailable` へ 302 する（`/api/auth/oidc/login` もブラウザナビゲーションのため JSON を返さない。§9 と同方針）。IdP 停止がアプリ起動を妨げない。dev/test の http issuer には `allowInsecureRequests` を許可（`nodeEnv !== 'production'` のときのみ）。
 
 ### 4.4 ログ
 既存の構造化ログ方針を踏襲: ログイン成功/失敗は userId・理由コードのみ。**トークン・claims 生値・email はログしない**（request-logger は routePath ベースで query の code/state も記録されないことを確認済みだが、サービス側でも生値を渡さない）。
@@ -98,7 +98,7 @@ callback で得た claims を次の順で処理する（`oidc-service.ts` 内、
 
 これにより openid-client の**署名検証を含む本物のコードパス**を Testcontainers 実 DB と組み合わせて検証する。openid-client をモックしない。
 
-**必須テストケース**: JIT 新規作成（member/displayName フォールバック）／自動リンク（authProvider 切替 + passwordHash null 化 + 以降のパスワードログイン拒否）／oidc 既存ユーザー再ログイン／無効ユーザー拒否／ドメイン拒否（既存ユーザー含む）／email_verified=false 拒否／email claim 欠落拒否／state 不一致・txn Cookie 欠落拒否／並行 JIT の一意制約フォールバック／methods エンドポイント（設定有無 × 4 通り）／changePassword の oidc 拒否／IdP 到達不能で 503（500 にしない）。
+**必須テストケース**: JIT 新規作成（member/displayName フォールバック）／自動リンク（authProvider 切替 + passwordHash null 化 + 以降のパスワードログイン拒否）／oidc 既存ユーザー再ログイン／無効ユーザー拒否／ドメイン拒否（既存ユーザー含む）／email_verified=false 拒否／email claim 欠落拒否／state 不一致・txn Cookie 欠落拒否／並行 JIT の一意制約フォールバック／methods エンドポイント（設定有無 × 4 通り）／changePassword の oidc 拒否／IdP 到達不能で `/login?error=oidc_unavailable` へ 302（500 にしない）。
 
 **手動検証（コントローラー実施）**: docker compose に Keycloak を **profile `idp`** で追加（普段の `up -d` では起動しない）。realm JSON 自動インポート（client `knowledge-hub`、redirect URI `http://localhost:3000/api/auth/oidc/callback`、テストユーザー 1 名）。ブラウザで SSO ボタン → Keycloak ログイン → JIT 作成 → フィード到達を通しで確認。
 
