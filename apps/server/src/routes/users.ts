@@ -1,7 +1,5 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { changePasswordSchema, listQuerySchema, updateProfileSchema } from '@knowledge-hub/shared';
-import { AppError } from '../errors';
 import { requireAuth, setSessionCookie } from '../middleware/session';
 import { validate } from '../middleware/validate';
 import { listByAuthor } from '../services/article-service';
@@ -13,13 +11,7 @@ import {
   updateProfile,
 } from '../services/user-service';
 import type { AppEnv } from '../types';
-
-function requireValidUuid(id: string): void {
-  // 不正な UUID 形式は DB エラー（500）ではなく NOT_FOUND として扱う
-  if (!z.string().uuid().safeParse(id).success) {
-    throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
-  }
-}
+import { requireUuidParam } from './guards';
 
 export const userRoutes = new Hono<AppEnv>()
   .use(requireAuth)
@@ -38,6 +30,6 @@ export const userRoutes = new Hono<AppEnv>()
   })
   .get('/:id', async (c) => c.json(await getPublicProfile(c.get('db'), c.req.param('id'))))
   .get('/:id/articles', validate('query', listQuerySchema), async (c) => {
-    requireValidUuid(c.req.param('id'));
+    requireUuidParam(c.req.param('id'), 'ユーザーが見つかりません');
     return c.json(await listByAuthor(c.get('db'), c.req.param('id'), c.req.valid('query')));
   });

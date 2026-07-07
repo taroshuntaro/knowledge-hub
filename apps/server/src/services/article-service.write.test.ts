@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { articleRevisions } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createArticle, publishArticle, updateArticle } from './article-service';
@@ -82,5 +82,70 @@ describe('article write', () => {
       expectedUpdatedAt: a.updatedAt.toISOString(),
     });
     expect(updated.categoryId).toBeNull();
+  });
+
+  it('同一 expectedUpdatedAt の並行更新は片方だけ成功する（楽観ロックの原子性）', async () => {
+    const author = await createTestUser(ctx.db);
+    const article = await createArticle(ctx.db, author.id, { title: 't', bodyMd: 'b', tags: [] });
+    // pg.Pool は初回はアイドル接続を1本しか持たないため、ウォームアップなしだと片方の
+    // 呼び出しが新規コネクション確立の遅延で常に後追いになり、レースが再現しない
+    // （偶然どちらか一方が確実に先着し、非同期の check-then-act でも毎回 1 勝 1 敗に見える）。
+    // 2 本の接続を先に温めておくことで、本当に同時に SELECT が走る状況を作る。
+    await Promise.all([ctx.db.execute(sql`select 1`), ctx.db.execute(sql`select 1`)]);
+    const expected = article.updatedAt.toISOString();
+    const input = (title: string) => ({ title, bodyMd: 'b', tags: [], expectedUpdatedAt: expected });
+    const results = await Promise.allSettled([
+      updateArticle(ctx.db, article.id, asUser(author.id), input('A')),
+      updateArticle(ctx.db, article.id, asUser(author.id), input('B')),
+    ]);
+    const ok = results.filter((r) => r.status === 'fulfilled');
+    const ng = results.filter((r) => r.status === 'rejected');
+    expect(ok).toHaveLength(1);
+    expect(ng).toHaveLength(1);
+    expect((ng[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
+  });
+
+  it('同一内容の保存はリビジョンを増やさない', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    let current = a;
+    for (let i = 0; i < 2; i++) {
+      current = await updateArticle(ctx.db, a.id, asUser(u.id), {
+        title: 't', bodyMd: 'b', tags: [], expectedUpdatedAt: current.updatedAt.toISOString(),
+      });
+    }
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(1);
+  });
+
+  it('10 分以内の連続保存は直近リビジョンを上書きする', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    const v2 = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v2', bodyMd: 'b2', tags: [], expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v3', bodyMd: 'b3', tags: [], expectedUpdatedAt: v2.updatedAt.toISOString(),
+    });
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(1);
+    expect(revs[0].title).toBe('v3');
+    expect(revs[0].bodyMd).toBe('b3');
+  });
+
+  it('10 分より古い直近リビジョンがある場合は新規リビジョンを作る', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    const v2 = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v2', bodyMd: 'b2', tags: [], expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    await ctx.db.execute(
+      sql`update article_revisions set saved_at = now() - interval '11 minutes' where article_id = ${a.id}`,
+    );
+    await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v3', bodyMd: 'b3', tags: [], expectedUpdatedAt: v2.updatedAt.toISOString(),
+    });
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(2);
   });
 });

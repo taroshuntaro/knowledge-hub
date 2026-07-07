@@ -78,4 +78,14 @@ describe('admin routes', () => {
     expect(res.status).toBe(200);
     expect((await res.json()).role).toBe('member');
   });
+
+  it('PATCH /api/admin/users/:id は malformed UUID で 404 を返す', async () => {
+    const cookie = await login('a@example.com');
+    const res = await ctx.app.request('/api/admin/users/not-a-uuid', {
+      method: 'PATCH',
+      body: JSON.stringify({ isActive: false }),
+      headers: { 'content-type': 'application/json', cookie },
+    });
+    expect(res.status).toBe(404);
+  });
 });

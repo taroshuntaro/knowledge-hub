@@ -108,6 +108,22 @@ describe('EditorPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/articles/a1');
   });
 
+  it('既存記事を公開すると、id があっても直近の編集を保存（PATCH）してから公開する', async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'a1', title: '既存記事', bodyMd: '本文', categoryId: null, tags: [], updatedAt: '2026-07-05T00:00:00Z' }),
+    });
+    patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: '2026-07-06T00:00:00Z' }) });
+    publishMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+    renderEdit('a1');
+    await screen.findByDisplayValue('既存記事');
+    await userEvent.type(screen.getByLabelText('タイトル'), '追記'); // デバウンス（2秒）が発火する前に公開する
+    await userEvent.click(screen.getByRole('button', { name: '公開する' }));
+    expect(patchMock).toHaveBeenCalled();
+    expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } });
+    expect(patchMock.mock.invocationCallOrder[0]).toBeLessThan(publishMock.mock.invocationCallOrder[0]);
+  });
+
   it('既存記事の読み込みに失敗したらエラー表示し、エディタフォームは出さない', async () => {
     getMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
     renderEdit('a1');

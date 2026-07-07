@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { createTestCategory, createTestUser } from '../test/factories';
@@ -77,5 +78,21 @@ describe('article read', () => {
     expect(p2.nextCursor).toBeNull();
     const allIds = [...p1.items, ...p2.items].map((i) => i.id);
     expect(new Set(allIds).size).toBe(3);
+  });
+
+  it('listMine は同一ミリ秒の下書きをページ境界で取りこぼさない', async () => {
+    const u = await createTestUser(ctx.db);
+    const a1 = await createArticle(ctx.db, u.id, { title: '下書きA', bodyMd: '', tags: [] });
+    const a2 = await createArticle(ctx.db, u.id, { title: '下書きB', bodyMd: '', tags: [] });
+    // 2 記事を作成後、SQL で updated_at を同一 ms・異なる µs に固定する
+    // （engagement-service.test.ts の µs 注入手法を流用）。
+    const [idSmall, idBig] = [a1.id, a2.id].sort();
+    await ctx.db.execute(sql`update articles set updated_at = '2026-01-01 00:00:00.123456+00' where id = ${idSmall}`);
+    await ctx.db.execute(sql`update articles set updated_at = '2026-01-01 00:00:00.123789+00' where id = ${idBig}`);
+    const page1 = await listMine(ctx.db, u.id, 'draft', { limit: 1 });
+    const page2 = await listMine(ctx.db, u.id, 'draft', { cursor: page1.nextCursor!, limit: 1 });
+    const seen = [...page1.items, ...page2.items].map((a) => a.id);
+    // 現状は同一 ms バケットの行が欠落して FAIL する
+    expect(new Set(seen).size).toBe(2);
   });
 });

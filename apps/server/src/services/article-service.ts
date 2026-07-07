@@ -19,7 +19,29 @@ export type ArticleInput = {
   tags: string[];
 };
 
-async function snapshot(db: Db, article: { id: string; title: string; bodyMd: string }) {
+// updateArticle が SELECT ... FOR UPDATE トランザクション内から tx を渡せるように、
+// Db 全体ではなく実際に使うメソッドだけを要求する（tag-service.TagStore と同じ手法）。
+type RevisionStore = Pick<Db, 'select' | 'insert' | 'update'>;
+
+// 自動保存（2 秒デバウンス）のたびに全文スナップショットを積むとテーブルが際限なく
+// 膨張するため、(1) 同一内容はスキップ、(2) 直近 10 分以内は in-place 上書き、で間引く。
+const REVISION_COLLAPSE_MS = 10 * 60 * 1000;
+
+async function snapshot(db: RevisionStore, article: { id: string; title: string; bodyMd: string }) {
+  const [latest] = await db
+    .select()
+    .from(articleRevisions)
+    .where(eq(articleRevisions.articleId, article.id))
+    .orderBy(desc(articleRevisions.savedAt))
+    .limit(1);
+  if (latest && latest.title === article.title && latest.bodyMd === article.bodyMd) return;
+  if (latest && Date.now() - latest.savedAt.getTime() < REVISION_COLLAPSE_MS) {
+    await db
+      .update(articleRevisions)
+      .set({ title: article.title, bodyMd: article.bodyMd, savedAt: new Date() })
+      .where(eq(articleRevisions.id, latest.id));
+    return;
+  }
   await db.insert(articleRevisions).values({
     articleId: article.id,
     title: article.title,
@@ -27,11 +49,19 @@ async function snapshot(db: Db, article: { id: string; title: string; bodyMd: st
   });
 }
 
+async function assertCategoryExists(db: Db, categoryId: string): Promise<void> {
+  const row = await db.query.categories.findFirst({
+    where: eq(categories.id, categoryId), columns: { id: true },
+  });
+  if (!row) throw new AppError('VALIDATION', '指定されたカテゴリが存在しません', 400);
+}
+
 export async function createArticle(
   db: Db,
   authorId: string,
   input: ArticleInput,
 ): Promise<ArticleRecord> {
+  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
   const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
   const [row] = await db
     .insert(articles)
@@ -62,30 +92,47 @@ export async function updateArticle(
   editor: SessionUser,
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
-  const current = await loadEditable(db, id);
-  if (!can(editor, 'article:edit', { authorId: current.authorId })) {
-    throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
-  }
-  if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
-    throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
-  }
-  if (current.status === 'published' && !input.categoryId) {
-    throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
-  }
-  const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
-  const [row] = await db
-    .update(articles)
-    .set({
-      title: input.title,
-      bodyMd: input.bodyMd,
-      categoryId: input.categoryId ?? null,
-      searchText,
-      updatedAt: new Date(),
-    })
-    .where(eq(articles.id, id))
-    .returning();
-  await setArticleTags(db, id, input.tags);
-  await snapshot(db, row);
+  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
+  // SELECT → JS 比較 → 無条件 UPDATE の check-then-act だと、同一 expectedUpdatedAt の
+  // 並行 PATCH が両方とも「一致している」と判定して両方成功してしまう（lost update）。
+  // SELECT ... FOR UPDATE で対象行をロックし、比較と UPDATE を同一トランザクションに
+  // 閉じ込めることで直列化する（auth-service.loginWithPassword / user-service.updateUserByAdmin
+  // と同じパターン）。WHERE updated_at = expectedUpdatedAt の条件付き UPDATE にしないのは、
+  // DB 側がマイクロ秒精度・アプリ側の Date がミリ秒精度で、切り捨てにより自分自身の直前の
+  // 書き込みとすら一致しなくなる罠があるため。
+  const row = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(articles)
+      .where(and(eq(articles.id, id), isNull(articles.deletedAt)))
+      .for('update');
+    if (!current) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+    if (!can(editor, 'article:edit', { authorId: current.authorId })) {
+      throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
+    }
+    if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
+      throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
+    }
+    if (current.status === 'published' && !input.categoryId) {
+      throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
+    }
+    const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
+    const [updated] = await tx
+      .update(articles)
+      .set({
+        title: input.title,
+        bodyMd: input.bodyMd,
+        categoryId: input.categoryId ?? null,
+        searchText,
+        updatedAt: new Date(),
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    await setArticleTags(tx, id, input.tags);
+    await snapshot(tx, updated);
+    return updated;
+  });
+  // 通知は best-effort のままトランザクションの外（Global Constraints）
   // 記事本文メンションは公開状態でのみ通知（draft 保存では通知しない）
   if (row.status === 'published') {
     await runNotify('article-mentions-update', () => notifyArticleMentions(db, row));
@@ -269,14 +316,20 @@ export async function listMine(
     tab === 'trash'
       ? and(eq(articles.authorId, authorId), sql`${articles.deletedAt} is not null`)
       : and(eq(articles.authorId, authorId), isNull(articles.deletedAt), eq(articles.status, tab));
+  // articles.updatedAt は DB の now()（マイクロ秒精度）で入るが、カーソルは JS Date
+  // （ミリ秒精度）で encode するため、WHERE と ORDER BY の両方で
+  // date_trunc('milliseconds', ...) に丸めた同じキーを使う。丸めないと、同一 ms
+  // バケット内で生タイムスタンプ順と id 順がずれる行がある場合に、次ページで
+  // 一部の行が永久に欠落し得る（comment-service / engagement-service と同型のバグ）。
+  const updatedAtMs = sql`date_trunc('milliseconds', ${articles.updatedAt})`;
   const where = page.cursor
     ? and(
         filter,
         (() => {
           const c = decodeCursor(page.cursor!);
           return or(
-            lt(articles.updatedAt, new Date(c.sortKey)),
-            and(eq(articles.updatedAt, new Date(c.sortKey)), lt(articles.id, c.id)),
+            sql`${updatedAtMs} < ${new Date(c.sortKey)}`,
+            and(sql`${updatedAtMs} = ${new Date(c.sortKey)}`, lt(articles.id, c.id)),
           );
         })(),
       )
@@ -286,7 +339,7 @@ export async function listMine(
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .where(where)
-    .orderBy(desc(articles.updatedAt), desc(articles.id))
+    .orderBy(desc(updatedAtMs), desc(articles.id))
     .limit(page.limit + 1);
   const items = rows.slice(0, page.limit);
   const last = items[items.length - 1];
