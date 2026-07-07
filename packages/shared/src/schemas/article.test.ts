@@ -4,6 +4,7 @@ import {
   updateArticleSchema,
   listQuerySchema,
   categoryCreateSchema,
+  categoryUpdateSchema,
   searchQuerySchema,
 } from './article';
 
@@ -40,6 +41,12 @@ describe('article schemas', () => {
   it('categoryCreateSchema: name 必須', () => {
     expect(categoryCreateSchema.safeParse({ name: '' }).success).toBe(false);
     expect(categoryCreateSchema.safeParse({ name: 'テック' }).success).toBe(true);
+  });
+
+  it('categoryUpdateSchema: 空オブジェクトを拒否し、いずれかのフィールドがあれば通す', () => {
+    expect(categoryUpdateSchema.safeParse({}).success).toBe(false);
+    expect(categoryUpdateSchema.safeParse({ name: '新名称' }).success).toBe(true);
+    expect(categoryUpdateSchema.safeParse({ sortOrder: 2 }).success).toBe(true);
   });
 
   it('searchQuerySchema: q 空文字は不可', () => {
