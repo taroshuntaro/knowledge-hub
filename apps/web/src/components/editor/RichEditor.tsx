@@ -24,11 +24,17 @@ export function RichEditor({
   onChangeMarkdown,
   onUploadImage,
   onError,
+  flushRef,
 }: {
   initialMarkdown: string;
   onChangeMarkdown: (md: string) => void;
   onUploadImage?: UploadImageFn;
   onError?: (message: string) => void;
+  /**
+   * 保存/公開の直前に、500ms デバウンス待ちの直列化を即時確定させる命令的フック。
+   * 呼ばないと「最後のキー入力から 500ms 以内の保存」が直近の編集を取りこぼす。
+   */
+  flushRef?: { current: (() => void) | null };
 }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -79,6 +85,25 @@ export function RichEditor({
       }, 500);
     },
   });
+
+  // flushRef: 保留中の直列化を即時確定する（保存/公開の直前に EditorPage が呼ぶ）。
+  // タイマー有無に関わらず現在の内容を流すことで「保留なし＝bodyMd 最新」の
+  // 判定に依存しない単純な契約にする。
+  useEffect(() => {
+    if (!flushRef) return;
+    flushRef.current = () => {
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      if (editor && !editor.isDestroyed) {
+        onChangeMarkdown(editor.storage.markdown.getMarkdown());
+      }
+    };
+    return () => {
+      flushRef.current = null;
+    };
+  }, [editor, onChangeMarkdown, flushRef]);
 
   // アンマウント時（例: リッチ→ソース切替）に 500ms デバウンス待ちの
   // onChangeMarkdown が残っていると、直近の編集が bodyMd に反映されないまま

@@ -145,8 +145,13 @@ export function EditorPage() {
     return next.then((result) => result?.id ?? null);
   }
 
+  // リッチエディタの 500ms 直列化デバウンスを保存前に確定させる（データ損失レース防止）。
+  // リッチモード時のみ RichEditor が current を設定する。ソースモードは即時反映のため不要。
+  const richFlush = useRef<(() => void) | null>(null);
+
   // 保存状態インジケータ用の薄いラッパ。enqueueSave の直列化は無改変。
   async function runSave(): Promise<string | null> {
+    richFlush.current?.();
     setSaveState('saving');
     try {
       const savedId = await enqueueSave();
@@ -172,6 +177,8 @@ export function EditorPage() {
     // id の有無に関わらず必ず保存をフラッシュしてから publish する。
     // （id ありをスキップすると、デバウンス発火前の直近編集が公開版に含まれず、
     //   navigate によるアンマウントで保存もされず失われる）
+    // リッチエディタ側の 500ms 直列化デバウンスも先に確定させる。
+    richFlush.current?.();
     let target: string | null = null;
     try {
       target = await enqueueSave();
@@ -278,6 +285,7 @@ export function EditorPage() {
           onChangeMarkdown={setBodyMd}
           onUploadImage={uploadImage}
           onError={setError}
+          flushRef={richFlush}
         />
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
