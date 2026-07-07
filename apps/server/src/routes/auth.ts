@@ -84,10 +84,24 @@ export const authRoutes = new Hono<AppEnv>()
     },
   )
   .post('/password-reset/request', validate('json', passwordResetRequestSchema), async (c) => {
+    if (!c.get('config').passwordAuthEnabled) {
+      throw new AppError(
+        'PASSWORD_AUTH_DISABLED',
+        'パスワードログインは無効化されています',
+        403,
+      );
+    }
     await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), c.req.valid('json').email);
     return c.body(null, 204);
   })
   .post('/password-reset/confirm/:token', validate('json', passwordResetConfirmSchema), async (c) => {
+    if (!c.get('config').passwordAuthEnabled) {
+      throw new AppError(
+        'PASSWORD_AUTH_DISABLED',
+        'パスワードログインは無効化されています',
+        403,
+      );
+    }
     await resetPassword(c.get('db'), c.req.param('token'), c.req.valid('json').password);
     return c.body(null, 204);
   });

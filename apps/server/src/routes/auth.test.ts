@@ -144,6 +144,17 @@ describe('auth routes', () => {
     await withOidc.pool.end();
   });
 
+  it('パスワード認証無効なら password-reset/request は 403 PASSWORD_AUTH_DISABLED', async () => {
+    const withoutPassword = createTestApp({ config: { passwordAuthEnabled: false } });
+    const res = await withoutPassword.app.request(
+      '/api/auth/password-reset/request',
+      json({ email: 'a@example.com' }),
+    );
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe('PASSWORD_AUTH_DISABLED');
+    await withoutPassword.pool.end();
+  });
+
   it('GET /api/auth/me は authProvider を含む', async () => {
     await createTestUser(ctx.db, { email: 'a@example.com' });
     const login = await ctx.app.request(

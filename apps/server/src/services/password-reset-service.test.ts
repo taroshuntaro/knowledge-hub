@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { passwordResetTokens, users } from '../db/schema';
 import { createTestUser } from '../test/factories';
 import { createTestApp, resetDb, testConfig } from '../test/helpers';
 import { loginWithPassword } from './auth-service';
@@ -46,6 +48,41 @@ describe('password reset', () => {
     const token = tokenFromMail();
     await resetPassword(ctx.db, token, 'brand-new-password');
     await expect(resetPassword(ctx.db, token, 'another-password-x')).rejects.toMatchObject({
+      code: 'INVALID_TOKEN',
+    });
+  });
+
+  it('リクエスト後に OIDC 連携されたアカウントのトークンは INVALID_TOKEN で拒否され、消費もされない', async () => {
+    const u = await createTestUser(ctx.db, { email: 'a@example.com' });
+    await requestPasswordReset(ctx.db, ctx.mailer, config, 'a@example.com');
+    const token = tokenFromMail();
+    // ログイン方式変更後にトークンが提出されるケースを模倣
+    await ctx.db
+      .update(users)
+      .set({ authProvider: 'oidc', passwordHash: null })
+      .where(eq(users.id, u.id));
+
+    await expect(resetPassword(ctx.db, token, 'brand-new-password')).rejects.toMatchObject({
+      code: 'INVALID_TOKEN',
+      message: 'リンクが無効か、期限切れです',
+    });
+
+    const after = await ctx.db.query.users.findFirst({ where: eq(users.id, u.id) });
+    expect(after?.passwordHash).toBeNull();
+    // トークンが未消費であること(usedAt が更新されていない)を確認
+    const row = await ctx.db.query.passwordResetTokens.findFirst({
+      where: eq(passwordResetTokens.userId, u.id),
+    });
+    expect(row?.usedAt).toBeNull();
+  });
+
+  it('リクエスト後に無効化されたアカウントのトークンは INVALID_TOKEN', async () => {
+    const u = await createTestUser(ctx.db, { email: 'a@example.com' });
+    await requestPasswordReset(ctx.db, ctx.mailer, config, 'a@example.com');
+    const token = tokenFromMail();
+    await ctx.db.update(users).set({ isActive: false }).where(eq(users.id, u.id));
+
+    await expect(resetPassword(ctx.db, token, 'brand-new-password')).rejects.toMatchObject({
       code: 'INVALID_TOKEN',
     });
   });
