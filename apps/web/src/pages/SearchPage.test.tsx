@@ -46,7 +46,9 @@ describe('SearchPage', () => {
       json: async () => ({
         items: [{
           id: 'a2', title: '入力検索結果', snippet: '抜粋', authorId: 'u1', authorName: '太郎',
-          categoryId: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
+          authorAvatarUrl: null, categoryId: null, categoryName: null, heroImage: null,
+          tags: [], reactionCount: 0, commentCount: 0,
+          publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
         }],
         nextCursor: null,
       }),
@@ -72,7 +74,9 @@ describe('SearchPage', () => {
       json: async () => ({
         items: [{
           id: 'a1', title: '検索結果タイトル', snippet: '抜粋', authorId: 'u1', authorName: '太郎',
-          categoryId: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
+          authorAvatarUrl: null, categoryId: null, categoryName: null, heroImage: null,
+          tags: [], reactionCount: 0, commentCount: 0,
+          publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
         }],
         nextCursor: null,
       }),
@@ -84,6 +88,30 @@ describe('SearchPage', () => {
     expect(getSearch).toHaveBeenCalledWith(
       expect.objectContaining({ query: expect.objectContaining({ q: 'xxx' }) }),
     );
+  });
+
+  it('検索結果を統一カード（カテゴリチップ・著者・反応数・snippet を抜粋として）で表示する', async () => {
+    getSearch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [{
+          id: 'a3', title: 'カード表示の検索結果', snippet: 'これは抜粋です', authorId: 'u1', authorName: '次郎',
+          authorAvatarUrl: null, categoryId: 'c1', categoryName: 'デザイン', heroImage: null,
+          tags: ['design'], reactionCount: 5, commentCount: 1,
+          publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
+        }],
+        nextCursor: null,
+      }),
+    });
+
+    renderPage('/search?q=xxx');
+
+    expect(await screen.findByRole('link', { name: /カード表示の検索結果/ })).toHaveAttribute('href', '/articles/a3');
+    expect(screen.getByText('これは抜粋です')).toBeInTheDocument();
+    expect(screen.getByText('デザイン')).toBeInTheDocument();
+    expect(screen.getByText('次郎')).toBeInTheDocument();
+    expect(screen.getByText('5')).toBeInTheDocument();
   });
 
   it('結果 0 件のとき EmptyState 文言を表示する', async () => {

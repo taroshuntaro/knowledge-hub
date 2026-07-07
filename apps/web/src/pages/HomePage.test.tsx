@@ -69,4 +69,26 @@ describe('HomePage', () => {
     expect(await screen.findByRole('link', { name: /記事タイトル/ })).toHaveAttribute('href', '/articles/a1');
     expect(screen.queryByText('読み込みに失敗しました。')).not.toBeInTheDocument();
   });
+
+  it('ピックアップ記事を pickup variant のカードで表示する', async () => {
+    getPickup.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => [{
+        id: 'p1', title: 'ピックアップ記事', excerpt: '要約', authorId: 'u1', authorName: '花子',
+        authorAvatarUrl: null, categoryId: null, categoryName: null, heroImage: null,
+        tags: [], reactionCount: 0, commentCount: 0,
+        pinnedAt: '2026-07-01T00:00:00Z', publishedAt: '2026-07-01T00:00:00Z', updatedAt: '2026-07-01T00:00:00Z',
+      }],
+    });
+    getFeed.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [], nextCursor: null }),
+    });
+    renderPage();
+
+    expect(await screen.findByRole('link', { name: /ピックアップ記事/ })).toHaveAttribute('href', '/articles/p1');
+    expect(screen.getByText('📌 ピックアップ')).toBeInTheDocument();
+  });
 });
