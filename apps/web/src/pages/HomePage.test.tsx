@@ -57,7 +57,9 @@ describe('HomePage', () => {
       json: async () => ({
         items: [{
           id: 'a1', title: '記事タイトル', excerpt: '要約', authorId: 'u1', authorName: '太郎',
-          categoryId: null, pinnedAt: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
+          authorAvatarUrl: null, categoryId: null, categoryName: null, heroImage: null,
+          tags: [], reactionCount: 0, commentCount: 0,
+          pinnedAt: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
         }],
         nextCursor: null,
       }),
