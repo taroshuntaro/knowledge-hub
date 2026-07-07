@@ -146,7 +146,16 @@ export function EditorPage() {
   }, [title, bodyMd, categoryId, tags]);
 
   async function publish() {
-    const target = id ?? (await enqueueSave());
+    // id の有無に関わらず必ず保存をフラッシュしてから publish する。
+    // （id ありをスキップすると、デバウンス発火前の直近編集が公開版に含まれず、
+    //   navigate によるアンマウントで保存もされず失われる）
+    let target: string | null = null;
+    try {
+      target = await enqueueSave();
+    } catch {
+      setError('保存に失敗しました');
+      return;
+    }
     if (!target) return;
     const res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
     if (!res.ok) {
