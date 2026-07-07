@@ -27,7 +27,9 @@ describe('admin routes', () => {
     await createTestUser(ctx.db, { email: 'b@example.com' });
     const res = await ctx.app.request('/api/admin/users', { headers: { cookie } });
     expect(res.status).toBe(200);
-    expect((await res.json()).length).toBe(2);
+    const list = await res.json();
+    expect(list.length).toBe(2);
+    expect(list[0]).toHaveProperty('avatarUrl');
   });
 
   it('admin は招待を送れる', async () => {

@@ -73,11 +73,12 @@ export type AdminUserView = {
   authProvider: 'oidc' | 'password';
   isActive: boolean;
   createdAt: Date;
+  avatarUrl: string | null;
 };
 
 function toAdminView(row: typeof users.$inferSelect): AdminUserView {
-  const { id, email, displayName, role, authProvider, isActive, createdAt } = row;
-  return { id, email, displayName, role, authProvider, isActive, createdAt };
+  const { id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl } = row;
+  return { id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl };
 }
 
 export async function listUsers(db: Db): Promise<AdminUserView[]> {
