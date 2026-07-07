@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api } from '../api/client';
@@ -10,6 +11,7 @@ import { Loading } from '../components/Loading';
 export function NotificationsPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const query = useInfiniteQuery({
     queryKey: ['notifications', 'list'],
@@ -53,7 +55,13 @@ export function NotificationsPage() {
   }
 
   async function readAll() {
-    await api.api.notifications['read-all'].$post();
+    setActionError(null);
+    try {
+      await api.api.notifications['read-all'].$post();
+    } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
     await invalidate();
   }
 
@@ -68,6 +76,7 @@ export function NotificationsPage() {
         )}
       </div>
 
+      {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
       {query.isLoading && <Loading />}
       {query.isError && <p className="text-destructive">通知の読み込みに失敗しました。</p>}
       {!query.isLoading && !query.isError && items.length === 0 && (

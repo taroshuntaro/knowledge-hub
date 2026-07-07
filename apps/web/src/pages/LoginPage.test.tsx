@@ -35,6 +35,16 @@ describe('LoginPage', () => {
     methodsMock.mockResolvedValue({ ok: true, json: async () => ({ password: true, oidc: false }) });
   });
 
+  it('ネットワーク例外でもエラーメッセージを表示する（M-5）', async () => {
+    postMock.mockRejectedValue(new TypeError('fetch failed'));
+    renderPage();
+    await screen.findByLabelText('メールアドレス');
+    await userEvent.type(screen.getByLabelText('メールアドレス'), 'a@example.com');
+    await userEvent.type(screen.getByLabelText('パスワード'), 'my-password-123');
+    await userEvent.click(screen.getByRole('button', { name: 'ログイン' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/通信に失敗/);
+  });
+
   it('入力値で login API を呼ぶ', async () => {
     postMock.mockResolvedValue({ ok: true, json: async () => ({}) });
     renderPage();

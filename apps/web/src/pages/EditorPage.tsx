@@ -187,7 +187,13 @@ export function EditorPage() {
       return;
     }
     if (!target) return;
-    const res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
+    let res: Awaited<ReturnType<typeof api.api.articles[':id']['publish']['$post']>>;
+    try {
+      res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
+    } catch {
+      setError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
     if (!res.ok) {
       const b = (await res.json().catch(() => null)) as { message?: string } | null;
       setError(b?.message ?? '公開に失敗しました');

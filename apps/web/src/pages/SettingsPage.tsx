@@ -42,25 +42,33 @@ export function SettingsPage() {
 
   async function onSaveProfile(e: FormEvent) {
     e.preventDefault();
-    const res = await api.api.users.me.$patch({ json: { displayName, bio, avatarUrl } });
-    if (res.ok) {
-      await queryClient.invalidateQueries({ queryKey: ['me'] });
-      setProfileMsg('保存しました');
-    } else {
-      setProfileMsg('保存に失敗しました');
+    try {
+      const res = await api.api.users.me.$patch({ json: { displayName, bio, avatarUrl } });
+      if (res.ok) {
+        await queryClient.invalidateQueries({ queryKey: ['me'] });
+        setProfileMsg('保存しました');
+      } else {
+        setProfileMsg('保存に失敗しました');
+      }
+    } catch {
+      setProfileMsg('通信に失敗しました。時間をおいて再試行してください');
     }
   }
 
   async function onChangePassword(e: FormEvent) {
     e.preventDefault();
-    const res = await api.api.users.me.password.$post({ json: { currentPassword, newPassword } });
-    if (res.ok) {
-      setPasswordMsg('パスワードを変更しました');
-      setCurrentPassword('');
-      setNewPassword('');
-    } else {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
-      setPasswordMsg(body?.message ?? '変更に失敗しました');
+    try {
+      const res = await api.api.users.me.password.$post({ json: { currentPassword, newPassword } });
+      if (res.ok) {
+        setPasswordMsg('パスワードを変更しました');
+        setCurrentPassword('');
+        setNewPassword('');
+      } else {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        setPasswordMsg(body?.message ?? '変更に失敗しました');
+      }
+    } catch {
+      setPasswordMsg('通信に失敗しました。時間をおいて再試行してください');
     }
   }
 
