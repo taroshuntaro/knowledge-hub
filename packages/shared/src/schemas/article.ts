@@ -6,6 +6,7 @@ export const createArticleSchema = z.object({
   title: z.string().trim().min(1).max(200),
   bodyMd: z.string().max(200_000),
   categoryId: z.string().uuid().nullable().optional(),
+  heroImageUploadId: z.string().uuid().nullable().optional(),
   tags: z.array(tagNameSchema).max(10),
 });
 

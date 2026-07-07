@@ -16,6 +16,7 @@ export type ArticleInput = {
   title: string;
   bodyMd: string;
   categoryId?: string | null;
+  heroImageUploadId?: string | null;
   tags: string[];
 };
 
@@ -68,6 +69,7 @@ export async function createArticle(
     .values({
       authorId,
       categoryId: input.categoryId ?? null,
+      heroImageUploadId: input.heroImageUploadId ?? null,
       title: input.title,
       bodyMd: input.bodyMd,
       searchText,
@@ -123,6 +125,7 @@ export async function updateArticle(
         title: input.title,
         bodyMd: input.bodyMd,
         categoryId: input.categoryId ?? null,
+        heroImageUploadId: input.heroImageUploadId ?? null,
         searchText,
         updatedAt: new Date(),
       })
