@@ -25,7 +25,7 @@ export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; 
         {item.heroImage ? (
           <img src={item.heroImage} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className={`flex aspect-[16/9] h-full w-full items-center justify-center text-2xl font-bold text-white ${item.categoryId ? categoryColorClass(item.categoryId) : 'bg-muted'}`}>
+          <div className={`flex aspect-[16/9] h-full w-full items-center justify-center text-2xl font-bold ${item.categoryId ? `${categoryColorClass(item.categoryId)} text-white` : 'bg-muted text-muted-foreground'}`}>
             {(item.categoryName ?? item.title).slice(0, 1)}
           </div>
         )}
@@ -37,13 +37,13 @@ export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; 
             <Link to={`/categories/${item.categoryId}`} className="rounded-full bg-accent px-2.5 py-0.5 text-[11px] font-bold text-accent-foreground hover:underline">{item.categoryName}</Link>
           )}
         </div>
-        <h3 className="font-semibold leading-snug">
+        <h3 className="line-clamp-2 font-semibold leading-snug">
           <Link to={`/articles/${item.id}`} className="hover:underline">{item.title}</Link>
         </h3>
         {item.excerpt && <p className="line-clamp-1 text-xs leading-relaxed text-muted-foreground">{item.excerpt}</p>}
         <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
           <Link to={`/users/${item.authorId}`} className="flex items-center gap-1.5 hover:underline">
-            <Avatar name={item.authorName} src={item.authorAvatarUrl} className="size-4" />
+            <Avatar name={item.authorName} src={item.authorAvatarUrl} alt="" className="size-4" />
             {item.authorName}
           </Link>
           {date && <span>· {date}</span>}
@@ -51,8 +51,8 @@ export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; 
             <Link key={t} to={`/tags/${encodeURIComponent(t)}`} className="rounded-full border px-2 py-0.5 hover:bg-muted">{t}</Link>
           ))}
           <span className="ml-auto flex items-center gap-3">
-            <span className="flex items-center gap-1"><Heart className="size-3" aria-hidden />{item.reactionCount}</span>
-            <span className="flex items-center gap-1"><MessageCircle className="size-3" aria-hidden />{item.commentCount}</span>
+            <span className="flex items-center gap-1" aria-label={`リアクション ${item.reactionCount}件`}><Heart className="size-3" aria-hidden />{item.reactionCount}</span>
+            <span className="flex items-center gap-1" aria-label={`コメント ${item.commentCount}件`}><MessageCircle className="size-3" aria-hidden />{item.commentCount}</span>
           </span>
         </div>
       </div>

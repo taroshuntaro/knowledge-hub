@@ -1,9 +1,11 @@
-export function Avatar({ name, src, className = '' }: { name: string; src?: string | null; className?: string }) {
+export function Avatar({
+  name, src, alt, className = '',
+}: { name: string; src?: string | null; alt?: string; className?: string }) {
   if (src) {
     return (
       <img
         src={src}
-        alt={name}
+        alt={alt ?? name}
         className={`aspect-square shrink-0 rounded-full object-cover ${className}`}
       />
     );
