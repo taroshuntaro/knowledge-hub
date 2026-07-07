@@ -1,3 +1,5 @@
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { buildApp } from './app';
@@ -23,9 +25,13 @@ const app = buildApp({
   oidcAuth,
 });
 
-// 本番: ビルド済み SPA を配信（開発時は Vite dev server が担当するため 404 になるだけで無害）
-app.use('*', serveStatic({ root: '../web/dist' }));
-app.get('*', serveStatic({ path: '../web/dist/index.html' }));
+// 本番: ビルド済み SPA を配信（開発時は Vite dev server が担当するため 404 になるだけで無害）。
+// dist の場所は import.meta 基準で解決し、起動 cwd に依存しないようにする（M-7）。
+// （@hono/node-server の serveStatic は相対パス前提のため cwd からの相対に正規化して渡す）
+const webDistAbs = process.env.WEB_DIST_DIR ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
+const webDistRel = path.relative(process.cwd(), webDistAbs) || '.';
+app.use('*', serveStatic({ root: webDistRel }));
+app.get('*', serveStatic({ path: path.join(webDistRel, 'index.html') }));
 
 // 検索は pg_bigm が無くても LIKE で動くが遅くなるため、欠如を運用者に知らせる。
 // 起動時の DB 一時不達で serve() 前にクラッシュしないよう try/catch で保護する。

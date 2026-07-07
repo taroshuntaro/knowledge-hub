@@ -70,3 +70,22 @@ describe('loadConfig smtp auth', () => {
     expect(c.smtpUser).toBeUndefined();
   });
 });
+
+describe('loadConfig production fail-fast', () => {
+  const base = { DATABASE_URL: 'postgres://x' };
+  it('production では S3 認証情報が既定値のままだと起動時エラー', () => {
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/S3_ACCESS_KEY_ID/);
+  });
+  it('production でも S3 認証情報を明示すれば起動できる', () => {
+    const c = loadConfig({
+      ...base,
+      NODE_ENV: 'production',
+      S3_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+      S3_SECRET_ACCESS_KEY: 'real-secret-value',
+    });
+    expect(c.nodeEnv).toBe('production');
+  });
+  it('development では既定値のままでも起動できる（現状維持）', () => {
+    expect(loadConfig(base).s3AccessKeyId).toBe('minioadmin');
+  });
+});

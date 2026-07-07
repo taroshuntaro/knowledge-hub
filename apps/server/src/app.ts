@@ -41,7 +41,7 @@ export function buildApp(
       await next();
     })
     .use(requestLogger)
-    .use(securityHeaders)
+    .use(securityHeaders({ hsts: deps.config.nodeEnv === 'production' }))
     .use(originCheck)
     .onError(errorHandler)
     .route('/healthz', healthRoutes)

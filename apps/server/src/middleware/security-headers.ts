@@ -17,12 +17,16 @@ const CSP = [
   "object-src 'none'",
 ].join('; ');
 
-export const securityHeaders: MiddlewareHandler<AppEnv> = async (c, next) => {
-  await next();
-  const h = c.res.headers;
-  h.set('Content-Security-Policy', CSP);
-  h.set('X-Content-Type-Options', 'nosniff');
-  h.set('X-Frame-Options', 'DENY');
-  h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-};
+export function securityHeaders(options: { hsts: boolean }): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    await next();
+    const h = c.res.headers;
+    h.set('Content-Security-Policy', CSP);
+    h.set('X-Content-Type-Options', 'nosniff');
+    h.set('X-Frame-Options', 'DENY');
+    h.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    h.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    // HSTS は https 前提の本番のみ。開発の http に配ると以後ブラウザが http を拒否して事故る。
+    if (options.hsts) h.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  };
+}

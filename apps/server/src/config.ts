@@ -76,6 +76,10 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (smtpAuthSet === 1) {
     throw new Error('SMTP_USER / SMTP_PASSWORD は両方設定するか、両方未設定にしてください');
   }
+  // 本番で開発用既定値の S3 認証情報が混入したまま起動する事故を防ぐ（M-7）。
+  if (e.NODE_ENV === 'production' && (e.S3_ACCESS_KEY_ID === 'minioadmin' || e.S3_SECRET_ACCESS_KEY === 'minioadmin')) {
+    throw new Error('production では S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY の明示設定が必要です（開発用既定値では起動できません）');
+  }
 
   return {
     nodeEnv: e.NODE_ENV,
