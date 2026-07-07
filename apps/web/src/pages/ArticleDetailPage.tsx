@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useArticle } from '../api/articles';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
+import { formatDate } from '../lib/date';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import { Loading } from '../components/Loading';
@@ -16,11 +17,6 @@ import { BookmarkButton } from '../components/BookmarkButton';
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
   return body?.message ?? fallback;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
 }
 
 export function ArticleDetailPage() {

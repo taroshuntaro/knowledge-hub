@@ -2,13 +2,10 @@ import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-quer
 import { useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { notificationMessage, type NotificationItem } from '../lib/notification-message';
+import { formatDate } from '../lib/date';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '../components/EmptyState';
 import { Loading } from '../components/Loading';
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
-}
 
 export function NotificationsPage() {
   const queryClient = useQueryClient();

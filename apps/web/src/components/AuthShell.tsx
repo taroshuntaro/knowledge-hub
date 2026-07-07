@@ -11,7 +11,7 @@ export function AuthShell({ title, children }: { title?: string; children: React
             knowledge<span className="text-ring">·</span>hub
           </h1>
           <p className="text-sm text-muted-foreground">チームの知見を、流れる場所へ</p>
-          {title && <p className="pt-2 text-sm font-semibold">{title}</p>}
+          {title && <h2 className="pt-2 text-sm font-semibold">{title}</h2>}
         </CardHeader>
         <CardContent>{children}</CardContent>
       </Card>

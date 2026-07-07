@@ -111,7 +111,7 @@ describe('ArticleDetailPage', () => {
         categoryName: 'デザイン',
         authorAvatarUrl: null,
         tags: ['a'],
-        publishedAt: '2026-07-05T00:00:00Z',
+        publishedAt: '2026-07-05T12:00:00Z',
       }),
     });
     renderPage();

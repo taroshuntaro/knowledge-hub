@@ -83,7 +83,7 @@ export function AdminUsersPage() {
               <TableCell>{u.email}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <Avatar name={u.displayName} className="size-6 text-xs" />
+                  <Avatar src={u.avatarUrl} name={u.displayName} className="size-6 text-xs" />
                   {u.displayName}
                 </div>
               </TableCell>
