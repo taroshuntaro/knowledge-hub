@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { uploadImage } from '@/lib/upload';
+import { Avatar } from '@/components/Avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -75,13 +76,7 @@ export function SettingsPage() {
             <div className="grid gap-1.5">
               <Label htmlFor="settings-avatar">アイコン</Label>
               <div className="flex items-center gap-4">
-                {avatarUrl ? (
-                  <img src={avatarUrl} className="size-16 rounded-full object-cover" alt="" />
-                ) : (
-                  <div className="size-16 rounded-full bg-muted text-xl font-semibold grid place-items-center">
-                    {displayName.charAt(0)}
-                  </div>
-                )}
+                <Avatar src={avatarUrl} name={me?.displayName ?? ''} className="size-16 text-xl font-semibold" />
                 <input
                   ref={avatarInputRef}
                   id="settings-avatar"

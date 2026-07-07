@@ -50,7 +50,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthShell title="knowledge-hub">
+    <AuthShell>
       {isLoading ? null : (
         <div className="flex flex-col gap-4">
           {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
@@ -71,7 +71,11 @@ export function LoginPage() {
             </form>
           )}
           {resolvedMethods.password && resolvedMethods.oidc && (
-            <div className="text-center text-xs text-muted-foreground">または</div>
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-xs text-muted-foreground">または</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
           )}
           {resolvedMethods.oidc && (
             <Button asChild variant="outline">

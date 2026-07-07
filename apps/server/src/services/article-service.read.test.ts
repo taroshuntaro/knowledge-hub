@@ -137,4 +137,31 @@ describe('article read', () => {
     expect(bareItem.commentCount).toBe(0);
     expect(bareItem.heroImage).toBeNull();
   });
+
+  it('記事詳細は categoryName・authorAvatarUrl・heroImage を含む', async () => {
+    const author = await createTestUser(ctx.db, { avatarUrl: 'https://example.com/avatar.png' });
+    const c = await createTestCategory(ctx.db, { name: 'デザイン' });
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: author.id, storageKey: 'k2', mimeType: 'image/png', size: 1 })
+      .returning();
+    const article = await createArticle(ctx.db, author.id, {
+      title: 'ヒーロー付き記事', bodyMd: '本文', categoryId: c.id, heroImageUploadId: upload.id, tags: [],
+    });
+    await publishArticle(ctx.db, article.id, asUser(author.id));
+
+    const detail = await getArticleForViewer(ctx.db, article.id, asUser(author.id));
+    expect(detail.categoryName).toBe('デザイン');
+    expect(detail.heroImage).toBe(`/api/uploads/${upload.id}`);
+    expect(detail.authorAvatarUrl).toBe('https://example.com/avatar.png');
+  });
+
+  it('カテゴリ/画像なしの記事は categoryName・heroImage が null', async () => {
+    const author = await createTestUser(ctx.db);
+    const article = await createArticle(ctx.db, author.id, { title: '付加情報なし', bodyMd: '本文', tags: [] });
+
+    const detail = await getArticleForViewer(ctx.db, article.id, asUser(author.id));
+    expect(detail.categoryName).toBeNull();
+    expect(detail.heroImage).toBeNull();
+  });
 });

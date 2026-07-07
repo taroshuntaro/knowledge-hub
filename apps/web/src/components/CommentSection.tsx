@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
+import { formatDate } from '../lib/date';
 import { Button } from '@/components/ui/button';
 import { Loading } from './Loading';
 import { EmptyState } from './EmptyState';
@@ -25,10 +26,6 @@ type CommentNode = {
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
   return body?.message ?? fallback;
-}
-
-function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' });
 }
 
 function CommentForm({
@@ -184,7 +181,7 @@ function CommentItem({
           {canDelete && (
             <button
               type="button"
-              className="text-xs text-muted-foreground hover:underline"
+              className="text-xs text-destructive hover:text-destructive hover:underline"
               onClick={handleDelete}
               disabled={deletePending}
             >

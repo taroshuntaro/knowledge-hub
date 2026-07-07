@@ -245,7 +245,13 @@ export type ArticleListItem = {
   commentCount: number;
 };
 export type Page<T> = { items: T[]; nextCursor: string | null };
-export type ArticleDetail = ArticleRecord & { authorName: string; tags: string[] };
+export type ArticleDetail = ArticleRecord & {
+  authorName: string;
+  authorAvatarUrl: string | null;
+  categoryName: string | null;
+  heroImage: string | null;
+  tags: string[];
+};
 
 // カード表示用の付加情報（heroImage/categoryName/authorAvatarUrl 以外）は 1:N テーブルなので、
 // 主クエリに JOIN すると行が増幅しカーソルページングが壊れる。ページ内の articleId 集合に
@@ -468,9 +474,24 @@ export async function getArticleForViewer(
   const isOwnerOrAdmin = viewer.role === 'admin' || viewer.id === row.authorId;
   const visible = row.status === 'published' && !row.deletedAt;
   if (!visible && !isOwnerOrAdmin) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
-  const [author] = await db.select({ name: users.displayName }).from(users).where(eq(users.id, row.authorId));
+  const [author] = await db
+    .select({ name: users.displayName, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.id, row.authorId));
+  let categoryName: string | null = null;
+  if (row.categoryId) {
+    const [c] = await db.select({ name: categories.name }).from(categories).where(eq(categories.id, row.categoryId));
+    categoryName = c?.name ?? null;
+  }
   const tagNames = await getArticleTagNames(db, id);
-  return { ...row, authorName: author?.name ?? '', tags: tagNames };
+  return {
+    ...row,
+    authorName: author?.name ?? '',
+    authorAvatarUrl: author?.avatarUrl ?? null,
+    categoryName,
+    heroImage: row.heroImageUploadId ? `/api/uploads/${row.heroImageUploadId}` : null,
+    tags: tagNames,
+  };
 }
 
 export async function listRevisions(db: Db, id: string, editor: SessionUser) {

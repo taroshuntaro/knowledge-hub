@@ -1,18 +1,13 @@
 import { Link } from 'react-router';
 import { Heart, MessageCircle } from 'lucide-react';
 import { categoryColorClass } from '../lib/category-color';
+import { formatDate } from '../lib/date';
 import { Avatar } from './Avatar';
 
 import type { ArticleCardData } from '@knowledge-hub/shared';
 
 // 一覧カードのワイヤー形状は shared の ArticleCardData を単一の情報源とする。
 export type ArticleItem = ArticleCardData;
-
-function formatDate(iso: string | null): string {
-  if (!iso) return '';
-  const d = new Date(iso);
-  return `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
-}
 
 export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; variant?: 'default' | 'pickup' }) {
   const date = formatDate(item.publishedAt ?? item.updatedAt);

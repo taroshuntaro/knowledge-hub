@@ -17,7 +17,10 @@ const article = {
   id: 'a1',
   authorId: 'u1',
   authorName: '著者',
+  authorAvatarUrl: null,
   categoryId: 'c1',
+  categoryName: null,
+  heroImage: null,
   title: 'テスト記事',
   bodyMd: '# 本文',
   status: 'published',
@@ -96,6 +99,45 @@ describe('ArticleDetailPage', () => {
 
     expect(await screen.findByText('読み込みに失敗しました。')).toBeInTheDocument();
     expect(screen.queryByText('記事が見つかりません。')).not.toBeInTheDocument();
+  });
+
+  it('ヒーロー・戻る導線・カテゴリ・タグ・著者・アクションを表示する', async () => {
+    getArticle.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ...article,
+        heroImage: '/api/uploads/up1',
+        categoryName: 'デザイン',
+        authorAvatarUrl: null,
+        tags: ['a'],
+        publishedAt: '2026-07-05T12:00:00Z',
+      }),
+    });
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'テスト記事' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /フィードに戻る/ })).toBeInTheDocument();
+    expect(screen.getByText('デザイン')).toBeInTheDocument();
+    expect(screen.getByText('a')).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/uploads/up1');
+    expect(screen.getByText('2026年7月5日')).toBeInTheDocument();
+  });
+
+  it('ゴミ箱へは destructive ボタン（テキストリンクでない）', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => article });
+    renderPage();
+
+    const trashButton = await screen.findByRole('button', { name: 'ゴミ箱へ' });
+    expect(trashButton).toHaveClass('border-destructive');
+  });
+
+  it('ヒーロー画像が未設定なら img を表示しない', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => article });
+    renderPage();
+
+    await screen.findByRole('heading', { name: 'テスト記事' });
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
   it('下書き記事ではコメント欄・リアクション・ブックマークを表示しない', async () => {

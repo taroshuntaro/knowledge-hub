@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar } from '@/components/Avatar';
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -78,9 +79,14 @@ export function AdminUsersPage() {
         </TableHeader>
         <TableBody>
           {(users ?? []).map((u) => (
-            <TableRow key={u.id}>
+            <TableRow key={u.id} className="hover:bg-muted/50">
               <TableCell>{u.email}</TableCell>
-              <TableCell>{u.displayName}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Avatar src={u.avatarUrl} name={u.displayName} className="size-6 text-xs" />
+                  {u.displayName}
+                </div>
+              </TableCell>
               <TableCell>
                 <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>{u.role === 'admin' ? '管理者' : 'メンバー'}</Badge>
               </TableCell>
@@ -101,6 +107,7 @@ export function AdminUsersPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    className={u.isActive ? 'border-destructive text-destructive hover:text-destructive' : undefined}
                     onClick={() => patchUser.mutate({ id: u.id, isActive: !u.isActive })}
                   >
                     {u.isActive ? '無効化' : '有効化'}

@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { api } from '../api/client';
+import { Avatar } from '../components/Avatar';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
 import { Loading } from '../components/Loading';
@@ -39,13 +40,7 @@ export function ProfilePage() {
   return (
     <section>
       <div className="flex items-center gap-4">
-        {profile.avatarUrl ? (
-          <img src={profile.avatarUrl} className="size-16 rounded-full object-cover" alt="" />
-        ) : (
-          <div className="size-16 rounded-full bg-muted text-xl font-semibold grid place-items-center">
-            {profile.displayName.charAt(0)}
-          </div>
-        )}
+        <Avatar src={profile.avatarUrl} name={profile.displayName} className="size-16 text-xl font-semibold" />
         <div>
           <h2 className="text-xl font-bold tracking-tight">{profile.displayName}</h2>
           {profile.bio && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{profile.bio}</p>}

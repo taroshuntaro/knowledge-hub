@@ -194,6 +194,36 @@ describe('SettingsPage アバターアップロード', () => {
     expect(patchMock).not.toHaveBeenCalled();
   });
 
+  it('avatarUrl が未設定なら Avatar のイニシャル表示（img なし・表示名の頭文字）になる', async () => {
+    renderPage();
+
+    await screen.findByLabelText('表示名');
+    expect(document.querySelector('img')).toBeNull();
+    await waitFor(() =>
+      expect(document.querySelector('#settings-avatar')?.parentElement).toHaveTextContent('太'),
+    );
+  });
+
+  it('avatarUrl が設定済みなら Avatar が name を alt にした img を描画する', async () => {
+    const existingAvatarUrl = '/api/uploads/55555555-5555-5555-5555-555555555555';
+    getMeMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'u1',
+        email: 'user@example.com',
+        displayName: '太郎',
+        role: 'member',
+        avatarUrl: existingAvatarUrl,
+        bio: '',
+      }),
+    });
+    renderPage();
+
+    await waitFor(() => expect(document.querySelector('img')).toHaveAttribute('src', existingAvatarUrl));
+    expect(document.querySelector('img')).toHaveAttribute('alt', '太郎');
+  });
+
   it('SettingsPage は oidc ユーザーにパスワード変更カードを出さない', async () => {
     getMeMock.mockResolvedValue({
       ok: true,
