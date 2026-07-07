@@ -18,6 +18,23 @@ type CategoryNode = { id: string; name: string; parentId: string | null; sortOrd
 const navLink =
   'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
 
+function Item({
+  to, icon: Icon, label, onNavigate,
+}: { to: string; icon: typeof Home; label: string; onNavigate?: () => void }) {
+  return (
+    <NavLink to={to} end={to === '/'} className={navLink} onClick={onNavigate}>
+      <Icon className="size-4 shrink-0" aria-hidden />
+      <span>{label}</span>
+    </NavLink>
+  );
+}
+
+function Group({ children }: { children: string }) {
+  return (
+    <p className="mt-4 mb-1 px-2.5 text-[11px] font-bold tracking-wide text-muted-foreground/80">{children}</p>
+  );
+}
+
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { data: me } = useMe();
   const navigate = useNavigate();
@@ -39,16 +56,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
     navigate('/login');
   }
 
-  const Item = ({ to, icon: Icon, label }: { to: string; icon: typeof Home; label: string }) => (
-    <NavLink to={to} end={to === '/'} className={navLink} onClick={onNavigate}>
-      <Icon className="size-4 shrink-0" aria-hidden />
-      <span>{label}</span>
-    </NavLink>
-  );
-  const Group = ({ children }: { children: string }) => (
-    <p className="mt-4 mb-1 px-2.5 text-[11px] font-bold tracking-wide text-muted-foreground/80">{children}</p>
-  );
-
   return (
     <div className="flex h-full flex-col gap-0.5 overflow-y-auto p-3">
       <div className="flex items-center justify-between px-1.5 pb-2">
@@ -67,22 +74,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <nav aria-label="メインナビ" className="flex flex-col gap-0.5">
         <Group>閲覧</Group>
-        <Item to="/" icon={Home} label="フィード" />
-        <Item to="/search" icon={Search} label="検索" />
-        <Item to="/me/bookmarks" icon={Bookmark} label="ブックマーク" />
+        <Item to="/" icon={Home} label="フィード" onNavigate={onNavigate} />
+        <Item to="/search" icon={Search} label="検索" onNavigate={onNavigate} />
+        <Item to="/me/bookmarks" icon={Bookmark} label="ブックマーク" onNavigate={onNavigate} />
 
         <Group>カテゴリ</Group>
         {(categories ?? []).map((c) => (
           <div key={c.id}>
-            <Link to={`/categories/${c.id}`} className={navLink} onClick={onNavigate}>
+            <NavLink to={`/categories/${c.id}`} className={navLink} onClick={onNavigate}>
               <span className={`size-2 shrink-0 rounded-sm ${categoryColorClass(c.id)}`} aria-hidden />
               <span>{c.name}</span>
-            </Link>
+            </NavLink>
             {c.children.map((child) => (
-              <Link key={child.id} to={`/categories/${child.id}`} className={`${navLink} pl-7`} onClick={onNavigate}>
+              <NavLink key={child.id} to={`/categories/${child.id}`} className={`${navLink} pl-7`} onClick={onNavigate}>
                 <span className={`size-2 shrink-0 rounded-sm ${categoryColorClass(child.id)}`} aria-hidden />
                 <span>{child.name}</span>
-              </Link>
+              </NavLink>
             ))}
           </div>
         ))}
@@ -91,14 +98,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </Link>
 
         <Group>作成</Group>
-        <Item to="/articles/new" icon={PenLine} label="記事を書く" />
-        <Item to="/me/articles" icon={PenLine} label="マイ記事" />
+        <Item to="/articles/new" icon={PenLine} label="記事を書く" onNavigate={onNavigate} />
+        <Item to="/me/articles" icon={PenLine} label="マイ記事" onNavigate={onNavigate} />
 
         {me?.role === 'admin' && (
           <>
             <Group>管理</Group>
-            <Item to="/admin/categories" icon={FolderTree} label="カテゴリ管理" />
-            <Item to="/admin" icon={Users} label="ユーザー" />
+            <Item to="/admin/categories" icon={FolderTree} label="カテゴリ管理" onNavigate={onNavigate} />
+            <Item to="/admin" icon={Users} label="ユーザー" onNavigate={onNavigate} />
           </>
         )}
       </nav>
