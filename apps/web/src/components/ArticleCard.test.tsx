@@ -44,19 +44,19 @@ describe('ArticleCard', () => {
       tags: [], reactionCount: 0, commentCount: 0,
       pinnedAt: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
     };
-    const { rerender } = render(
+    const { container, rerender } = render(
       <MemoryRouter>
         <ArticleCard item={{ ...base, heroImage: '/api/uploads/up1' }} />
       </MemoryRouter>,
     );
-    expect(screen.getByRole('img')).toHaveAttribute('src', '/api/uploads/up1');
+    expect(container.querySelector('img')).toHaveAttribute('src', '/api/uploads/up1');
 
     rerender(
       <MemoryRouter>
         <ArticleCard item={{ ...base, heroImage: null }} />
       </MemoryRouter>,
     );
-    expect(screen.queryByRole('img')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
   });
 
   it('pickup variant では 📌 ラベルとアクセントボーダーを表示する', () => {

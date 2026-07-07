@@ -21,9 +21,9 @@ export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; 
   const date = formatDate(item.publishedAt ?? item.updatedAt);
   return (
     <article className={`flex items-stretch overflow-hidden rounded-xl border bg-card text-card-foreground transition-colors hover:border-ring/40 ${variant === 'pickup' ? 'border-ring/60' : ''}`}>
-      <Link to={`/articles/${item.id}`} className="w-28 shrink-0 self-stretch sm:w-40" tabIndex={-1}>
+      <Link to={`/articles/${item.id}`} className="w-28 shrink-0 self-stretch sm:w-40" aria-hidden tabIndex={-1}>
         {item.heroImage ? (
-          <img src={item.heroImage} alt={item.title} className="h-full w-full object-cover" />
+          <img src={item.heroImage} alt="" className="h-full w-full object-cover" />
         ) : (
           <div className={`flex aspect-[16/9] h-full w-full items-center justify-center text-2xl font-bold text-white ${item.categoryId ? categoryColorClass(item.categoryId) : 'bg-muted'}`}>
             {(item.categoryName ?? item.title).slice(0, 1)}
