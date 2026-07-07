@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -22,7 +22,7 @@ vi.mock('../api/client', () => ({
           publish: { $post: (...a: unknown[]) => publishMock(...a) },
         },
       },
-      categories: { $get: vi.fn().mockResolvedValue({ ok: true, json: async () => [] }) },
+      categories: { $get: vi.fn().mockResolvedValue({ ok: true, json: async () => [{ id: 'c1', name: 'エンジニアリング', children: [] }] }) },
     },
   },
 }));
@@ -142,29 +142,44 @@ describe('EditorPage', () => {
     expect(postMock).toHaveBeenCalledTimes(1); // 2 回目は id 確定後なので PATCH になる（POST は 1 回）
   });
 
-  it('新規記事を公開すると、保存で得た id で公開 API を呼ぶ（自動保存を待たずに）', async () => {
+  it('新規記事は「公開する」で公開パネルを開き、カテゴリ選択後に公開できる', async () => {
     postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
     publishMock.mockResolvedValue({ ok: true, json: async () => ({}) });
     renderNew();
     await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
-    await userEvent.click(screen.getByRole('button', { name: '公開する' }));
-    expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } });
+    await userEvent.click(screen.getByRole('button', { name: '公開する' })); // パネルを開く
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('option', { name: 'エンジニアリング' });
+    await userEvent.selectOptions(within(dialog).getByLabelText(/カテゴリ/), 'c1');
+    await userEvent.click(within(dialog).getByRole('button', { name: '公開する' }));
+    await waitFor(() => expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } }));
     expect(navigateMock).toHaveBeenCalledWith('/articles/a1');
   });
 
-  it('既存記事を公開すると、id があっても直近の編集を保存（PATCH）してから公開する', async () => {
+  it('公開パネルはカテゴリ未選択だと公開実行ボタンが無効', async () => {
+    renderNew();
+    await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
+    await userEvent.click(screen.getByRole('button', { name: '公開する' }));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: '公開する' })).toBeDisabled();
+    expect(within(dialog).getByText(/カテゴリの選択が必要/)).toBeInTheDocument();
+  });
+
+  it('公開済み記事の編集は「更新を公開」で開き、保存（PATCH）してから公開する', async () => {
     getMock.mockResolvedValue({
       ok: true,
-      json: async () => ({ id: 'a1', title: '既存記事', bodyMd: '本文', categoryId: null, tags: [], updatedAt: '2026-07-05T00:00:00Z' }),
+      json: async () => ({ id: 'a1', title: '既存記事', bodyMd: '本文', categoryId: 'c1', tags: [], updatedAt: '2026-07-05T00:00:00Z', status: 'published' }),
     });
     patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: '2026-07-06T00:00:00Z' }) });
     publishMock.mockResolvedValue({ ok: true, json: async () => ({}) });
     renderEdit('a1');
     await screen.findByDisplayValue('既存記事');
     await userEvent.type(screen.getByLabelText('タイトル'), '追記'); // デバウンス（2秒）が発火する前に公開する
-    await userEvent.click(screen.getByRole('button', { name: '公開する' }));
+    await userEvent.click(screen.getByRole('button', { name: '更新を公開' })); // パネルを開く
+    const dialog = await screen.findByRole('dialog');
+    await userEvent.click(within(dialog).getByRole('button', { name: '更新を公開' }));
+    await waitFor(() => expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } }));
     expect(patchMock).toHaveBeenCalled();
-    expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } });
     expect(patchMock.mock.invocationCallOrder[0]).toBeLessThan(publishMock.mock.invocationCallOrder[0]);
   });
 

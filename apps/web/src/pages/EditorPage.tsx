@@ -11,6 +11,7 @@ import { HeroImageInput } from '../components/HeroImageInput';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, VisuallyHidden } from 'radix-ui';
 import { useTheme } from '@/lib/theme';
 import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
@@ -42,6 +43,7 @@ export function EditorPage() {
   const [loadFailed, setLoadFailed] = useState(false);
   const [articleStatus, setArticleStatus] = useState<'draft' | 'published'>('draft');
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [publishOpen, setPublishOpen] = useState(false);
   // 新規記事はリッチが初期値。既存記事は読み込み完了までソースを暫定表示し、
   // 読み込んだ bodyMd の isLossless 判定でリッチ/ソースを確定する。
   const [mode, setMode] = useState<EditorMode>(routeId ? 'source' : 'rich');
@@ -204,6 +206,7 @@ export function EditorPage() {
     return <p role="alert" className="text-destructive">記事の読み込みに失敗しました。</p>;
   }
 
+  const publishLabel = articleStatus === 'published' ? '更新を公開' : '公開する';
   const savingLabel =
     saveState === 'saving' ? '保存中…' :
     saveState === 'error' ? '保存に失敗' :
@@ -222,7 +225,7 @@ export function EditorPage() {
         <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{savingLabel}</span>
         <div className="ml-auto flex items-center gap-2">
           <Button type="button" variant="outline" size="sm" onClick={runSave}>下書き保存</Button>
-          <Button type="button" size="sm" onClick={publish}>公開する</Button>
+          <Button type="button" size="sm" onClick={() => setPublishOpen(true)}>{publishLabel}</Button>
         </div>
       </div>
 
@@ -240,14 +243,6 @@ export function EditorPage() {
       <div className="grid gap-1.5">
         <Label>ヒーロー画像</Label>
         <HeroImageInput value={heroImageUploadId} onChange={setHeroImageUploadId} />
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="editor-category">カテゴリ</Label>
-        <CategorySelect id="editor-category" value={categoryId} onChange={setCategoryId} />
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="editor-tags">タグ</Label>
-        <TagInput id="editor-tags" value={tags} onChange={setTags} />
       </div>
       <nav className="inline-flex rounded-lg bg-muted p-1" aria-label="編集モード">
         <button
@@ -312,6 +307,40 @@ export function EditorPage() {
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
       </section>
+
+      <Dialog.Root open={publishOpen} onOpenChange={setPublishOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content
+            aria-label="公開設定"
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col gap-5 border-l bg-card p-6 shadow-xl focus:outline-none"
+          >
+            <Dialog.Title className="text-base font-bold">公開設定</Dialog.Title>
+            <VisuallyHidden.Root asChild>
+              <Dialog.Description>記事のカテゴリとタグを設定して公開します</Dialog.Description>
+            </VisuallyHidden.Root>
+            <div className="grid gap-1.5">
+              <Label htmlFor="publish-category">カテゴリ<span className="ml-1 text-destructive">*必須</span></Label>
+              <CategorySelect id="publish-category" value={categoryId} onChange={setCategoryId} />
+              {!categoryId && <p className="text-xs text-destructive">公開にはカテゴリの選択が必要です</p>}
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="publish-tags">タグ（任意）</Label>
+              <TagInput id="publish-tags" value={tags} onChange={setTags} />
+            </div>
+            <div className="mt-auto grid gap-2">
+              <Button
+                type="button"
+                disabled={!categoryId}
+                onClick={async () => { setPublishOpen(false); await publish(); }}
+              >
+                {publishLabel}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">公開すると一覧・フィードに表示されます</p>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
