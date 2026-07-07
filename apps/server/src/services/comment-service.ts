@@ -4,7 +4,7 @@ import { articles, comments, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { decodeCursor, encodeCursor } from './cursor';
-import { notifyCommentCreated, notifyCommentMentionsOnEdit } from './notification-service';
+import { notifyCommentCreated, notifyCommentMentionsOnEdit, runNotify } from './notification-service';
 import { can } from './permissions';
 
 export type CommentRecord = typeof comments.$inferSelect;
@@ -100,11 +100,13 @@ export async function createComment(
     })
     .returning();
 
-  await notifyCommentCreated(db, {
-    comment: row,
-    articleAuthorId: article.authorId,
-    parentAuthorId: parent?.authorId ?? null,
-  });
+  await runNotify('comment-created', () =>
+    notifyCommentCreated(db, {
+      comment: row,
+      articleAuthorId: article.authorId,
+      parentAuthorId: parent?.authorId ?? null,
+    }),
+  );
 
   return row;
 }
@@ -193,7 +195,7 @@ export async function updateComment(
     .set({ bodyMd: input.bodyMd, updatedAt: new Date() })
     .where(eq(comments.id, id))
     .returning();
-  await notifyCommentMentionsOnEdit(db, row);
+  await runNotify('comment-mentions-edit', () => notifyCommentMentionsOnEdit(db, row));
   return row;
 }
 

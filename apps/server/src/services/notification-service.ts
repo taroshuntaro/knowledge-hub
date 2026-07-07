@@ -1,5 +1,6 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { articles, notifications, users } from '../db/schema';
+import { logger } from '../logger';
 import type { Db } from '../types';
 import { decodeCursor, encodeCursor } from './cursor';
 import { extractMentionedUserIds } from './mention';
@@ -213,4 +214,14 @@ export async function markAllRead(db: Db, userId: string): Promise<void> {
     .update(notifications)
     .set({ readAt: new Date() })
     .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt)));
+}
+
+// 通知生成は副次機能: 失敗しても中核操作（コメント/リアクション/公開）を巻き込まない。
+// トランザクションでは囲まず、失敗は警告ログに記録して握り潰す（best-effort）。
+export async function runNotify(label: string, fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    logger.warn({ err, notification: label }, 'notification generation failed');
+  }
 }

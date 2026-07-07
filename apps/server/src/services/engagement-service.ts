@@ -4,7 +4,7 @@ import { articles, bookmarks, comments, reactions, users } from '../db/schema';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
 import { decodeCursor, encodeCursor } from './cursor';
-import { notifyReactionAdded } from './notification-service';
+import { notifyReactionAdded, runNotify } from './notification-service';
 
 export type BookmarkedArticle = {
   id: string;
@@ -30,7 +30,9 @@ export async function addReaction(db: Db, userId: string, articleId: string, emo
     .returning({ id: reactions.id });
   // 既存行との衝突（同じリアクションの再 POST）では insert が起きないので通知もしない
   if (inserted.length > 0) {
-    await notifyReactionAdded(db, { actorId: userId, articleId, articleAuthorId: article.authorId });
+    await runNotify('reaction-added', () =>
+      notifyReactionAdded(db, { actorId: userId, articleId, articleAuthorId: article.authorId }),
+    );
   }
 }
 
