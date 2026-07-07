@@ -42,6 +42,26 @@ describe('password reset', () => {
     expect(await getSessionUser(ctx.db, oldSid)).toBeNull();
   });
 
+  it('同一トークンの並行使用は片方だけ成功する（M-3 アトミック消費）', async () => {
+    const u = await createTestUser(ctx.db);
+    await requestPasswordReset(ctx.db, ctx.mailer, config, u.email);
+    const token = tokenFromMail();
+    const results = await Promise.allSettled([
+      resetPassword(ctx.db, token, 'new-password-aaa1'),
+      resetPassword(ctx.db, token, 'new-password-bbb2'),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({ code: 'INVALID_TOKEN' });
+    // 使われたのはどちらか一方のパスワードのみ
+    const wins = [
+      await loginWithPassword(ctx.db, u.email, 'new-password-aaa1'),
+      await loginWithPassword(ctx.db, u.email, 'new-password-bbb2'),
+    ].filter((r) => r !== null);
+    expect(wins).toHaveLength(1);
+  });
+
   it('使用済みトークンは INVALID_TOKEN', async () => {
     const u = await createTestUser(ctx.db);
     await requestPasswordReset(ctx.db, ctx.mailer, config, u.email);

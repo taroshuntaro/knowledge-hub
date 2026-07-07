@@ -15,13 +15,18 @@ export function PasswordResetConfirmPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await api.api.auth['password-reset'].confirm[':token'].$post({
-      param: { token: token ?? '' },
-      json: { password },
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
-      setError(body?.message ?? '再設定に失敗しました');
+    try {
+      const res = await api.api.auth['password-reset'].confirm[':token'].$post({
+        param: { token: token ?? '' },
+        json: { password },
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        setError(body?.message ?? '再設定に失敗しました');
+        return;
+      }
+    } catch {
+      setError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }
     navigate('/login');

@@ -87,6 +87,19 @@ describe('category routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('PATCH /api/categories/:id は空ボディを 400 で拒否する（500 にしない）', async () => {
+    const admin = await login('a@example.com', 'admin');
+    const created = await (await ctx.app.request('/api/categories', {
+      method: 'POST', body: JSON.stringify({ name: 'テック' }),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    })).json();
+    const res = await ctx.app.request(`/api/categories/${created.id}`, {
+      method: 'PATCH', body: JSON.stringify({}),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('GET /api/categories/:id/articles は malformed UUID で 404 を返す', async () => {
     const admin = await login('a@example.com', 'admin');
     const res = await ctx.app.request('/api/categories/not-a-uuid/articles', { headers: { cookie: admin } });

@@ -116,13 +116,13 @@ export function EditorPage() {
         return null;
       }
       const a = await res.json();
-      setUpdatedAt(a.updatedAt); setStatus('保存しました');
+      setUpdatedAt(a.updatedAt); // 保存完了の表示はアクションバーの saveState に一本化
       return { id: currentId, updatedAt: a.updatedAt };
     } else {
       const res = await api.api.articles.$post({ json: { title, bodyMd, categoryId, heroImageUploadId, tags } });
       if (!res.ok) { setError('保存に失敗しました'); return null; }
       const a = await res.json();
-      setId(a.id); setUpdatedAt(a.updatedAt); setStatus('保存しました');
+      setId(a.id); setUpdatedAt(a.updatedAt); // 同上: バーの saveState に一本化
       return { id: a.id, updatedAt: a.updatedAt };
     }
   }
@@ -187,7 +187,13 @@ export function EditorPage() {
       return;
     }
     if (!target) return;
-    const res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
+    let res: Awaited<ReturnType<typeof api.api.articles[':id']['publish']['$post']>>;
+    try {
+      res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
+    } catch {
+      setError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
     if (!res.ok) {
       const b = (await res.json().catch(() => null)) as { message?: string } | null;
       setError(b?.message ?? '公開に失敗しました');
@@ -331,6 +337,7 @@ export function EditorPage() {
               <Label htmlFor="publish-category">カテゴリ<span className="ml-1 text-destructive">*必須</span></Label>
               <CategorySelect id="publish-category" value={categoryId} onChange={setCategoryId} />
               {!categoryId && <p className="text-xs text-destructive">公開にはカテゴリの選択が必要です</p>}
+              {!title.trim() && <p className="text-xs text-destructive">公開にはタイトルの入力が必要です</p>}
             </div>
             <div className="grid gap-1.5">
               <Label htmlFor="publish-tags">タグ（任意）</Label>
@@ -339,7 +346,7 @@ export function EditorPage() {
             <div className="mt-auto grid gap-2">
               <Button
                 type="button"
-                disabled={!categoryId}
+                disabled={!categoryId || !title.trim()}
                 onClick={async () => { setPublishOpen(false); await publish(); }}
               >
                 {publishLabel}

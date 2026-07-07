@@ -39,13 +39,17 @@ export function AdminUsersPage() {
   async function onInvite(e: FormEvent) {
     e.preventDefault();
     setInviteMsg(null);
-    const res = await api.api.admin.users.invitations.$post({ json: { email: inviteEmail } });
-    if (res.ok) {
-      setInviteMsg(`${inviteEmail} に招待を送りました`);
-      setInviteEmail('');
-    } else {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
-      setInviteMsg(body?.message ?? '招待に失敗しました');
+    try {
+      const res = await api.api.admin.users.invitations.$post({ json: { email: inviteEmail } });
+      if (res.ok) {
+        setInviteMsg(`${inviteEmail} に招待を送りました`);
+        setInviteEmail('');
+      } else {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        setInviteMsg(body?.message ?? '招待に失敗しました');
+      }
+    } catch {
+      setInviteMsg('通信に失敗しました。時間をおいて再試行してください');
     }
   }
 

@@ -38,9 +38,14 @@ export function ArticleDetailPage() {
 
   async function togglePin() {
     setActionError(null);
-    const res = await api.api.articles[':id'][article!.pinnedAt ? 'unpin' : 'pin'].$post({ param: { id } });
-    if (!res.ok) {
-      setActionError(await errorMessage(res, '操作に失敗しました'));
+    try {
+      const res = await api.api.articles[':id'][article!.pinnedAt ? 'unpin' : 'pin'].$post({ param: { id } });
+      if (!res.ok) {
+        setActionError(await errorMessage(res, '操作に失敗しました'));
+        return;
+      }
+    } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['article', id] });
@@ -48,9 +53,14 @@ export function ArticleDetailPage() {
 
   async function moveToTrash() {
     setActionError(null);
-    const res = await api.api.articles[':id'].$delete({ param: { id } });
-    if (!res.ok) {
-      setActionError(await errorMessage(res, '削除に失敗しました'));
+    try {
+      const res = await api.api.articles[':id'].$delete({ param: { id } });
+      if (!res.ok) {
+        setActionError(await errorMessage(res, '削除に失敗しました'));
+        return;
+      }
+    } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }
     navigate('/me/articles');

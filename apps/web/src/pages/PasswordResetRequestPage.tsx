@@ -8,10 +8,17 @@ import { Label } from '@/components/ui/label';
 export function PasswordResetRequestPage() {
   const [email, setEmail] = useState('');
   const [done, setDone] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    await api.api.auth['password-reset'].request.$post({ json: { email } });
+    setError(null);
+    try {
+      await api.api.auth['password-reset'].request.$post({ json: { email } });
+    } catch {
+      setError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
     setDone(true);
   }
 
@@ -27,6 +34,7 @@ export function PasswordResetRequestPage() {
   return (
     <AuthShell title="パスワード再設定">
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
         <div className="grid gap-1.5">
           <Label htmlFor="reset-email">メールアドレス</Label>
           <Input id="reset-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

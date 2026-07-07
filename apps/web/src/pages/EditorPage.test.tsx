@@ -89,12 +89,23 @@ describe('EditorPage', () => {
     expect(screen.getByText('下書き')).toBeInTheDocument();
   });
 
-  it('保存に成功すると保存状態を「保存しました」で示す', async () => {
+  it('保存に成功すると保存状態をアクションバーの「保存済み」で示す（キャンバス側の重複表示なし）', async () => {
     postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
     renderNew();
     await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
     await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
-    await waitFor(() => expect(screen.getByText('保存しました')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('保存済み', { exact: true })).toBeInTheDocument());
+    expect(screen.queryByText('保存しました')).not.toBeInTheDocument();
+  });
+
+  it('公開パネルはタイトル未入力だと公開実行ボタンが無効で理由を表示する', async () => {
+    renderNew();
+    await userEvent.click(screen.getByRole('button', { name: '公開する' })); // タイトル空のままパネルを開く
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('option', { name: 'エンジニアリング' });
+    await userEvent.selectOptions(within(dialog).getByLabelText(/カテゴリ/), 'c1'); // カテゴリを選んでも
+    expect(within(dialog).getByRole('button', { name: '公開する' })).toBeDisabled();
+    expect(within(dialog).getByText(/タイトルの入力が必要/)).toBeInTheDocument();
   });
 
   it('新規作成の保存ペイロードに heroImageUploadId（未設定時は null）を含める', async () => {
@@ -138,7 +149,7 @@ describe('EditorPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
     await userEvent.click(screen.getByRole('button', { name: '下書き保存' })); // 1 発目が未解決のまま
     resolveFirst({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-06T00:00:00Z' }) });
-    await waitFor(() => expect(screen.getByText('保存しました')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('保存済み', { exact: true })).toBeInTheDocument());
     expect(postMock).toHaveBeenCalledTimes(1); // 2 回目は id 確定後なので PATCH になる（POST は 1 回）
   });
 

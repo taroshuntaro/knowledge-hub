@@ -47,3 +47,45 @@ describe('loadConfig oidc', () => {
     ).toThrow(/すべて設定するか/);
   });
 });
+
+describe('loadConfig smtp auth', () => {
+  const base = { DATABASE_URL: 'postgres://x' };
+  it('SMTP_USER だけ設定されていると起動時エラー', () => {
+    expect(() => loadConfig({ ...base, SMTP_USER: 'mailer' })).toThrow(/SMTP_USER \/ SMTP_PASSWORD/);
+  });
+  it('SMTP_USER と SMTP_PASSWORD が揃っていれば auth 設定として読める', () => {
+    const c = loadConfig({ ...base, SMTP_USER: 'mailer', SMTP_PASSWORD: 'secret-pass', SMTP_SECURE: 'true' });
+    expect(c.smtpUser).toBe('mailer');
+    expect(c.smtpPassword).toBe('secret-pass');
+    expect(c.smtpSecure).toBe(true);
+  });
+  it('SMTP 認証未設定なら従来どおり（auth なし・secure false）', () => {
+    const c = loadConfig(base);
+    expect(c.smtpUser).toBeUndefined();
+    expect(c.smtpPassword).toBeUndefined();
+    expect(c.smtpSecure).toBe(false);
+  });
+  it('空文字列は未設定として扱う（env テンプレートの ${VAR:-} 互換）', () => {
+    const c = loadConfig({ ...base, SMTP_USER: '', SMTP_PASSWORD: '' });
+    expect(c.smtpUser).toBeUndefined();
+  });
+});
+
+describe('loadConfig production fail-fast', () => {
+  const base = { DATABASE_URL: 'postgres://x' };
+  it('production では S3 認証情報が既定値のままだと起動時エラー', () => {
+    expect(() => loadConfig({ ...base, NODE_ENV: 'production' })).toThrow(/S3_ACCESS_KEY_ID/);
+  });
+  it('production でも S3 認証情報を明示すれば起動できる', () => {
+    const c = loadConfig({
+      ...base,
+      NODE_ENV: 'production',
+      S3_ACCESS_KEY_ID: 'AKIAEXAMPLE',
+      S3_SECRET_ACCESS_KEY: 'real-secret-value',
+    });
+    expect(c.nodeEnv).toBe('production');
+  });
+  it('development では既定値のままでも起動できる（現状維持）', () => {
+    expect(loadConfig(base).s3AccessKeyId).toBe('minioadmin');
+  });
+});

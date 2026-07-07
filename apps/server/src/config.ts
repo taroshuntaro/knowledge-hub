@@ -12,6 +12,9 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(1025),
   SMTP_FROM: z.string().default('knowledge-hub@example.com'),
+  SMTP_USER: emptyAsUndefined(z.string().min(1).optional()),
+  SMTP_PASSWORD: emptyAsUndefined(z.string().min(1).optional()),
+  SMTP_SECURE: z.enum(['true', 'false']).default('false'),
   PASSWORD_AUTH_ENABLED: z.enum(['true', 'false']).default('true'),
   S3_ENDPOINT: z.string().optional(),
   S3_REGION: z.string().default('us-east-1'),
@@ -33,6 +36,9 @@ export type Config = {
   smtpHost: string;
   smtpPort: number;
   smtpFrom: string;
+  smtpUser?: string;
+  smtpPassword?: string;
+  smtpSecure: boolean;
   passwordAuthEnabled: boolean;
   s3Endpoint?: string;
   s3Region: string;
@@ -66,6 +72,14 @@ export function loadConfig(source: Record<string, string | undefined> = process.
   if (e.PASSWORD_AUTH_ENABLED === 'false' && !oidc) {
     throw new Error('PASSWORD_AUTH_ENABLED=false には OIDC 設定が必要です（ログイン手段がなくなります）');
   }
+  const smtpAuthSet = [e.SMTP_USER, e.SMTP_PASSWORD].filter((v) => v !== undefined).length;
+  if (smtpAuthSet === 1) {
+    throw new Error('SMTP_USER / SMTP_PASSWORD は両方設定するか、両方未設定にしてください');
+  }
+  // 本番で開発用既定値の S3 認証情報が混入したまま起動する事故を防ぐ（M-7）。
+  if (e.NODE_ENV === 'production' && (e.S3_ACCESS_KEY_ID === 'minioadmin' || e.S3_SECRET_ACCESS_KEY === 'minioadmin')) {
+    throw new Error('production では S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY の明示設定が必要です（開発用既定値では起動できません）');
+  }
 
   return {
     nodeEnv: e.NODE_ENV,
@@ -75,6 +89,9 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     smtpHost: e.SMTP_HOST,
     smtpPort: e.SMTP_PORT,
     smtpFrom: e.SMTP_FROM,
+    smtpUser: e.SMTP_USER,
+    smtpPassword: e.SMTP_PASSWORD,
+    smtpSecure: e.SMTP_SECURE === 'true',
     passwordAuthEnabled: e.PASSWORD_AUTH_ENABLED === 'true',
     s3Endpoint: e.S3_ENDPOINT,
     s3Region: e.S3_REGION,

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, or } from 'drizzle-orm';
 import { articles, categories } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
@@ -61,10 +61,13 @@ export async function deleteCategory(
   if (children.length > 0) {
     throw new AppError('CATEGORY_NOT_EMPTY', '子カテゴリがあるため削除できません', 409);
   }
+  // 生きている記事に加え、ゴミ箱内の公開記事もガード対象にする（M-10）。
+  // ゴミ箱内 published を categoryId=NULL に付け替えると、restore で
+  // 「公開記事はカテゴリ必須」の不変条件が壊れるため。
   const articleRows = await db
     .select({ id: articles.id })
     .from(articles)
-    .where(and(eq(articles.categoryId, id), isNull(articles.deletedAt)))
+    .where(and(eq(articles.categoryId, id), or(isNull(articles.deletedAt), eq(articles.status, 'published'))))
     .limit(1);
   const hasArticles = articleRows.length > 0;
   if (hasArticles && !reassignToId) {

@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import type { Config } from '../config';
 import { invitations, users } from '../db/schema';
@@ -50,16 +50,30 @@ export async function acceptInvitation(
   if (existing) {
     throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
   }
-  const [user] = await db
-    .insert(users)
-    .values({
-      email: inv.email,
-      displayName: input.displayName,
-      authProvider: 'password',
-      passwordHash: await hashPassword(input.password),
-    })
-    .returning();
-  await db.update(invitations).set({ usedAt: new Date() }).where(eq(invitations.id, inv.id));
+  const passwordHash = await hashPassword(input.password);
+  const user = await db.transaction(async (tx) => {
+    // 条件付き UPDATE でトークンを claim してからユーザーを作る（M-3）。
+    // 並行受諾の 2 本目は 0 行ヒットで INVALID_TOKEN になり、users の
+    // unique 制約違反（500）に到達しない。失敗時は claim ごとロールバック。
+    const claimed = await tx
+      .update(invitations)
+      .set({ usedAt: new Date() })
+      .where(and(eq(invitations.id, inv.id), isNull(invitations.usedAt)))
+      .returning({ id: invitations.id });
+    if (claimed.length === 0) {
+      throw new AppError('INVALID_TOKEN', '招待リンクが無効か、期限切れです', 400);
+    }
+    const [created] = await tx
+      .insert(users)
+      .values({
+        email: inv.email,
+        displayName: input.displayName,
+        authProvider: 'password',
+        passwordHash,
+      })
+      .returning();
+    return created;
+  });
   const sid = await createSession(db, user.id);
   return { sid, user: toSessionUser(user) };
 }

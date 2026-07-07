@@ -24,10 +24,14 @@ export const categoryCreateSchema = z.object({
   parentId: z.string().uuid().nullable().optional(),
 });
 
-export const categoryUpdateSchema = z.object({
-  name: z.string().trim().min(1).max(50).optional(),
-  sortOrder: z.number().int().optional(),
-});
+export const categoryUpdateSchema = z
+  .object({
+    name: z.string().trim().min(1).max(50).optional(),
+    sortOrder: z.number().int().optional(),
+  })
+  .refine((v) => v.name !== undefined || v.sortOrder !== undefined, {
+    message: 'name か sortOrder のいずれかを指定してください',
+  });
 
 export const categoryDeleteSchema = z.object({
   reassignToId: z.string().uuid().nullable().optional(),

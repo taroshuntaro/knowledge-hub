@@ -16,13 +16,18 @@ export function InvitePage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    const res = await api.api.auth.invitations[':token'].accept.$post({
-      param: { token: token ?? '' },
-      json: { displayName, password },
-    });
-    if (!res.ok) {
-      const body = (await res.json().catch(() => null)) as { message?: string } | null;
-      setError(body?.message ?? '登録に失敗しました');
+    try {
+      const res = await api.api.auth.invitations[':token'].accept.$post({
+        param: { token: token ?? '' },
+        json: { displayName, password },
+      });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as { message?: string } | null;
+        setError(body?.message ?? '登録に失敗しました');
+        return;
+      }
+    } catch {
+      setError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }
     navigate('/');

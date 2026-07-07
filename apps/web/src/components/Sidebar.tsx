@@ -51,7 +51,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   });
 
   async function onLogout() {
-    await api.api.auth.logout.$post();
+    try {
+      await api.api.auth.logout.$post();
+    } catch {
+      // サーバー側のセッション失効はベストエフォート。通信不能でも
+      // ローカルのキャッシュ破棄と /login への退避は必ず行う（M-5）。
+    }
     await queryClient.clear();
     navigate('/login');
   }

@@ -87,6 +87,15 @@ describe('NotificationsPage', () => {
     expect(postReadAll).toHaveBeenCalled();
   });
 
+  it('「すべて既読にする」がネットワーク例外でもエラーメッセージを表示する（M-5）', async () => {
+    getList.mockResolvedValue({ ok: true, json: async () => ({ items, nextCursor: null }) });
+    getUnreadCount.mockResolvedValue({ ok: true, json: async () => ({ count: 1 }) });
+    postReadAll.mockRejectedValue(new TypeError('fetch failed'));
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: 'すべて既読にする' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/通信に失敗/);
+  });
+
   it('未読通知のクリックで既読 API が呼ばれる', async () => {
     getList.mockResolvedValue({ ok: true, json: async () => ({ items, nextCursor: null }) });
     postRead.mockResolvedValue({ ok: true, status: 204 });

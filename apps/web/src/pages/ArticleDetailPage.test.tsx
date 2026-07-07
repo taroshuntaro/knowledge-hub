@@ -89,6 +89,17 @@ describe('ArticleDetailPage', () => {
     expect(screen.queryByText('マイ記事一覧')).not.toBeInTheDocument();
   });
 
+  it('削除がネットワーク例外でもエラーメッセージを表示してページに留まる（M-5）', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => article });
+    deleteArticle.mockRejectedValue(new TypeError('fetch failed'));
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'ゴミ箱へ' }));
+
+    expect(await screen.findByText(/通信に失敗/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'テスト記事' })).toBeInTheDocument();
+  });
+
   it('取得エラー時は not-found ではなくエラーメッセージを表示する', async () => {
     getArticle.mockResolvedValue({
       ok: false,
