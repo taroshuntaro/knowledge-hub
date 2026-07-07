@@ -12,7 +12,7 @@ export const requestLogger: MiddlewareHandler<AppEnv> = async (c, next) => {
     {
       requestId,
       method: c.req.method,
-      path: c.req.path,
+      path: c.req.routePath,
       status: c.res.status,
       durationMs: Date.now() - start,
     },

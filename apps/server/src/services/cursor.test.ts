@@ -13,9 +13,15 @@ describe('cursor encode/decode', () => {
     expect(decodeCursor(c)).toEqual({ sortKey: '2026-07-07T01:02:03.456Z', id: UUID });
   });
 
-  it('null sortKey（未公開 publishedAt）を空文字で round-trip できる', () => {
+  it('null sortKey から作ったカーソル（空 sortKey）は VALIDATION 400（実運用では発生しないが、防御的に拒否する）', () => {
     const c = encodeCursor(null, UUID);
-    expect(decodeCursor(c)).toEqual({ sortKey: '', id: UUID });
+    expect(() => decodeCursor(c)).toThrow(AppError);
+    try {
+      decodeCursor(c);
+    } catch (e) {
+      expect((e as AppError).status).toBe(400);
+      expect((e as AppError).code).toBe('VALIDATION');
+    }
   });
 
   it('base64url 化け（| 欠落）は VALIDATION 400', () => {
