@@ -6,6 +6,7 @@ import { useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
 import { CategorySelect } from '../components/CategorySelect';
 import { TagInput } from '../components/TagInput';
+import { HeroImageInput } from '../components/HeroImageInput';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -32,6 +33,7 @@ export function EditorPage() {
   const [title, setTitle] = useState('');
   const [bodyMd, setBodyMd] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
+  const [heroImageUploadId, setHeroImageUploadId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
   const [status, setStatus] = useState('');
@@ -54,6 +56,7 @@ export function EditorPage() {
       if (!res.ok) { setLoadFailed(true); return; }
       const a = await res.json();
       setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
+      setHeroImageUploadId(a.heroImageUploadId ?? null);
       if (isLossless(a.bodyMd)) {
         setMode('rich');
       } else {
@@ -98,7 +101,8 @@ export function EditorPage() {
     const currentUpdatedAt = override?.updatedAt ?? updatedAt;
     if (currentId && currentUpdatedAt) {
       const res = await api.api.articles[':id'].$patch({
-        param: { id: currentId }, json: { title, bodyMd, categoryId, tags, expectedUpdatedAt: currentUpdatedAt },
+        param: { id: currentId },
+        json: { title, bodyMd, categoryId, heroImageUploadId, tags, expectedUpdatedAt: currentUpdatedAt },
       });
       if (!res.ok) {
         const b = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -109,7 +113,7 @@ export function EditorPage() {
       setUpdatedAt(a.updatedAt); setStatus('保存しました');
       return { id: currentId, updatedAt: a.updatedAt };
     } else {
-      const res = await api.api.articles.$post({ json: { title, bodyMd, categoryId, tags } });
+      const res = await api.api.articles.$post({ json: { title, bodyMd, categoryId, heroImageUploadId, tags } });
       if (!res.ok) { setError('保存に失敗しました'); return null; }
       const a = await res.json();
       setId(a.id); setUpdatedAt(a.updatedAt); setStatus('保存しました');
@@ -143,7 +147,7 @@ export function EditorPage() {
     timer.current = setTimeout(() => { void enqueueSave(); }, 2000);
     return () => { if (timer.current) clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [title, bodyMd, categoryId, tags]);
+  }, [title, bodyMd, categoryId, heroImageUploadId, tags]);
 
   async function publish() {
     // id の有無に関わらず必ず保存をフラッシュしてから publish する。
@@ -188,6 +192,10 @@ export function EditorPage() {
       <div className="grid gap-1.5">
         <Label htmlFor="editor-title">タイトル</Label>
         <Input id="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      </div>
+      <div className="grid gap-1.5">
+        <Label>ヒーロー画像</Label>
+        <HeroImageInput value={heroImageUploadId} onChange={setHeroImageUploadId} />
       </div>
       <div className="grid gap-1.5">
         <Label htmlFor="editor-category">カテゴリ</Label>
