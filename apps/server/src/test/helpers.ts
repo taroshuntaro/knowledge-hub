@@ -18,6 +18,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     smtpHost: 'localhost',
     smtpPort: 1025,
     smtpFrom: 'test@example.com',
+    smtpSecure: false,
     passwordAuthEnabled: true,
     s3Region: 'us-east-1',
     s3Bucket: 'test',
