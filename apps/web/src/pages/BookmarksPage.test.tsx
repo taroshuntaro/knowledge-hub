@@ -31,7 +31,9 @@ function renderPage() {
 function article(id: string, title: string) {
   return {
     id, title, excerpt: '', authorId: 'u1', authorName: '著者',
-    categoryId: null, pinnedAt: null, publishedAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
+    authorAvatarUrl: null, categoryId: null, categoryName: null, heroImage: null,
+    tags: [], reactionCount: 0, commentCount: 0,
+    pinnedAt: null, publishedAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z',
   };
 }
 

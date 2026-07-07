@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { articleRevisions, uploads } from '../db/schema';
@@ -159,6 +160,26 @@ describe('article write', () => {
       expectedUpdatedAt: article.updatedAt.toISOString(),
     });
     expect(updated.heroImageUploadId).toBeNull();
+  });
+
+  it('作成時に存在しない heroImageUploadId は VALIDATION（400、500 でない）', async () => {
+    const author = await createTestUser(ctx.db);
+    await expect(
+      createArticle(ctx.db, author.id, {
+        title: 't', bodyMd: 'b', tags: [], heroImageUploadId: randomUUID(),
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION', status: 400 });
+  });
+
+  it('更新時に存在しない heroImageUploadId は VALIDATION（400、500 でない）', async () => {
+    const author = await createTestUser(ctx.db);
+    const article = await createArticle(ctx.db, author.id, { title: 't', bodyMd: 'b', tags: [] });
+    await expect(
+      updateArticle(ctx.db, article.id, asUser(author.id), {
+        title: 't2', bodyMd: 'b', tags: [], heroImageUploadId: randomUUID(),
+        expectedUpdatedAt: article.updatedAt.toISOString(),
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION', status: 400 });
   });
 
   it('10 分より古い直近リビジョンがある場合は新規リビジョンを作る', async () => {

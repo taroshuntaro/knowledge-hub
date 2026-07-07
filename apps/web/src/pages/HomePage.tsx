@@ -37,7 +37,7 @@ export function HomePage() {
             ピックアップ
           </h2>
           <div className="flex flex-col gap-3">
-            {pickup.data!.map((it) => <ArticleCard key={it.id} item={it} />)}
+            {pickup.data!.map((it) => <ArticleCard key={it.id} item={it} variant="pickup" />)}
           </div>
         </section>
       )}

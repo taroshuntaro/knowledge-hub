@@ -1,6 +1,7 @@
 import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
-import { articles, bookmarks, comments, reactions, users } from '../db/schema';
+import { articles, bookmarks, categories, comments, reactions, users } from '../db/schema';
+import { fetchListMetadata } from './article-service';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
 import { decodeCursor, encodeCursor } from './cursor';
@@ -17,6 +18,12 @@ export type BookmarkedArticle = {
   publishedAt: Date | null;
   updatedAt: Date;
   bookmarkedAt: Date;
+  heroImage: string | null;
+  categoryName: string | null;
+  authorAvatarUrl: string | null;
+  tags: string[];
+  reactionCount: number;
+  commentCount: number;
 };
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
@@ -101,6 +108,9 @@ const BOOKMARK_COLUMNS = {
   publishedAt: articles.publishedAt,
   updatedAt: articles.updatedAt,
   bookmarkedAt: bookmarks.createdAt,
+  heroImageUploadId: articles.heroImageUploadId,
+  categoryName: categories.name,
+  authorAvatarUrl: users.avatarUrl,
   // カーソルのタイブレークは bookmarks.id で行うため、articles.id とは別に保持する
   // （BOOKMARK_COLUMNS.id は API 形状用に articles.id を指しており、bookmarks.id と
   // 混同するとタイブレークが無関係な article id と比較される不具合になる）。
@@ -142,6 +152,7 @@ export async function listBookmarks(
     .from(bookmarks)
     .innerJoin(articles, eq(bookmarks.articleId, articles.id))
     .innerJoin(users, eq(articles.authorId, users.id))
+    .leftJoin(categories, eq(articles.categoryId, categories.id))
     .where(where)
     .orderBy(desc(createdAtMs), desc(bookmarks.id))
     .limit(page.limit + 1);
@@ -149,6 +160,16 @@ export async function listBookmarks(
   const topRows = rows.slice(0, page.limit);
   const last = topRows[topRows.length - 1];
   const nextCursor = rows.length > page.limit ? encodeCursor(last.bookmarkedAt, last.bookmarkId) : null;
-  const items = topRows.map(({ bookmarkId, ...rest }) => rest);
+  const meta = await fetchListMetadata(db, topRows.map((r) => r.id));
+  const items = topRows.map(({ bookmarkId, heroImageUploadId, ...rest }) => {
+    const m = meta.get(rest.id);
+    return {
+      ...rest,
+      heroImage: heroImageUploadId ? `/api/uploads/${heroImageUploadId}` : null,
+      tags: m?.tags ?? [],
+      reactionCount: m?.reactionCount ?? 0,
+      commentCount: m?.commentCount ?? 0,
+    };
+  });
   return { items, nextCursor };
 }

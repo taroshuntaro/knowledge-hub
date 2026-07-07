@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import {
-  articleRevisions, articles, articleTags, categories, comments, reactions, tags, users,
+  articleRevisions, articles, articleTags, categories, comments, reactions, tags, uploads, users,
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
@@ -57,12 +57,20 @@ async function assertCategoryExists(db: Db, categoryId: string): Promise<void> {
   if (!row) throw new AppError('VALIDATION', '指定されたカテゴリが存在しません', 400);
 }
 
+export async function assertUploadExists(db: Db, uploadId: string): Promise<void> {
+  const row = await db.query.uploads.findFirst({
+    where: eq(uploads.id, uploadId), columns: { id: true },
+  });
+  if (!row) throw new AppError('VALIDATION', '指定された画像が存在しません', 400);
+}
+
 export async function createArticle(
   db: Db,
   authorId: string,
   input: ArticleInput,
 ): Promise<ArticleRecord> {
   if (input.categoryId) await assertCategoryExists(db, input.categoryId);
+  if (input.heroImageUploadId) await assertUploadExists(db, input.heroImageUploadId);
   const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
   const [row] = await db
     .insert(articles)
@@ -95,6 +103,7 @@ export async function updateArticle(
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
   if (input.categoryId) await assertCategoryExists(db, input.categoryId);
+  if (input.heroImageUploadId) await assertUploadExists(db, input.heroImageUploadId);
   // SELECT → JS 比較 → 無条件 UPDATE の check-then-act だと、同一 expectedUpdatedAt の
   // 並行 PATCH が両方とも「一致している」と判定して両方成功してしまう（lost update）。
   // SELECT ... FOR UPDATE で対象行をロックし、比較と UPDATE を同一トランザクションに
@@ -282,9 +291,13 @@ function toListItem(row: RawListRow): ArticleListItem {
   };
 }
 
-export async function enrichListItems(db: Db, items: ArticleListItem[]): Promise<ArticleListItem[]> {
-  if (items.length === 0) return items;
-  const ids = items.map((i) => i.id);
+export type ListMetadata = { tags: string[]; reactionCount: number; commentCount: number };
+
+// 一覧系（feed/bookmarks/search）共通の付加情報集約。主クエリに JOIN すると 1:N テーブル
+// （tags/reactions/comments）で行が増幅しページングが壊れるため、ページ内 id 集合に対する
+// 集約クエリ 3 本（N+1 ではなく、呼び出し 1 回あたり定数本）にまとめる。
+export async function fetchListMetadata(db: Db, ids: string[]): Promise<Map<string, ListMetadata>> {
+  if (ids.length === 0) return new Map();
   const tagRows = await db
     .select({ articleId: articleTags.articleId, name: tags.name })
     .from(articleTags)
@@ -308,12 +321,29 @@ export async function enrichListItems(db: Db, items: ArticleListItem[]): Promise
   }
   const reactionByArticle = new Map(reactionRows.map((r) => [r.articleId, r.count]));
   const commentByArticle = new Map(commentRows.map((r) => [r.articleId, r.count]));
-  return items.map((i) => ({
-    ...i,
-    tags: tagsByArticle.get(i.id) ?? [],
-    reactionCount: reactionByArticle.get(i.id) ?? 0,
-    commentCount: commentByArticle.get(i.id) ?? 0,
-  }));
+  const result = new Map<string, ListMetadata>();
+  for (const id of ids) {
+    result.set(id, {
+      tags: tagsByArticle.get(id) ?? [],
+      reactionCount: reactionByArticle.get(id) ?? 0,
+      commentCount: commentByArticle.get(id) ?? 0,
+    });
+  }
+  return result;
+}
+
+export async function enrichListItems(db: Db, items: ArticleListItem[]): Promise<ArticleListItem[]> {
+  if (items.length === 0) return items;
+  const meta = await fetchListMetadata(db, items.map((i) => i.id));
+  return items.map((i) => {
+    const m = meta.get(i.id);
+    return {
+      ...i,
+      tags: m?.tags ?? [],
+      reactionCount: m?.reactionCount ?? 0,
+      commentCount: m?.commentCount ?? 0,
+    };
+  });
 }
 
 async function pagePublished(

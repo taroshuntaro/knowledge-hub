@@ -1,9 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
+import { comments, reactions, uploads } from '../db/schema';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createArticle, publishArticle, softDeleteArticle } from './article-service';
 import { createBigmSearchService } from './search-service';
+import { setArticleTags } from './tag-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
   id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '', authProvider: 'password',
@@ -141,5 +143,38 @@ describe('search-service', () => {
     await publishOne(ctx.db, u.id, c.id, 'TypeScript入門', '本文');
     const page = await service.search(ctx.db, { q: 'typescript', limit: 20 });
     expect(page.items.map((i) => i.title)).toEqual(['TypeScript入門']);
+  });
+
+  it('12. 検索結果はカテゴリ名・タグ・反応数・コメント数・ヒーロー画像・スニペットを含む', async () => {
+    const author = await createTestUser(ctx.db, { avatarUrl: 'https://example.com/avatar.png' });
+    const reactor = await createTestUser(ctx.db);
+    const c = await createTestCategory(ctx.db, { name: 'デザイン' });
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: author.id, storageKey: 'k1', mimeType: 'image/png', size: 1 })
+      .returning();
+    const article = await createArticle(ctx.db, author.id, {
+      title: '検索メタ情報記事', bodyMd: '本文', categoryId: c.id, heroImageUploadId: upload.id, tags: ['a', 'b'],
+    });
+    await publishArticle(ctx.db, article.id, asUser(author.id));
+    await setArticleTags(ctx.db, article.id, ['a', 'b']);
+    await ctx.db.insert(reactions).values([
+      { userId: author.id, articleId: article.id, emoji: '👍' },
+      { userId: reactor.id, articleId: article.id, emoji: '👍' },
+    ]);
+    await ctx.db.insert(comments).values([
+      { articleId: article.id, authorId: reactor.id, bodyMd: 'コメント' },
+      { articleId: article.id, authorId: reactor.id, bodyMd: '削除済み', deletedAt: new Date() },
+    ]);
+
+    const page = await service.search(ctx.db, { q: '検索メタ情報記事', limit: 20 });
+    const item = page.items.find((i) => i.id === article.id)!;
+    expect(item.categoryName).toBe('デザイン');
+    expect(item.tags.slice().sort()).toEqual(['a', 'b']);
+    expect(item.reactionCount).toBe(2);
+    expect(item.commentCount).toBe(1);
+    expect(item.heroImage).toBe(`/api/uploads/${upload.id}`);
+    expect(item.authorAvatarUrl).toBe('https://example.com/avatar.png');
+    expect(item.snippet).toContain('検索メタ情報記事');
   });
 });

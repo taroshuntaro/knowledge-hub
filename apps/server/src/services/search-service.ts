@@ -5,6 +5,7 @@ import {
   articles, articleTags, categories, tags, users,
 } from '../db/schema';
 import type { Db } from '../types';
+import { fetchListMetadata } from './article-service';
 import { decodeCursor, encodeCursor } from './cursor';
 
 export type SearchResultItem = {
@@ -16,6 +17,12 @@ export type SearchResultItem = {
   categoryId: string | null;
   publishedAt: string | null;
   updatedAt: string;
+  heroImage: string | null;
+  categoryName: string | null;
+  authorAvatarUrl: string | null;
+  tags: string[];
+  reactionCount: number;
+  commentCount: number;
 };
 
 export type SearchQuery = {
@@ -101,9 +108,13 @@ export function createBigmSearchService(): SearchService {
           categoryId: articles.categoryId,
           publishedAt: articles.publishedAt,
           updatedAt: articles.updatedAt,
+          heroImageUploadId: articles.heroImageUploadId,
+          categoryName: categories.name,
+          authorAvatarUrl: users.avatarUrl,
         })
         .from(articles)
         .innerJoin(users, eq(articles.authorId, users.id))
+        .leftJoin(categories, eq(articles.categoryId, categories.id))
         .where(and(...conds))
         .orderBy(desc(articles.publishedAt), desc(articles.id))
         .limit(query.limit + 1);
@@ -112,17 +123,28 @@ export function createBigmSearchService(): SearchService {
       const last = items[items.length - 1];
       const nextCursor = rows.length > query.limit ? encodeCursor(last.publishedAt, last.id) : null;
 
+      const meta = await fetchListMetadata(db, items.map((r) => r.id));
+
       return {
-        items: items.map((r) => ({
-          id: r.id,
-          title: r.title,
-          snippet: r.snippet,
-          authorId: r.authorId,
-          authorName: r.authorName,
-          categoryId: r.categoryId,
-          publishedAt: r.publishedAt?.toISOString() ?? null,
-          updatedAt: r.updatedAt.toISOString(),
-        })),
+        items: items.map((r) => {
+          const m = meta.get(r.id);
+          return {
+            id: r.id,
+            title: r.title,
+            snippet: r.snippet,
+            authorId: r.authorId,
+            authorName: r.authorName,
+            categoryId: r.categoryId,
+            publishedAt: r.publishedAt?.toISOString() ?? null,
+            updatedAt: r.updatedAt.toISOString(),
+            heroImage: r.heroImageUploadId ? `/api/uploads/${r.heroImageUploadId}` : null,
+            categoryName: r.categoryName,
+            authorAvatarUrl: r.authorAvatarUrl,
+            tags: m?.tags ?? [],
+            reactionCount: m?.reactionCount ?? 0,
+            commentCount: m?.commentCount ?? 0,
+          };
+        }),
         nextCursor,
       };
     },

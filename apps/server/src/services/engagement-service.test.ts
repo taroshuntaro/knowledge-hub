@@ -3,11 +3,12 @@ import { sql } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { REACTION_EMOJIS } from '@knowledge-hub/shared';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { bookmarks } from '../db/schema';
+import { bookmarks, reactions as reactionsTable, comments as commentsTable, uploads } from '../db/schema';
 import { createTestArticle, createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
-import { publishArticle, unpublishArticle } from './article-service';
+import { createArticle, publishArticle, unpublishArticle } from './article-service';
 import { createComment, deleteComment } from './comment-service';
+import { setArticleTags } from './tag-service';
 import {
   addBookmark,
   addReaction,
@@ -200,5 +201,39 @@ describe('engagement service', () => {
     // 欠落なし・重複なし: 見えた記事 id 集合が両 id と厳密一致し、合計 2 件。
     expect(seenIds).toHaveLength(2);
     expect(new Set(seenIds)).toEqual(expectedIds);
+  });
+
+  it('12. listBookmarks はカテゴリ名・タグ・反応数・コメント数・ヒーロー画像を含む', async () => {
+    const author = await createTestUser(ctx.db, { avatarUrl: 'https://example.com/avatar.png' });
+    const reactor = await createTestUser(ctx.db);
+    const user = await createTestUser(ctx.db);
+    const category = await createTestCategory(ctx.db, { name: 'デザイン' });
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: author.id, storageKey: 'k1', mimeType: 'image/png', size: 1 })
+      .returning();
+    const article = await createArticle(ctx.db, author.id, {
+      title: 'ヒーロー付き記事', bodyMd: '本文', categoryId: category.id, heroImageUploadId: upload.id, tags: ['a', 'b'],
+    });
+    await publishArticle(ctx.db, article.id, asUser(author.id));
+    await setArticleTags(ctx.db, article.id, ['a', 'b']);
+    await ctx.db.insert(reactionsTable).values([
+      { userId: author.id, articleId: article.id, emoji: '👍' },
+      { userId: reactor.id, articleId: article.id, emoji: '👍' },
+    ]);
+    await ctx.db.insert(commentsTable).values([
+      { articleId: article.id, authorId: reactor.id, bodyMd: 'コメント' },
+      { articleId: article.id, authorId: reactor.id, bodyMd: '削除済み', deletedAt: new Date() },
+    ]);
+    await addBookmark(ctx.db, user.id, article.id);
+
+    const page = await listBookmarks(ctx.db, user.id, { limit: 10 });
+    const item = page.items.find((i) => i.id === article.id)!;
+    expect(item.categoryName).toBe('デザイン');
+    expect(item.tags.slice().sort()).toEqual(['a', 'b']);
+    expect(item.reactionCount).toBe(2);
+    expect(item.commentCount).toBe(1);
+    expect(item.heroImage).toBe(`/api/uploads/${upload.id}`);
+    expect(item.authorAvatarUrl).toBe('https://example.com/avatar.png');
   });
 });
