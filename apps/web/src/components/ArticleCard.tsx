@@ -12,12 +12,12 @@ export type ArticleItem = ArticleCardData;
 export function ArticleCard({ item, variant = 'default' }: { item: ArticleItem; variant?: 'default' | 'pickup' }) {
   const date = formatDate(item.publishedAt ?? item.updatedAt);
   return (
-    <article className={`flex items-stretch overflow-hidden rounded-xl border bg-card text-card-foreground transition-colors hover:border-ring/40 ${variant === 'pickup' ? 'border-ring/60' : ''}`}>
-      <Link to={`/articles/${item.id}`} className="w-28 shrink-0 self-stretch sm:w-40" aria-hidden tabIndex={-1}>
+    <article className={`flex items-start overflow-hidden rounded-xl border bg-card text-card-foreground transition-colors hover:border-ring/40 ${variant === 'pickup' ? 'border-ring/60' : ''}`}>
+      <Link to={`/articles/${item.id}`} className="w-28 shrink-0 sm:w-40" aria-hidden tabIndex={-1}>
         {item.heroImage ? (
-          <img src={item.heroImage} alt="" className="h-full w-full object-cover" />
+          <img src={item.heroImage} alt="" className="aspect-[4/3] h-full w-full object-cover" />
         ) : (
-          <div className={`flex aspect-[16/9] h-full w-full items-center justify-center text-2xl font-bold ${item.categoryId ? `${categoryColorClass(item.categoryId)} text-white` : 'bg-muted text-muted-foreground'}`}>
+          <div className={`flex aspect-[4/3] h-full w-full items-center justify-center text-2xl font-bold ${item.categoryId ? `${categoryColorClass(item.categoryId)} text-white` : 'bg-muted text-muted-foreground'}`}>
             {(item.categoryName ?? item.title).slice(0, 1)}
           </div>
         )}
