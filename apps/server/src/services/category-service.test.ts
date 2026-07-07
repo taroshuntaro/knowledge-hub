@@ -12,7 +12,7 @@ import {
 import { publishArticle, softDeleteArticle } from './article-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
-  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '',
+  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '', authProvider: 'password',
 });
 
 describe('category service', () => {

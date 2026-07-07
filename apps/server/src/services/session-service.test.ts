@@ -37,6 +37,7 @@ describe('session service', () => {
       role: 'admin',
       avatarUrl: 'https://example.com/avatar.png',
       bio: '自己紹介',
+      authProvider: 'password',
     });
   });
 

@@ -18,6 +18,7 @@ export function toSessionUser(user: typeof users.$inferSelect): SessionUser {
     role: user.role,
     avatarUrl: user.avatarUrl,
     bio: user.bio,
+    authProvider: user.authProvider,
   };
 }
 

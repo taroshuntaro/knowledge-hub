@@ -35,7 +35,7 @@ describe('search routes', () => {
     const user = await createTestUser(ctx.db);
     const category = await createTestCategory(ctx.db);
     const asUser: SessionUser = {
-      id: user.id, email: user.email, displayName: user.displayName, role: 'member', avatarUrl: null, bio: '',
+      id: user.id, email: user.email, displayName: user.displayName, role: 'member', avatarUrl: null, bio: '', authProvider: 'password',
     };
     const article = await createArticle(ctx.db, user.id, {
       title: 'ルート検証用ユニークタイトル', bodyMd: '本文', categoryId: category.id, tags: [],

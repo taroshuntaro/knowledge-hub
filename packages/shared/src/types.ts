@@ -7,6 +7,7 @@ export type SessionUser = {
   role: Role;
   avatarUrl: string | null;
   bio: string;
+  authProvider: 'oidc' | 'password';
 };
 
 export type ArticleEngagement = {

@@ -3,7 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { can } from './permissions';
 
 const user = (role: 'member' | 'admin'): SessionUser => ({
-  id: '1', email: 'a@example.com', displayName: 'A', role, avatarUrl: null, bio: '',
+  id: '1', email: 'a@example.com', displayName: 'A', role, avatarUrl: null, bio: '', authProvider: 'password',
 });
 
 describe('can', () => {

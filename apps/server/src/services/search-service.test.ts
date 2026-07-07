@@ -6,7 +6,7 @@ import { createArticle, publishArticle, softDeleteArticle } from './article-serv
 import { createBigmSearchService } from './search-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
-  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '',
+  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '', authProvider: 'password',
 });
 
 async function publishOne(
