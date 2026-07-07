@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api } from '../api/client';
 import { notificationMessage, type NotificationItem } from '../lib/notification-message';
@@ -27,7 +27,17 @@ export function NotificationsPage() {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 
+  const unreadCountQuery = useQuery({
+    queryKey: ['notifications', 'unread-count'],
+    queryFn: async () => {
+      const res = await api.api.notifications['unread-count'].$get();
+      if (!res.ok) throw new Error('failed');
+      return res.json();
+    },
+  });
+
   const items = (query.data?.pages ?? []).flatMap((p) => p.items) as NotificationItem[];
+  const hasUnread = (unreadCountQuery.data?.count ?? 0) > 0;
 
   async function invalidate() {
     await queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -35,8 +45,12 @@ export function NotificationsPage() {
 
   async function openNotification(n: NotificationItem) {
     if (!n.readAt) {
-      await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
-      await invalidate();
+      try {
+        await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
+        await invalidate();
+      } catch {
+        // ignore: navigation must still happen even if marking as read fails
+      }
     }
     navigate(`/articles/${n.articleId}`);
   }
@@ -50,7 +64,7 @@ export function NotificationsPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">通知</h1>
-        {items.some((n) => !n.readAt) && (
+        {hasUnread && (
           <Button type="button" variant="outline" size="sm" onClick={readAll}>
             すべて既読にする
           </Button>

@@ -65,6 +65,21 @@ describe('MentionTextarea', () => {
     );
   });
 
+  it('表示名に ] が含まれる場合は除去して挿入する', async () => {
+    getUsers.mockResolvedValue({
+      ok: true,
+      json: async () => [
+        { id: '47395b74-5d75-487d-9ee6-481eb4c32ebc', displayName: '田中]仮', avatarUrl: null },
+      ],
+    });
+    renderBox();
+    await userEvent.type(screen.getByRole('textbox', { name: 'コメント' }), '@田');
+    await userEvent.click(await screen.findByRole('option', { name: '田中]仮' }));
+    expect(screen.getByTestId('current')).toHaveTextContent(
+      '[@田中仮](/users/47395b74-5d75-487d-9ee6-481eb4c32ebc)',
+    );
+  });
+
   it('@ がなければ候補は出ない', async () => {
     renderBox();
     await userEvent.type(screen.getByRole('textbox', { name: 'コメント' }), '普通のテキスト');

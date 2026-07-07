@@ -35,8 +35,12 @@ export function NotificationBell() {
   async function openNotification(n: NotificationItem) {
     setOpen(false);
     if (!n.readAt) {
-      await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
-      await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      try {
+        await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
+        await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      } catch {
+        // ignore: navigation must still happen even if marking as read fails
+      }
     }
     navigate(`/articles/${n.articleId}`);
   }

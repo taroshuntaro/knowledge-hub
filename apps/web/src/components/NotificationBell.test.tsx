@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,6 +7,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const getList = vi.fn();
 const getUnread = vi.fn();
 const postRead = vi.fn();
+const navigateSpy = vi.fn();
+
+vi.mock('react-router', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router')>();
+  return { ...actual, useNavigate: () => navigateSpy };
+});
 
 vi.mock('../api/client', () => ({
   api: {
@@ -45,6 +51,7 @@ describe('NotificationBell', () => {
     getList.mockReset();
     getUnread.mockReset();
     postRead.mockReset();
+    navigateSpy.mockReset();
   });
 
   it('未読数バッジを表示する', async () => {
@@ -69,5 +76,17 @@ describe('NotificationBell', () => {
     const entry = await screen.findByText('花子さんが「テスト記事」にコメントしました');
     await userEvent.click(entry);
     expect(postRead).toHaveBeenCalledWith({ param: { notificationId: 'n1' } });
+  });
+
+  it('既読 API が失敗しても記事へ遷移する', async () => {
+    getUnread.mockResolvedValue({ ok: true, json: async () => ({ count: 1 }) });
+    getList.mockResolvedValue({ ok: true, json: async () => ({ items: [item], nextCursor: null }) });
+    postRead.mockRejectedValue(new Error('network error'));
+    renderBell();
+    await userEvent.click(await screen.findByRole('button', { name: '通知' }));
+    const entry = await screen.findByText('花子さんが「テスト記事」にコメントしました');
+    await userEvent.click(entry);
+    expect(postRead).toHaveBeenCalledWith({ param: { notificationId: 'n1' } });
+    await waitFor(() => expect(navigateSpy).toHaveBeenCalledWith('/articles/a1'));
   });
 });

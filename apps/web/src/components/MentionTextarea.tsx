@@ -61,7 +61,8 @@ export function MentionTextarea({
     const el = ref.current;
     if (!el || !token) return;
     const caret = el.selectionStart;
-    const inserted = `[@${c.displayName}](/users/${c.id}) `;
+    const label = c.displayName.replace(/[\[\]\r\n]/g, '');
+    const inserted = `[@${label}](/users/${c.id}) `;
     onChange(value.slice(0, token.start) + inserted + value.slice(caret));
     setToken(null);
     requestAnimationFrame(() => {
