@@ -3,13 +3,10 @@ import { Heart, MessageCircle } from 'lucide-react';
 import { categoryColorClass } from '../lib/category-color';
 import { Avatar } from './Avatar';
 
-export type ArticleItem = {
-  id: string; title: string; excerpt: string;
-  authorId: string; authorName: string; authorAvatarUrl: string | null;
-  categoryId: string | null; categoryName: string | null;
-  heroImage: string | null; tags: string[]; reactionCount: number; commentCount: number;
-  pinnedAt: string | null; publishedAt: string | null; updatedAt: string;
-};
+import type { ArticleCardData } from '@knowledge-hub/shared';
+
+// 一覧カードのワイヤー形状は shared の ArticleCardData を単一の情報源とする。
+export type ArticleItem = ArticleCardData;
 
 function formatDate(iso: string | null): string {
   if (!iso) return '';

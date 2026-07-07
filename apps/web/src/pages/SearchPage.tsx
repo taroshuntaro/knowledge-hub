@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
+import type { ArticleCardData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
 import { ArticleCard, type ArticleItem } from '../components/ArticleCard';
 import { CategorySelect } from '../components/CategorySelect';
@@ -10,22 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-type SearchResultItem = {
-  id: string;
-  title: string;
-  snippet: string;
-  authorId: string;
-  authorName: string;
-  authorAvatarUrl: string | null;
-  categoryId: string | null;
-  categoryName: string | null;
-  heroImage: string | null;
-  tags: string[];
-  reactionCount: number;
-  commentCount: number;
-  publishedAt: string | null;
-  updatedAt: string;
-};
+// 検索結果は共有カード型（pinnedAt なし）＋ スニペットのワイヤー形状。
+type SearchResultItem = Omit<ArticleCardData, 'pinnedAt'> & { snippet: string };
 
 function toArticleItem(item: SearchResultItem): ArticleItem {
   return {
