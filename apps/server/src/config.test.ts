@@ -37,4 +37,13 @@ describe('loadConfig oidc', () => {
   it('PASSWORD_AUTH_ENABLED=false かつ OIDC 無効は起動時エラー', () => {
     expect(() => loadConfig({ ...base, PASSWORD_AUTH_ENABLED: 'false' })).toThrow(/ログイン手段/);
   });
+  it('3 変数すべて空文字列は未設定として扱われ oidc は undefined', () => {
+    const c = loadConfig({ ...base, OIDC_ISSUER: '', OIDC_CLIENT_ID: '', OIDC_CLIENT_SECRET: '' });
+    expect(c.oidc).toBeUndefined();
+  });
+  it('一部が空文字列の場合もカスタムエラーになる', () => {
+    expect(() =>
+      loadConfig({ ...base, OIDC_ISSUER: 'https://idp.example.com', OIDC_CLIENT_ID: 'kh', OIDC_CLIENT_SECRET: '' }),
+    ).toThrow(/すべて設定するか/);
+  });
 });
