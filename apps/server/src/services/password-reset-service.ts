@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import type { Config } from '../config';
 import { passwordResetTokens, users } from '../db/schema';
 import { AppError } from '../errors';
@@ -45,13 +45,19 @@ export async function resetPassword(db: Db, token: string, newPassword: string):
     // 無効トークンと同一メッセージを返し、トークンも消費しない。
     throw new AppError('INVALID_TOKEN', 'リンクが無効か、期限切れです', 400);
   }
-  await db
-    .update(users)
-    .set({ passwordHash: await hashPassword(newPassword) })
-    .where(eq(users.id, row.userId));
-  await db
-    .update(passwordResetTokens)
-    .set({ usedAt: new Date() })
-    .where(eq(passwordResetTokens.id, row.id));
+  const passwordHash = await hashPassword(newPassword);
+  await db.transaction(async (tx) => {
+    // 条件付き UPDATE でトークンを claim する（M-3）。並行使用の 2 本目は
+    // 行ロック解放後に 0 行ヒットとなり、ここで確実に拒否される。
+    const claimed = await tx
+      .update(passwordResetTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(passwordResetTokens.id, row.id), isNull(passwordResetTokens.usedAt)))
+      .returning({ id: passwordResetTokens.id });
+    if (claimed.length === 0) {
+      throw new AppError('INVALID_TOKEN', 'リンクが無効か、期限切れです', 400);
+    }
+    await tx.update(users).set({ passwordHash }).where(eq(users.id, row.userId));
+  });
   await deleteUserSessions(db, row.userId);
 }

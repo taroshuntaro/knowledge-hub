@@ -38,6 +38,23 @@ describe('invitation service', () => {
     });
   });
 
+  it('同一招待トークンの並行受諾は片方だけ成功し、ユーザーは 1 人だけ作られる（M-3）', async () => {
+    await createInvitation(ctx.db, ctx.mailer, config, 'race@example.com');
+    const token = tokenFromMail();
+    const results = await Promise.allSettled([
+      acceptInvitation(ctx.db, token, { displayName: 'A', password: 'password-aaaa-1' }),
+      acceptInvitation(ctx.db, token, { displayName: 'B', password: 'password-bbbb-2' }),
+    ]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const rejected = results.filter((r) => r.status === 'rejected') as PromiseRejectedResult[];
+    expect(rejected).toHaveLength(1);
+    expect(rejected[0].reason).toMatchObject({ code: 'INVALID_TOKEN' }); // 500 や unique 違反にしない
+    const { users } = await import('../db/schema');
+    const { eq } = await import('drizzle-orm');
+    const rows = await ctx.db.select().from(users).where(eq(users.email, 'race@example.com'));
+    expect(rows).toHaveLength(1);
+  });
+
   it('受諾でユーザーとセッションが作られる', async () => {
     await createInvitation(ctx.db, ctx.mailer, config, 'new@example.com');
     const { sid, user } = await acceptInvitation(ctx.db, tokenFromMail(), {
