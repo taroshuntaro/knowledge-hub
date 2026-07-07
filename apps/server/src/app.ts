@@ -5,6 +5,7 @@ import { requestLogger } from './middleware/request-logger';
 import { securityHeaders } from './middleware/security-headers';
 import { adminRoutes } from './routes/admin';
 import { articleRoutes } from './routes/articles';
+import { authOidcRoutes } from './routes/auth-oidc';
 import { authRoutes } from './routes/auth';
 import { categoryRoutes } from './routes/categories';
 import { articleCommentRoutes, commentRoutes } from './routes/comments';
@@ -16,10 +17,18 @@ import { tagRoutes } from './routes/tags';
 import { uploadRoutes } from './routes/uploads';
 import { userRoutes } from './routes/users';
 import type { Config } from './config';
+import type { OidcAuth } from './services/oidc-service';
 import type { AppEnv, Db, Mailer, SearchService, Storage } from './types';
 
 export function buildApp(
-  deps: { db: Db; config: Config; mailer: Mailer; storage: Storage; search: SearchService },
+  deps: {
+    db: Db;
+    config: Config;
+    mailer: Mailer;
+    storage: Storage;
+    search: SearchService;
+    oidcAuth: OidcAuth | null;
+  },
 ) {
   return new Hono<AppEnv>()
     .use(async (c, next) => {
@@ -28,6 +37,7 @@ export function buildApp(
       c.set('mailer', deps.mailer);
       c.set('storage', deps.storage);
       c.set('search', deps.search);
+      c.set('oidcAuth', deps.oidcAuth);
       await next();
     })
     .use(requestLogger)
@@ -36,6 +46,7 @@ export function buildApp(
     .onError(errorHandler)
     .route('/healthz', healthRoutes)
     .route('/api/auth', authRoutes)
+    .route('/api/auth/oidc', authOidcRoutes)
     .route('/api/users', userRoutes)
     .route('/api/admin', adminRoutes)
     .route('/api/categories', categoryRoutes)

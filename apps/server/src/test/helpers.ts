@@ -5,10 +5,11 @@ import { inject } from 'vitest';
 import { buildApp } from '../app';
 import type { Config } from '../config';
 import * as schema from '../db/schema';
+import type { OidcAuth } from '../services/oidc-service';
 import { createBigmSearchService } from '../services/search-service';
 import type { Db, Mailer, Storage } from '../types';
 
-export function testConfig(): Config {
+export function testConfig(overrides: Partial<Config> = {}): Config {
   return {
     nodeEnv: 'test',
     port: 0,
@@ -23,6 +24,7 @@ export function testConfig(): Config {
     s3AccessKeyId: 'test',
     s3SecretAccessKey: 'test',
     s3ForcePathStyle: true,
+    ...overrides,
   };
 }
 
@@ -51,13 +53,14 @@ export function createFakeStorage(): Storage & { store: Map<string, { body: Buff
   };
 }
 
-export function createTestApp() {
+export function createTestApp(opts?: { config?: Partial<Config>; oidcAuth?: OidcAuth | null }) {
   const pool = new pg.Pool({ connectionString: inject('dbUrl') });
   const db: Db = drizzle(pool, { schema });
   const mailer = createFakeMailer();
   const storage = createFakeStorage();
   const search = createBigmSearchService();
-  const app = buildApp({ db, config: testConfig(), mailer, storage, search });
+  const oidcAuth = opts?.oidcAuth ?? null;
+  const app = buildApp({ db, config: testConfig(opts?.config), mailer, storage, search, oidcAuth });
   return { app, db, pool, mailer, storage };
 }
 

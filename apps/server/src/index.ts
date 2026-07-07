@@ -5,13 +5,22 @@ import { loadConfig } from './config';
 import { createDb } from './db/client';
 import { logger } from './logger';
 import { createSmtpMailer } from './services/mailer';
+import { createOidcAuth } from './services/oidc-service';
 import { createBigmSearchService } from './services/search-service';
 import { createS3Storage } from './services/storage';
 
 const config = loadConfig();
 const { db, pool } = createDb(config.databaseUrl);
+const oidcAuth = config.oidc
+  ? createOidcAuth(config.oidc, { allowInsecure: config.nodeEnv !== 'production' })
+  : null;
 const app = buildApp({
-  db, config, mailer: createSmtpMailer(config), storage: createS3Storage(config), search: createBigmSearchService(),
+  db,
+  config,
+  mailer: createSmtpMailer(config),
+  storage: createS3Storage(config),
+  search: createBigmSearchService(),
+  oidcAuth,
 });
 
 // 本番: ビルド済み SPA を配信（開発時は Vite dev server が担当するため 404 になるだけで無害）
