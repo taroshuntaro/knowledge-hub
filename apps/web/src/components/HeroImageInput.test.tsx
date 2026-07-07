@@ -16,9 +16,11 @@ describe('HeroImageInput', () => {
     uploadImageWithIdMock.mockReset();
   });
 
-  it('画像未設定なら 16:9 のプレースホルダと「画像を選択」を表示する', () => {
+  it('画像未設定なら上部を占有しないコンパクトな追加トリガーを表示する', () => {
     render(<HeroImageInput value={null} onChange={() => {}} />);
-    expect(screen.getByText('画像を選択')).toBeInTheDocument();
+    expect(screen.getByText('ヒーロー画像を追加（任意）')).toBeInTheDocument();
+    // 旧仕様の大きな 16:9 プレビュー枠（設定済み img）は出さない
+    expect(screen.queryByRole('img', { name: 'ヒーロー画像' })).not.toBeInTheDocument();
   });
 
   it('ファイル選択でアップロードし onChange に uploadId を渡す', async () => {

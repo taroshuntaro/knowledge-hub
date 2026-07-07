@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import CodeMirror from '@uiw/react-codemirror';
 import { markdown } from '@codemirror/lang-markdown';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, Link } from 'react-router';
+import { ArrowLeft } from 'lucide-react';
 import { api } from '../api/client';
 import { CategorySelect } from '../components/CategorySelect';
 import { TagInput } from '../components/TagInput';
 import { HeroImageInput } from '../components/HeroImageInput';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, VisuallyHidden } from 'radix-ui';
 import { useTheme } from '@/lib/theme';
 import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
@@ -39,6 +41,9 @@ export function EditorPage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [articleStatus, setArticleStatus] = useState<'draft' | 'published'>('draft');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [publishOpen, setPublishOpen] = useState(false);
   // 新規記事はリッチが初期値。既存記事は読み込み完了までソースを暫定表示し、
   // 読み込んだ bodyMd の isLossless 判定でリッチ/ソースを確定する。
   const [mode, setMode] = useState<EditorMode>(routeId ? 'source' : 'rich');
@@ -57,6 +62,7 @@ export function EditorPage() {
       const a = await res.json();
       setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
       setHeroImageUploadId(a.heroImageUploadId ?? null);
+      setArticleStatus(a.status ?? 'draft');
       if (isLossless(a.bodyMd)) {
         setMode('rich');
       } else {
@@ -139,12 +145,25 @@ export function EditorPage() {
     return next.then((result) => result?.id ?? null);
   }
 
+  // 保存状態インジケータ用の薄いラッパ。enqueueSave の直列化は無改変。
+  async function runSave(): Promise<string | null> {
+    setSaveState('saving');
+    try {
+      const savedId = await enqueueSave();
+      setSaveState(savedId ? 'saved' : 'idle');
+      return savedId;
+    } catch {
+      setSaveState('error');
+      return null;
+    }
+  }
+
   // 自動保存（2 秒デバウンス。title が空の間は保存しない）
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!title.trim()) return;
     if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => { void enqueueSave(); }, 2000);
+    timer.current = setTimeout(() => { void runSave(); }, 2000);
     return () => { if (timer.current) clearTimeout(timer.current); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, bodyMd, categoryId, heroImageUploadId, tags]);
@@ -187,23 +206,43 @@ export function EditorPage() {
     return <p role="alert" className="text-destructive">記事の読み込みに失敗しました。</p>;
   }
 
+  const publishLabel = articleStatus === 'published' ? '更新を公開' : '公開する';
+  const savingLabel =
+    saveState === 'saving' ? '保存中…' :
+    saveState === 'error' ? '保存に失敗' :
+    saveState === 'saved' ? '保存済み' :
+    updatedAt ? '保存済み' : '未保存';
+
   return (
-    <section className="mx-auto flex max-w-3xl flex-col gap-5">
+    <div className="flex flex-col">
+      <div className="sticky top-0 z-10 -mx-4 flex items-center gap-3 border-b bg-background/85 px-4 py-2.5 backdrop-blur md:-mx-6 md:px-6">
+        <Link to={id ? `/articles/${id}` : '/'} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" aria-hidden="true" />戻る
+        </Link>
+        <Badge variant={articleStatus === 'published' ? 'default' : 'secondary'}>
+          {articleStatus === 'published' ? '公開済み' : '下書き'}
+        </Badge>
+        <span role="status" aria-live="polite" className="text-xs text-muted-foreground">{savingLabel}</span>
+        <div className="ml-auto flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={runSave}>下書き保存</Button>
+          <Button type="button" size="sm" onClick={() => setPublishOpen(true)}>{publishLabel}</Button>
+        </div>
+      </div>
+
+      <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 py-6">
       <div className="grid gap-1.5">
-        <Label htmlFor="editor-title">タイトル</Label>
-        <Input id="editor-title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Label htmlFor="editor-title" className="sr-only">タイトル</Label>
+        <input
+          id="editor-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="タイトルを入力"
+          className="w-full border-none bg-transparent text-3xl font-bold leading-snug tracking-tight outline-none placeholder:text-muted-foreground/50"
+        />
       </div>
       <div className="grid gap-1.5">
         <Label>ヒーロー画像</Label>
         <HeroImageInput value={heroImageUploadId} onChange={setHeroImageUploadId} />
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="editor-category">カテゴリ</Label>
-        <CategorySelect id="editor-category" value={categoryId} onChange={setCategoryId} />
-      </div>
-      <div className="grid gap-1.5">
-        <Label htmlFor="editor-tags">タグ</Label>
-        <TagInput id="editor-tags" value={tags} onChange={setTags} />
       </div>
       <nav className="inline-flex rounded-lg bg-muted p-1" aria-label="編集モード">
         <button
@@ -267,10 +306,41 @@ export function EditorPage() {
       )}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
-      <div className="flex gap-2">
-        <Button type="button" variant="outline" onClick={enqueueSave}>下書き保存</Button>
-        <Button type="button" onClick={publish}>公開する</Button>
-      </div>
-    </section>
+      </section>
+
+      <Dialog.Root open={publishOpen} onOpenChange={setPublishOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+          <Dialog.Content
+            aria-label="公開設定"
+            className="fixed right-0 top-0 z-50 flex h-full w-full max-w-sm flex-col gap-5 border-l bg-card p-6 shadow-xl focus:outline-none"
+          >
+            <Dialog.Title className="text-base font-bold">公開設定</Dialog.Title>
+            <VisuallyHidden.Root asChild>
+              <Dialog.Description>記事のカテゴリとタグを設定して公開します</Dialog.Description>
+            </VisuallyHidden.Root>
+            <div className="grid gap-1.5">
+              <Label htmlFor="publish-category">カテゴリ<span className="ml-1 text-destructive">*必須</span></Label>
+              <CategorySelect id="publish-category" value={categoryId} onChange={setCategoryId} />
+              {!categoryId && <p className="text-xs text-destructive">公開にはカテゴリの選択が必要です</p>}
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="publish-tags">タグ（任意）</Label>
+              <TagInput id="publish-tags" value={tags} onChange={setTags} />
+            </div>
+            <div className="mt-auto grid gap-2">
+              <Button
+                type="button"
+                disabled={!categoryId}
+                onClick={async () => { setPublishOpen(false); await publish(); }}
+              >
+                {publishLabel}
+              </Button>
+              <p className="text-center text-xs text-muted-foreground">公開すると一覧・フィードに表示されます</p>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </div>
   );
 }
