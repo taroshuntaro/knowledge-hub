@@ -15,7 +15,10 @@ function normalize(names: string[]): string[] {
   return out;
 }
 
-export async function upsertTags(db: Db, names: string[]): Promise<{ id: string; name: string }[]> {
+export async function upsertTags(
+  db: Pick<Db, 'select' | 'insert'>,
+  names: string[],
+): Promise<{ id: string; name: string }[]> {
   const norm = normalize(names);
   if (norm.length === 0) return [];
   await db
@@ -25,7 +28,11 @@ export async function upsertTags(db: Db, names: string[]): Promise<{ id: string;
   return db.select({ id: tags.id, name: tags.name }).from(tags).where(inArray(tags.name, norm));
 }
 
-export async function setArticleTags(db: Db, articleId: string, names: string[]): Promise<void> {
+// updateArticle が SELECT ... FOR UPDATE トランザクション内から tx を渡せるように、
+// Db 全体ではなく実際に使うメソッドだけを要求する（session-service.SessionStore と同じ手法）。
+type TagStore = Pick<Db, 'select' | 'insert' | 'transaction'>;
+
+export async function setArticleTags(db: TagStore, articleId: string, names: string[]): Promise<void> {
   const rows = await upsertTags(db, names);
   await db.transaction(async (tx) => {
     await tx.delete(articleTags).where(eq(articleTags.articleId, articleId));

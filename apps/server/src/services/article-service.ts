@@ -19,7 +19,11 @@ export type ArticleInput = {
   tags: string[];
 };
 
-async function snapshot(db: Db, article: { id: string; title: string; bodyMd: string }) {
+// updateArticle が SELECT ... FOR UPDATE トランザクション内から tx を渡せるように、
+// Db 全体ではなく実際に使うメソッドだけを要求する（tag-service.TagStore と同じ手法）。
+type RevisionStore = Pick<Db, 'select' | 'insert' | 'update'>;
+
+async function snapshot(db: RevisionStore, article: { id: string; title: string; bodyMd: string }) {
   await db.insert(articleRevisions).values({
     articleId: article.id,
     title: article.title,
@@ -71,30 +75,46 @@ export async function updateArticle(
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
   if (input.categoryId) await assertCategoryExists(db, input.categoryId);
-  const current = await loadEditable(db, id);
-  if (!can(editor, 'article:edit', { authorId: current.authorId })) {
-    throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
-  }
-  if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
-    throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
-  }
-  if (current.status === 'published' && !input.categoryId) {
-    throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
-  }
-  const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
-  const [row] = await db
-    .update(articles)
-    .set({
-      title: input.title,
-      bodyMd: input.bodyMd,
-      categoryId: input.categoryId ?? null,
-      searchText,
-      updatedAt: new Date(),
-    })
-    .where(eq(articles.id, id))
-    .returning();
-  await setArticleTags(db, id, input.tags);
-  await snapshot(db, row);
+  // SELECT → JS 比較 → 無条件 UPDATE の check-then-act だと、同一 expectedUpdatedAt の
+  // 並行 PATCH が両方とも「一致している」と判定して両方成功してしまう（lost update）。
+  // SELECT ... FOR UPDATE で対象行をロックし、比較と UPDATE を同一トランザクションに
+  // 閉じ込めることで直列化する（auth-service.loginWithPassword / user-service.updateUserByAdmin
+  // と同じパターン）。WHERE updated_at = expectedUpdatedAt の条件付き UPDATE にしないのは、
+  // DB 側がマイクロ秒精度・アプリ側の Date がミリ秒精度で、切り捨てにより自分自身の直前の
+  // 書き込みとすら一致しなくなる罠があるため。
+  const row = await db.transaction(async (tx) => {
+    const [current] = await tx
+      .select()
+      .from(articles)
+      .where(and(eq(articles.id, id), isNull(articles.deletedAt)))
+      .for('update');
+    if (!current) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+    if (!can(editor, 'article:edit', { authorId: current.authorId })) {
+      throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
+    }
+    if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
+      throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
+    }
+    if (current.status === 'published' && !input.categoryId) {
+      throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
+    }
+    const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
+    const [updated] = await tx
+      .update(articles)
+      .set({
+        title: input.title,
+        bodyMd: input.bodyMd,
+        categoryId: input.categoryId ?? null,
+        searchText,
+        updatedAt: new Date(),
+      })
+      .where(eq(articles.id, id))
+      .returning();
+    await setArticleTags(tx, id, input.tags);
+    await snapshot(tx, updated);
+    return updated;
+  });
+  // 通知は best-effort のままトランザクションの外（Global Constraints）
   // 記事本文メンションは公開状態でのみ通知（draft 保存では通知しない）
   if (row.status === 'published') {
     await runNotify('article-mentions-update', () => notifyArticleMentions(db, row));

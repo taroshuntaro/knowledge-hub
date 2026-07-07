@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { articleRevisions } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createArticle, publishArticle, updateArticle } from './article-service';
@@ -82,5 +82,26 @@ describe('article write', () => {
       expectedUpdatedAt: a.updatedAt.toISOString(),
     });
     expect(updated.categoryId).toBeNull();
+  });
+
+  it('同一 expectedUpdatedAt の並行更新は片方だけ成功する（楽観ロックの原子性）', async () => {
+    const author = await createTestUser(ctx.db);
+    const article = await createArticle(ctx.db, author.id, { title: 't', bodyMd: 'b', tags: [] });
+    // pg.Pool は初回はアイドル接続を1本しか持たないため、ウォームアップなしだと片方の
+    // 呼び出しが新規コネクション確立の遅延で常に後追いになり、レースが再現しない
+    // （偶然どちらか一方が確実に先着し、非同期の check-then-act でも毎回 1 勝 1 敗に見える）。
+    // 2 本の接続を先に温めておくことで、本当に同時に SELECT が走る状況を作る。
+    await Promise.all([ctx.db.execute(sql`select 1`), ctx.db.execute(sql`select 1`)]);
+    const expected = article.updatedAt.toISOString();
+    const input = (title: string) => ({ title, bodyMd: 'b', tags: [], expectedUpdatedAt: expected });
+    const results = await Promise.allSettled([
+      updateArticle(ctx.db, article.id, asUser(author.id), input('A')),
+      updateArticle(ctx.db, article.id, asUser(author.id), input('B')),
+    ]);
+    const ok = results.filter((r) => r.status === 'fulfilled');
+    const ng = results.filter((r) => r.status === 'rejected');
+    expect(ok).toHaveLength(1);
+    expect(ng).toHaveLength(1);
+    expect((ng[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
   });
 });
