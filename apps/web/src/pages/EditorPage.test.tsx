@@ -83,6 +83,20 @@ describe('EditorPage', () => {
     expect(postMock).toHaveBeenCalled();
   });
 
+  it('アクションバーに戻る導線と下書きステータスを出す', () => {
+    renderNew();
+    expect(screen.getByRole('link', { name: /戻る/ })).toBeInTheDocument();
+    expect(screen.getByText('下書き')).toBeInTheDocument();
+  });
+
+  it('保存に成功すると保存状態を「保存しました」で示す', async () => {
+    postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
+    renderNew();
+    await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
+    await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
+    await waitFor(() => expect(screen.getByText('保存しました')).toBeInTheDocument());
+  });
+
   it('新規作成の保存ペイロードに heroImageUploadId（未設定時は null）を含める', async () => {
     postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
     renderNew();
