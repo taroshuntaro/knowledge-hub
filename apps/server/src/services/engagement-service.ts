@@ -3,6 +3,7 @@ import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, comments, reactions, users } from '../db/schema';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
+import { decodeCursor, encodeCursor } from './cursor';
 import { notifyReactionAdded } from './notification-service';
 
 export type BookmarkedArticle = {
@@ -85,14 +86,6 @@ export async function getEngagement(db: Db, userId: string, articleId: string): 
     bookmarked: !!bookmark,
     commentCount,
   };
-}
-
-function encodeCursor(sortKey: Date, id: string): string {
-  return Buffer.from(`${sortKey.toISOString()}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
 }
 
 const BOOKMARK_COLUMNS = {

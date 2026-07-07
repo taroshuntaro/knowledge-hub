@@ -5,6 +5,7 @@ import {
   articles, articleTags, categories, tags, users,
 } from '../db/schema';
 import type { Db } from '../types';
+import { decodeCursor, encodeCursor } from './cursor';
 
 export type SearchResultItem = {
   id: string;
@@ -36,15 +37,6 @@ export interface SearchService {
 /** LIKE メタ文字をエスケープする（% _ \ をリテラル扱いにする） */
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-}
-
-// article-service.ts の encodeCursor/decodeCursor と同じ形式（publishedAt|id を base64url）
-function encodeCursor(sortKey: Date | null, id: string): string {
-  return Buffer.from(`${sortKey?.toISOString() ?? ''}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
 }
 
 export function createBigmSearchService(): SearchService {

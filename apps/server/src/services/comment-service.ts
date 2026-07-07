@@ -3,6 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { articles, comments, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { decodeCursor, encodeCursor } from './cursor';
 import { notifyCommentCreated, notifyCommentMentionsOnEdit } from './notification-service';
 import { can } from './permissions';
 
@@ -33,14 +34,6 @@ export async function assertPublishedArticle(db: Db, articleId: string) {
     throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
   }
   return row;
-}
-
-function encodeCursor(sortKey: Date, id: string): string {
-  return Buffer.from(`${sortKey.toISOString()}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
 }
 
 function toNode(row: {

@@ -5,6 +5,7 @@ import {
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { decodeCursor, encodeCursor } from './cursor';
 import { buildSearchText } from './markdown';
 import { notifyArticleMentions } from './notification-service';
 import { can } from './permissions';
@@ -190,14 +191,6 @@ const LIST_COLUMNS = {
   publishedAt: articles.publishedAt,
   updatedAt: articles.updatedAt,
 };
-
-function encodeCursor(sortKey: Date | null, id: string): string {
-  return Buffer.from(`${sortKey?.toISOString() ?? ''}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
-}
 
 async function pagePublished(
   db: Db,
