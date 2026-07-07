@@ -19,23 +19,23 @@
   --card-foreground: oklch(0.25 0.015 55);
   --popover: oklch(0.995 0.003 84);
   --popover-foreground: oklch(0.25 0.015 55);
-  /* primary は濃い焦茶がかったインク。ボタン・リンクは色でなく濃度で立たせる */
-  --primary: oklch(0.31 0.03 45);
+  /* primary はインディゴ。ボタン・リンクの主役色（白文字で AA） */
+  --primary: oklch(0.45 0.15 264);
   --primary-foreground: oklch(0.985 0.005 84);
   --secondary: oklch(0.945 0.008 80);
   --secondary-foreground: oklch(0.3 0.02 55);
   --muted: oklch(0.945 0.008 80);
   --muted-foreground: oklch(0.5 0.02 55);
-  /* accent はテラコッタの淡い地 + 深いテラコッタ文字。ピン留め等の少量演出に使う */
-  --accent: oklch(0.924 0.045 45);
-  --accent-foreground: oklch(0.43 0.11 40);
+  /* accent はインディゴの淡い地 + 濃インディゴ文字。ピックアップ枠・アクティブナビ等に使う */
+  --accent: oklch(0.93 0.045 264);
+  --accent-foreground: oklch(0.42 0.15 264);
   /* destructive は白文字で AA (4.5) を満たすよう red-700 相当まで深くしている */
   --destructive: oklch(0.505 0.213 27.518);
   --destructive-foreground: oklch(0.985 0.005 84);
   --border: oklch(0.902 0.012 75);
   --input: oklch(0.902 0.012 75);
-  /* ring はテラコッタ。フォーカスとカード hover にだけ温かみが差す */
-  --ring: oklch(0.56 0.115 42);
+  /* ring はインディゴ。フォーカスとカード hover */
+  --ring: oklch(0.58 0.15 264);
   --radius: 0.625rem;
 }
 
@@ -48,22 +48,22 @@
   --card-foreground: oklch(0.93 0.008 80);
   --popover: oklch(0.235 0.012 55);
   --popover-foreground: oklch(0.93 0.008 80);
-  --primary: oklch(0.92 0.012 80);
-  --primary-foreground: oklch(0.235 0.015 55);
+  /* ダークは墨チャコール地に明るめインディゴ。primary は暗文字で AA */
+  --primary: oklch(0.62 0.15 264);
+  --primary-foreground: oklch(0.18 0.02 265);
   --secondary: oklch(0.28 0.012 55);
   --secondary-foreground: oklch(0.93 0.008 80);
   --muted: oklch(0.27 0.012 55);
   --muted-foreground: oklch(0.74 0.015 70);
-  /* ダークではテラコッタを土色の地 + アプリコットの文字に反転 */
-  --accent: oklch(0.3 0.045 40);
-  --accent-foreground: oklch(0.87 0.06 55);
+  --accent: oklch(0.32 0.06 264);
+  --accent-foreground: oklch(0.82 0.09 264);
   /* destructive はエラー本文としても背景/カード上で AA を満たす明るさまで持ち上げ、
      destructive-foreground は暗色反転（ダーク背景トークン相当）にして塗り上の文字も AA を維持する */
   --destructive: oklch(0.704 0.191 22.216);
   --destructive-foreground: oklch(0.19 0.012 55);
   --border: oklch(0.93 0.01 70 / 12%);
   --input: oklch(0.93 0.01 70 / 16%);
-  --ring: oklch(0.68 0.09 48);
+  --ring: oklch(0.68 0.13 264);
 }
 
 @theme inline {
@@ -183,3 +183,17 @@
 .cm-editor.cm-focused {
   outline: none;
 }
+
+/* カテゴリ識別色（装飾のみ・AA 対象外）。category-color.ts が id からクラスを決定論的に選ぶ */
+.cat-dot-0 { background-color: oklch(0.55 0.13 264); }
+.cat-dot-1 { background-color: oklch(0.60 0.11 60); }
+.cat-dot-2 { background-color: oklch(0.58 0.10 160); }
+.cat-dot-3 { background-color: oklch(0.58 0.13 320); }
+.cat-dot-4 { background-color: oklch(0.60 0.11 30); }
+.cat-dot-5 { background-color: oklch(0.55 0.10 200); }
+.dark .cat-dot-0 { background-color: oklch(0.68 0.13 264); }
+.dark .cat-dot-1 { background-color: oklch(0.72 0.11 60); }
+.dark .cat-dot-2 { background-color: oklch(0.70 0.10 160); }
+.dark .cat-dot-3 { background-color: oklch(0.70 0.13 320); }
+.dark .cat-dot-4 { background-color: oklch(0.72 0.11 30); }
+.dark .cat-dot-5 { background-color: oklch(0.68 0.10 200); }

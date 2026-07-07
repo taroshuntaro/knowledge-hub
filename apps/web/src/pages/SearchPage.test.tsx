@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -35,6 +36,33 @@ describe('SearchPage', () => {
     getSearch.mockReset();
     getCategories.mockReset();
     getCategories.mockResolvedValue({ ok: true, status: 200, json: async () => [] });
+  });
+
+  it('キーワード入力欄からの検索で API が呼ばれ、結果が表示される', async () => {
+    const user = userEvent.setup();
+    getSearch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        items: [{
+          id: 'a2', title: '入力検索結果', snippet: '抜粋', authorId: 'u1', authorName: '太郎',
+          categoryId: null, publishedAt: '2026-07-05T00:00:00Z', updatedAt: '2026-07-05T00:00:00Z',
+        }],
+        nextCursor: null,
+      }),
+    });
+
+    renderPage('/search');
+
+    expect(await screen.findByText('キーワードを入力してください')).toBeInTheDocument();
+
+    await user.type(screen.getByRole('searchbox', { name: 'キーワード' }), 'yyy');
+    await user.click(screen.getByRole('button', { name: '検索' }));
+
+    expect(await screen.findByRole('link', { name: /入力検索結果/ })).toHaveAttribute('href', '/articles/a2');
+    expect(getSearch).toHaveBeenCalledWith(
+      expect.objectContaining({ query: expect.objectContaining({ q: 'yyy' }) }),
+    );
   });
 
   it('/search?q=xxx で検索 API が q 付きで呼ばれ、結果タイトルが表示される', async () => {

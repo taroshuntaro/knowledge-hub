@@ -5,6 +5,7 @@ import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ArticleDetailPage } from './pages/ArticleDetailPage';
 import { BookmarksPage } from './pages/BookmarksPage';
+import { CategoriesPage } from './pages/CategoriesPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { EditorPage } from './pages/EditorPage';
 import { HomePage } from './pages/HomePage';
@@ -37,6 +38,7 @@ const router = createBrowserRouter([
       { path: '/articles/new', element: <EditorPage /> },
       { path: '/articles/:id/edit', element: <EditorPage /> },
       { path: '/articles/:id', element: <ArticleDetailPage /> },
+      { path: '/categories', element: <CategoriesPage /> },
       { path: '/categories/:id', element: <CategoryPage /> },
       { path: '/tags/:name', element: <TagPage /> },
       { path: '/users/:id', element: <ProfilePage /> },
