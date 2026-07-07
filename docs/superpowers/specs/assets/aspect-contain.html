@@ -1,0 +1,94 @@
+<style>
+  .km-scope{ --bg:oklch(0.982 0.005 84); --fg:oklch(0.25 0.015 55); --card:oklch(0.995 0.003 84);
+    --pri:oklch(0.45 0.15 264); --acc:oklch(0.93 0.045 264); --acc-fg:oklch(0.42 0.15 264);
+    --muted:oklch(0.5 0.02 55); --muted-bg:oklch(0.945 0.008 80); --bd:oklch(0.902 0.012 75); --ring:oklch(0.58 0.15 264);
+    --r:12px; font-family:'Hiragino Sans','Yu Gothic','Noto Sans JP',system-ui,sans-serif; }
+  .km-scope *{box-sizing:border-box;}
+  .cmp{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin:6px 0 4px;}
+  .cmp3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:14px;}
+  .cell{ border:1px solid var(--bd); border-radius:var(--r); padding:14px; background:var(--card);}
+  .cell .cap{ font-size:12px; font-weight:800; margin-bottom:3px;} .cell .sub{ font-size:11px; color:var(--muted); margin-bottom:10px; line-height:1.6; min-height:2.9em;}
+  .stage-label{ font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; margin:22px 2px 8px;}
+
+  /* 「画像」= 4:3 の被写体つきダミー */
+  .pic{ position:relative; height:100%; aspect-ratio:4/3; overflow:hidden;
+    background:radial-gradient(130% 110% at 78% 12%, oklch(0.66 0.13 264), oklch(0.4 0.16 264) 72%);}
+  .pic .subj{ position:absolute; left:50%; bottom:0; transform:translateX(-50%); display:flex; flex-direction:column; align-items:center;}
+  .pic .face{ width:14%; aspect-ratio:1; border-radius:999px; background:oklch(0.9 0.04 70); box-shadow:0 2px 8px rgba(0,0,0,.2);}
+  .pic .torso{ width:30%; aspect-ratio:1.4/1; border-radius:40px 40px 0 0; background:oklch(0.86 0.05 60); margin-top:5%;}
+
+  /* 16:9 の表示枠 */
+  .frame{ width:100%; aspect-ratio:16/9; border-radius:10px; overflow:hidden; position:relative; display:flex; align-items:center; justify-content:center;}
+  .frame.plain{ background:var(--muted-bg);}
+  .frame .backdrop{ position:absolute; inset:0; background:radial-gradient(130% 110% at 78% 12%, oklch(0.66 0.13 264), oklch(0.4 0.16 264) 72%); filter:blur(16px) brightness(.8) saturate(1.1); transform:scale(1.15);}
+  .frame .fg{ position:relative; height:100%; display:flex; align-items:center; justify-content:center;}
+  .frame .fg .pic{ border-radius:0;}
+
+  /* 4:3 実比率フル（比較用） */
+  .frame43{ width:100%; aspect-ratio:4/3; border-radius:10px; overflow:hidden;}
+  .frame43 .pic{ height:100%; width:100%; aspect-ratio:auto;}
+
+  .detail h4{ font-size:15px; font-weight:800; margin:10px 0 4px;} .detail .meta{ font-size:10.5px; color:var(--muted);}
+
+  h2.q{margin:0 0 4px;} .km-note{font-size:12px;color:var(--muted);margin:14px 2px 0;line-height:1.8;}
+  .legend{font-size:11px;color:var(--muted);margin:4px 2px 0; line-height:1.6;}
+  .tag{display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:999px; background:var(--acc); color:var(--acc-fg); margin-bottom:6px;}
+</style>
+
+<h2 class="q">4:3 画像を「16:9 の高さ枠に収める（contain）」パターン</h2>
+<p class="subtitle">高さは 16:9 側に合わせて抑え、4:3 画像は切らずに中央配置 → 左右に余白（ピラーボックス）。その余白の見せ方（単色／ぼかし背景）も比較します。</p>
+
+<div class="km-scope">
+
+  <div class="stage-label">A. 高さの比較 — なぜ contain が「高さを抑えられる」か</div>
+  <div class="cmp">
+    <div class="cell">
+      <div class="cap">4:3 実比率フル（背が高い）</div>
+      <div class="sub">画像は大きいが、記事上部を縦に大きく占有する。</div>
+      <div class="detail"><div class="frame43"><div class="pic"><div class="subj"><div class="face"></div><div class="torso"></div></div></div></div>
+        <h4>レビュー運用を変えた 3 つの型</h4><div class="meta">エンジニアリング · 佐藤 · 2026年7月5日</div></div>
+    </div>
+    <div class="cell">
+      <div class="cap">16:9 枠に contain（高さ抑え・本命）</div>
+      <div class="sub">高さは 16:9 基準に抑えられ、画像は切れず全体が見える。左右に余白。</div>
+      <div class="detail"><div class="frame plain"><div class="fg"><div class="pic"><div class="subj"><div class="face"></div><div class="torso"></div></div></div></div></div>
+        <h4>レビュー運用を変えた 3 つの型</h4><div class="meta">エンジニアリング · 佐藤 · 2026年7月5日</div></div>
+    </div>
+  </div>
+  <p class="legend">左は縦に大きい。右は 16:9 の高さに揃うので<b>記事上部がすっきり</b>し、他記事（16:9 画像）とも高さが揃う。</p>
+
+  <div class="stage-label">B. 左右余白（ピラーボックス）の見せ方 3 案</div>
+  <div class="cmp3">
+    <div class="cell">
+      <span class="tag">案 1</span>
+      <div class="cap">単色（muted）余白</div>
+      <div class="sub">最もシンプル。余白がはっきり分かる。</div>
+      <div class="frame plain"><div class="fg"><div class="pic"><div class="subj"><div class="face"></div><div class="torso"></div></div></div></div></div>
+    </div>
+    <div class="cell">
+      <span class="tag">案 2</span>
+      <div class="cap">ぼかし背景（blur backdrop）</div>
+      <div class="sub">同じ画像を拡大＆ぼかして余白に敷く。余白が自然で映える。</div>
+      <div class="frame"><div class="backdrop"></div><div class="fg"><div class="pic"><div class="subj"><div class="face"></div><div class="torso"></div></div></div></div></div>
+    </div>
+    <div class="cell">
+      <span class="tag">参考</span>
+      <div class="cap">16:9 画像を入れた場合</div>
+      <div class="sub">元から 16:9 の画像は余白なく枠いっぱい（従来どおり）。</div>
+      <div class="frame plain"><div class="fg" style="width:100%"><div class="pic" style="aspect-ratio:16/9; width:100%;"><div class="subj"><div class="face"></div><div class="torso"></div></div></div></div></div>
+    </div>
+  </div>
+  <p class="legend">枠は常に 16:9。中身が 16:9 なら余白なし、4:3 など縦長なら左右に余白が出る。案 2 は余白をぼかし背景で埋めて自然に見せる方式。</p>
+</div>
+
+<div class="options" style="margin-top:18px">
+  <div class="option" data-choice="blur" onclick="toggleSelect(this)"><div class="letter">A</div><div class="content"><h3>16:9 枠に contain ＋ ぼかし背景（案 2）</h3><p>高さは 16:9 で一定、画像は切れず全体表示、左右余白はぼかし背景で自然に。見栄え良く高さも抑えられる。</p></div></div>
+  <div class="option" data-choice="plain" onclick="toggleSelect(this)"><div class="letter">B</div><div class="content"><h3>16:9 枠に contain ＋ 単色余白（案 1）</h3><p>同上でシンプル。余白は muted 単色。実装が最も軽い。</p></div></div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)"><div class="letter">✎</div><div class="content"><h3>まだ調整したい</h3><p>枠の比率（16:9 か別か）、余白の色、サムネでの扱いなどをターミナルで指定。</p></div></div>
+</div>
+
+<p class="km-note">
+・この方式は<b>「表示枠は 16:9 固定、画像は object-fit: contain」</b>。16:9 画像は余白なし、4:3 など縦長画像は<b>高さを 16:9 に合わせて左右余白</b>。どの記事もヒーロー高さが揃い、上部がすっきりします。<br>
+・<b>案 A（ぼかし背景）</b>は余白部分に同じ画像のぼかしを敷くので、余白が“黒帯”に見えず自然。写真記事で特に映えます。<b>案 B（単色）</b>は最軽量。<br>
+・<b>サムネイル（一覧）</b>への適用は次に決めましょう。候補は「サムネも同方式（16:9 枠 contain）」／「サムネだけは cover でトリミング（小さいので余白より充填が見栄えする場合あり）」。ご意向を踏まえて提案します。
+</p>

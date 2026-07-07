@@ -1,0 +1,136 @@
+<style>
+  .km-scope{ --bg:oklch(0.982 0.005 84); --fg:oklch(0.25 0.015 55); --card:oklch(0.995 0.003 84);
+    --pri:oklch(0.45 0.15 264); --pri-fg:oklch(0.985 0.005 84); --acc:oklch(0.93 0.045 264); --acc-fg:oklch(0.42 0.15 264);
+    --muted:oklch(0.5 0.02 55); --muted-bg:oklch(0.945 0.008 80); --bd:oklch(0.902 0.012 75); --ring:oklch(0.58 0.15 264);
+    --destructive:oklch(0.505 0.213 27.518); --r:12px;
+    font-family:'Hiragino Sans','Yu Gothic','Noto Sans JP',system-ui,sans-serif; }
+  .km-scope *{box-sizing:border-box;}
+  .km{ background:var(--bg); color:var(--fg); border:1px solid var(--bd); border-radius:var(--r); overflow:hidden;}
+  .side{ display:flex; min-height:560px;}
+  .sb{ width:150px; background:var(--card); border-right:1px solid var(--bd); padding:12px 10px; flex-shrink:0; font-size:11.5px; color:var(--muted);}
+  .sb .logo{ font-weight:800; font-size:12.5px; color:var(--fg); padding:2px 4px 8px;} .sb .logo .d{color:var(--ring);}
+  .sb a{ display:block; padding:5px 6px; border-radius:6px; color:var(--muted);}
+  .sb a.on{ background:var(--acc); color:var(--acc-fg); font-weight:700;}
+  .sb .g{ font-size:9.5px; font-weight:700; margin:10px 6px 3px; opacity:.7;}
+  .mainwrap{ flex:1; min-width:0; display:flex; flex-direction:column;}
+
+  .abar{ position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px;
+    background:color-mix(in oklch, var(--bg) 88%, transparent); backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--bd); padding:11px 22px;}
+  .back{ display:inline-flex; align-items:center; gap:5px; font-size:12.5px; color:var(--muted);}
+  .statusbadge{ font-size:11px; font-weight:700; padding:2px 9px; border-radius:999px; border:1px solid var(--bd); color:var(--muted); background:var(--card);}
+  .save{ display:inline-flex; align-items:center; gap:5px; font-size:12px; color:var(--muted);}
+  .save .dot{ width:6px; height:6px; border-radius:999px; background:oklch(0.55 0.02 150);}
+  .spacer{ flex:1;}
+  .seg{ display:inline-flex; background:var(--muted-bg); border-radius:8px; padding:3px;}
+  .seg button{ border:none; background:transparent; font-size:12px; font-weight:600; color:var(--muted); padding:4px 11px; border-radius:6px;}
+  .seg button.on{ background:var(--bg); color:var(--fg); box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .btn{ font-size:12.5px; font-weight:600; padding:7px 14px; border-radius:8px; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;}
+  .btn.pri{ background:var(--pri); color:var(--pri-fg);}
+  .btn.out{ border:1px solid var(--bd); background:var(--card); color:var(--fg);}
+
+  /* ↓ 上部余白を取り、記事詳細と同じ四隅角丸の 16:9 カード */
+  .canvas{ flex:1; overflow-y:auto;}
+  .wrap{ max-width:720px; margin:0 auto; padding:28px 22px 48px;}
+
+  /* 未設定時: コンパクトな 1 行トリガー（上部を占有しない） */
+  .hero-add{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--muted);
+    border:1px solid var(--bd); border-radius:8px; background:var(--card); padding:6px 12px; margin-bottom:14px;}
+  .hero-add .ic{ font-size:14px;}
+
+  /* 設定済み: 四隅角丸の 16:9、ホバーで変更/削除。上部にも下部にも余白 */
+  .hero{ width:100%; aspect-ratio:16/9; border-radius:var(--r); background:radial-gradient(120% 120% at 80% 10%, oklch(0.62 0.14 264), oklch(0.4 0.16 264) 70%); position:relative; margin-bottom:18px;}
+  .hero .ov{ position:absolute; right:12px; bottom:12px; display:flex; gap:6px;}
+  .hero .ovbtn{ font-size:11.5px; font-weight:600; padding:5px 10px; border-radius:7px; background:rgba(0,0,0,.42); color:#fff; backdrop-filter:blur(3px);}
+
+  .titlein{ width:100%; border:none; background:transparent; color:var(--fg); font-size:30px; line-height:1.3; font-weight:800; letter-spacing:-.01em; padding:0; margin-bottom:10px; outline:none;}
+  .titlein.ph{ color:oklch(0.72 0.01 80);}
+  .metaline{ display:flex; align-items:center; gap:9px; font-size:12.5px; color:var(--muted); margin-bottom:6px;}
+  .av{ width:22px;height:22px;border-radius:999px; background:linear-gradient(135deg,oklch(0.7 0.1 264),oklch(0.5 0.15 264));}
+  .metaline .dim{ color:oklch(0.68 0.01 80); font-style:italic;}
+  .divide{ border:none; border-top:1px solid var(--bd); margin:14px 0 16px;}
+  .modebar{ display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .modebar .hint{ font-size:11.5px; color:var(--muted);}
+  .prose{ font-size:16px; line-height:1.95;}
+  .prose h2{ font-size:20px; font-weight:700; margin:18px 0 10px;}
+  .prose p{ margin:0 0 14px;} .prose ul{ margin:0 0 14px; padding-left:1.3em;} .prose li{ margin:3px 0;}
+  .caretbar{ display:inline-block; width:2px; height:1.05em; background:var(--ring); vertical-align:-2px; margin-left:1px;}
+  .placeholderp{ color:oklch(0.7 0.01 80);}
+
+  .stage-label{ font-size:11px; font-weight:800; letter-spacing:.04em; color:var(--muted); text-transform:uppercase; margin:20px 2px 8px;}
+  h2.q{margin:0 0 4px;} .km-note{font-size:12px;color:var(--muted);margin:12px 2px 0;line-height:1.75;}
+</style>
+
+<h2 class="q">記事エディタ 案 B（改訂）: ヒーロー未設定＝コンパクト / 設定済＝自然な角丸</h2>
+<p class="subtitle">未設定時は上部を占有しない 1 行トリガー、設定すると記事詳細と同じ四隅角丸 16:9 が展開。上部余白を取り見切れも解消。カテゴリ/タグは「公開する」の公開パネルに分離（前回どおり）。</p>
+
+<div class="stage-label">① 書き始め（ヒーロー未設定）— 上部はコンパクト</div>
+<div class="km-scope"><div class="km"><div class="side">
+  <aside class="sb">
+    <div class="logo">knowledge<span class="d">·</span>hub</div>
+    <a>📰 フィード</a><a>🔍 検索</a>
+    <div class="g">作成</div><a class="on">✍️ 記事を書く</a><a>📄 マイ記事</a>
+  </aside>
+  <div class="mainwrap">
+    <div class="abar">
+      <span class="back">← 戻る</span>
+      <span class="statusbadge">下書き</span>
+      <span class="save"><span class="dot"></span>未保存</span>
+      <span class="spacer"></span>
+      <span class="btn out">下書き保存</span>
+      <span class="btn pri">公開する ▸</span>
+    </div>
+    <div class="canvas"><div class="wrap">
+      <span class="hero-add"><span class="ic">🖼</span>ヒーロー画像を追加（任意）</span>
+      <input class="titlein ph" value="タイトルを入力" />
+      <div class="metaline"><span class="av"></span><span>佐藤</span><span>· 下書き（未公開）</span></div>
+      <hr class="divide" />
+      <div class="modebar"><div class="seg"><button class="on">リッチ</button><button>Markdown</button></div><span class="hint">記事ページと同じ見た目で執筆できます</span></div>
+      <div class="prose"><p class="placeholderp">本文を書き始める…<span class="caretbar"></span></p></div>
+    </div></div>
+  </div>
+</div></div></div>
+
+<div class="stage-label">② ヒーロー設定後 & 執筆が進んだ状態 — 記事ページそのままの体裁</div>
+<div class="km-scope"><div class="km"><div class="side">
+  <aside class="sb">
+    <div class="logo">knowledge<span class="d">·</span>hub</div>
+    <a>📰 フィード</a><a>🔍 検索</a>
+    <div class="g">作成</div><a class="on">✍️ 記事を書く</a><a>📄 マイ記事</a>
+  </aside>
+  <div class="mainwrap">
+    <div class="abar">
+      <span class="back">← 戻る</span>
+      <span class="statusbadge">下書き</span>
+      <span class="save"><span class="dot"></span>2分前に保存</span>
+      <span class="spacer"></span>
+      <span class="btn out">下書き保存</span>
+      <span class="btn pri">公開する ▸</span>
+    </div>
+    <div class="canvas"><div class="wrap">
+      <div class="hero"><div class="ov"><span class="ovbtn">画像を変更</span><span class="ovbtn">削除</span></div></div>
+      <input class="titlein" value="レビュー運用を変えた 3 つの型" />
+      <div class="metaline"><span class="av"></span><span>佐藤</span><span>· 下書き（未公開）</span><span class="dim">— カテゴリ・タグは公開時に設定</span></div>
+      <hr class="divide" />
+      <div class="modebar"><div class="seg"><button class="on">リッチ</button><button>Markdown</button></div><span class="hint">記事ページと同じ見た目で執筆できます</span></div>
+      <div class="prose">
+        <h2>背景</h2>
+        <p>per-task レビューでは見えない cross-task バグをどう捕まえるか。全体レビューを軸にした運用の実際を共有する。<span class="caretbar"></span></p>
+        <ul><li>全体レビューの型</li><li>修正ウェーブ</li><li>台帳運用</li></ul>
+        <h2>まとめ</h2>
+        <p>小さな型の積み重ねが、レビューの見落としを構造的に減らす。</p>
+      </div>
+    </div></div>
+  </div>
+</div></div></div>
+
+<div class="options" style="margin-top:18px">
+  <div class="option" data-choice="ok" onclick="toggleSelect(this)"><div class="letter">✓</div><div class="content"><h3>この改訂案で S5 を進める</h3><p>未設定＝コンパクト 1 行トリガー、設定済＝上部余白＋四隅角丸 16:9（見切れ解消）。カテゴリ/タグは公開パネルへ分離。</p></div></div>
+  <div class="option" data-choice="tweak" onclick="toggleSelect(this)"><div class="letter">✎</div><div class="content"><h3>まだ直したい点がある</h3><p>ヒーロートリガーの見せ方・位置、上部余白、メタ行の内容などをターミナルで指定。</p></div></div>
+</div>
+
+<p class="km-note">
+・<b>①書き始め</b>: ヒーローは「🖼 ヒーロー画像を追加（任意）」の細い 1 行だけ。上部を占有せず、タイトル→本文へすぐ入れる。<br>
+・<b>②設定後</b>: 画像を入れると記事詳細と同じ<b>上下に余白のある四隅角丸 16:9</b>が展開（前回の見切れは解消）。ホバーで「変更/削除」。<br>
+・カテゴリ/タグは「公開する ▸」の公開パネルに集約（カテゴリ必須ガード）。既存の自動保存・リッチ/Markdown・画像 D&D は無改変。
+</p>
