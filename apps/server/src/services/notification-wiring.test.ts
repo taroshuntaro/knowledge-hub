@@ -8,7 +8,15 @@ import { createComment, updateComment } from './comment-service';
 import { addBookmark, addReaction, removeBookmark, removeReaction } from './engagement-service';
 
 function asSession(u: typeof users.$inferSelect): SessionUser {
-  return { id: u.id, email: u.email, displayName: u.displayName, role: u.role, avatarUrl: u.avatarUrl, bio: u.bio };
+  return {
+    id: u.id,
+    email: u.email,
+    displayName: u.displayName,
+    role: u.role,
+    avatarUrl: u.avatarUrl,
+    bio: u.bio,
+    authProvider: u.authProvider,
+  };
 }
 
 describe('通知の seam 配線', () => {

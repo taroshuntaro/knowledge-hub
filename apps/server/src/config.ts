@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+// 空文字列を undefined に正規化する（env テンプレートの ${VAR:-} で '' が入るため）
+const emptyAsUndefined = <T extends z.ZodTypeAny>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema);
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(3000),
@@ -15,6 +19,10 @@ const envSchema = z.object({
   S3_ACCESS_KEY_ID: z.string().default('minioadmin'),
   S3_SECRET_ACCESS_KEY: z.string().default('minioadmin'),
   S3_FORCE_PATH_STYLE: z.enum(['true', 'false']).default('true'),
+  OIDC_ISSUER: emptyAsUndefined(z.string().url().optional()),
+  OIDC_CLIENT_ID: emptyAsUndefined(z.string().min(1).optional()),
+  OIDC_CLIENT_SECRET: emptyAsUndefined(z.string().min(1).optional()),
+  OIDC_ALLOWED_EMAIL_DOMAINS: emptyAsUndefined(z.string().optional()),
 });
 
 export type Config = {
@@ -32,10 +40,33 @@ export type Config = {
   s3AccessKeyId: string;
   s3SecretAccessKey: string;
   s3ForcePathStyle: boolean;
+  oidc?: { issuer: string; clientId: string; clientSecret: string; allowedEmailDomains: string[] };
 };
 
 export function loadConfig(source: Record<string, string | undefined> = process.env): Config {
   const e = envSchema.parse(source);
+
+  const oidcVars = [e.OIDC_ISSUER, e.OIDC_CLIENT_ID, e.OIDC_CLIENT_SECRET];
+  const oidcSet = oidcVars.filter((v) => v !== undefined).length;
+  if (oidcSet > 0 && oidcSet < 3) {
+    throw new Error('OIDC_ISSUER / OIDC_CLIENT_ID / OIDC_CLIENT_SECRET はすべて設定するか、すべて未設定にしてください');
+  }
+  const oidc =
+    oidcSet === 3
+      ? {
+          issuer: e.OIDC_ISSUER!,
+          clientId: e.OIDC_CLIENT_ID!,
+          clientSecret: e.OIDC_CLIENT_SECRET!,
+          allowedEmailDomains: (e.OIDC_ALLOWED_EMAIL_DOMAINS ?? '')
+            .split(',')
+            .map((s) => s.trim().toLowerCase())
+            .filter((s) => s.length > 0),
+        }
+      : undefined;
+  if (e.PASSWORD_AUTH_ENABLED === 'false' && !oidc) {
+    throw new Error('PASSWORD_AUTH_ENABLED=false には OIDC 設定が必要です（ログイン手段がなくなります）');
+  }
+
   return {
     nodeEnv: e.NODE_ENV,
     port: e.PORT,
@@ -51,5 +82,6 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     s3AccessKeyId: e.S3_ACCESS_KEY_ID,
     s3SecretAccessKey: e.S3_SECRET_ACCESS_KEY,
     s3ForcePathStyle: e.S3_FORCE_PATH_STYLE === 'true',
+    oidc,
   };
 }

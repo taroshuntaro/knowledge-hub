@@ -100,7 +100,7 @@ callback で得た claims を次の順で処理する（`oidc-service.ts` 内、
 
 **必須テストケース**: JIT 新規作成（member/displayName フォールバック）／自動リンク（authProvider 切替 + passwordHash null 化 + 以降のパスワードログイン拒否）／oidc 既存ユーザー再ログイン／無効ユーザー拒否／ドメイン拒否（既存ユーザー含む）／email_verified=false 拒否／email claim 欠落拒否／state 不一致・txn Cookie 欠落拒否／並行 JIT の一意制約フォールバック／methods エンドポイント（設定有無 × 4 通り）／changePassword の oidc 拒否／IdP 到達不能で `/login?error=oidc_unavailable` へ 302（500 にしない）。
 
-**手動検証（コントローラー実施）**: docker compose に Keycloak を **profile `idp`** で追加（普段の `up -d` では起動しない）。realm JSON 自動インポート（client `knowledge-hub`、redirect URI `http://localhost:3000/api/auth/oidc/callback`、テストユーザー 1 名）。ブラウザで SSO ボタン → Keycloak ログイン → JIT 作成 → フィード到達を通しで確認。
+**手動検証（コントローラー実施）**: docker compose に Keycloak を **profile `idp`** で追加（普段の `up -d` では起動しない）。realm JSON 自動インポート（client `knowledge-hub`、redirect URI `http://localhost:5173/api/auth/oidc/callback`、テストユーザー 1 名）。ブラウザで SSO ボタン → Keycloak ログイン → JIT 作成 → フィード到達を通しで確認。
 
 ## 9. エラーハンドリング方針
 

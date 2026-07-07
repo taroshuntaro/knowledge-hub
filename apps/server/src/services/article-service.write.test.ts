@@ -8,7 +8,7 @@ import { createArticle, publishArticle, updateArticle } from './article-service'
 import { getArticleTagNames } from './tag-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
-  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '',
+  id, email: 'x@example.com', displayName: 'X', role, avatarUrl: null, bio: '', authProvider: 'password',
 });
 
 describe('article write', () => {

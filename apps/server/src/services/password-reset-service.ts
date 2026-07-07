@@ -39,6 +39,12 @@ export async function resetPassword(db: Db, token: string, newPassword: string):
   if (!row || row.usedAt || row.expiresAt < new Date()) {
     throw new AppError('INVALID_TOKEN', 'リンクが無効か、期限切れです', 400);
   }
+  const user = await db.query.users.findFirst({ where: eq(users.id, row.userId) });
+  if (!user || user.authProvider !== 'password' || !user.isActive) {
+    // トークン発行後に SSO 連携や無効化が発生したケース。列挙攻撃対策として通常の
+    // 無効トークンと同一メッセージを返し、トークンも消費しない。
+    throw new AppError('INVALID_TOKEN', 'リンクが無効か、期限切れです', 400);
+  }
   await db
     .update(users)
     .set({ passwordHash: await hashPassword(newPassword) })

@@ -193,4 +193,25 @@ describe('SettingsPage アバターアップロード', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('画像のアップロードに失敗しました（テスト）');
     expect(patchMock).not.toHaveBeenCalled();
   });
+
+  it('SettingsPage は oidc ユーザーにパスワード変更カードを出さない', async () => {
+    getMeMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        id: 'u1',
+        email: 'user@example.com',
+        displayName: '太郎',
+        role: 'member',
+        avatarUrl: null,
+        bio: '',
+        authProvider: 'oidc',
+      }),
+    });
+    renderPage();
+
+    await screen.findByLabelText('表示名');
+    await waitFor(() => expect(getMeMock).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('パスワード変更')).toBeNull());
+  });
 });

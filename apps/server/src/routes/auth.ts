@@ -26,6 +26,12 @@ import type { AppEnv } from '../types';
 export const loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
 
 export const authRoutes = new Hono<AppEnv>()
+  .get('/methods', (c) =>
+    c.json({
+      password: c.get('config').passwordAuthEnabled,
+      oidc: c.get('oidcAuth') !== null,
+    }),
+  )
   .post('/login', validate('json', loginSchema), async (c) => {
     const config = c.get('config');
     if (!config.passwordAuthEnabled) {
@@ -78,10 +84,24 @@ export const authRoutes = new Hono<AppEnv>()
     },
   )
   .post('/password-reset/request', validate('json', passwordResetRequestSchema), async (c) => {
+    if (!c.get('config').passwordAuthEnabled) {
+      throw new AppError(
+        'PASSWORD_AUTH_DISABLED',
+        'パスワードログインは無効化されています',
+        403,
+      );
+    }
     await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), c.req.valid('json').email);
     return c.body(null, 204);
   })
   .post('/password-reset/confirm/:token', validate('json', passwordResetConfirmSchema), async (c) => {
+    if (!c.get('config').passwordAuthEnabled) {
+      throw new AppError(
+        'PASSWORD_AUTH_DISABLED',
+        'パスワードログインは無効化されています',
+        403,
+      );
+    }
     await resetPassword(c.get('db'), c.req.param('token'), c.req.valid('json').password);
     return c.body(null, 204);
   });

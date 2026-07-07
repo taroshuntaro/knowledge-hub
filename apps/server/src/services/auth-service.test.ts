@@ -39,6 +39,7 @@ describe('password login', () => {
       role: 'admin',
       avatarUrl: 'https://example.com/avatar.png',
       bio: 'プロフィール',
+      authProvider: 'password',
     });
   });
 

@@ -40,6 +40,14 @@ pnpm --filter @knowledge-hub/server dev         # API
 pnpm --filter @knowledge-hub/web dev            # Web (http://localhost:5173)
 ```
 
+### SSO（OIDC）の手動検証（任意）
+
+```bash
+docker compose --profile idp up -d   # 開発用 Keycloak を起動（普段は起動不要）
+```
+
+`apps/server/.env` の OIDC 3 変数（`OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET`）のコメントを外して有効化し、サーバーを再起動する。ログイン画面の「SSO でログイン」から Keycloak のログイン画面に遷移し、`sso-taro` / `sso-dev-password` でログインできる。
+
 ### テスト / 型チェック
 
 ```bash

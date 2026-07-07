@@ -1,0 +1,26 @@
+{
+  "realm": "knowledge-hub",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "knowledge-hub",
+      "secret": "dev-keycloak-secret",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "redirectUris": ["http://localhost:5173/api/auth/oidc/callback"]
+    }
+  ],
+  "users": [
+    {
+      "username": "sso-taro",
+      "email": "sso-taro@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Taro",
+      "lastName": "SSO",
+      "credentials": [{ "type": "password", "value": "sso-dev-password" }]
+    }
+  ]
+}

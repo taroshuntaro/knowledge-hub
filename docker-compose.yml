@@ -47,6 +47,18 @@ services:
       mc alias set local http://minio:9000 minioadmin minioadmin &&
       mc mb --ignore-existing local/knowledge-hub
       "
+  # 開発用 IdP（手動 SSO 検証用）。普段は起動しない: docker compose --profile idp up -d
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.4
+    profiles: ["idp"]
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin        # dev 専用
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin        # dev 専用
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
 volumes:
   db-data: {}
   minio-data: {}
