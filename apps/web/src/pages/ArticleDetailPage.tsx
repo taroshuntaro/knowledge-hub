@@ -13,6 +13,7 @@ import { Avatar } from '../components/Avatar';
 import { CommentSection } from '../components/CommentSection';
 import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
+import { HeroImage } from '../components/HeroImage';
 
 async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { message?: string } | null;
@@ -66,11 +67,7 @@ export function ArticleDetailPage() {
         {article.deletedAt && <Badge variant="outline">削除済み</Badge>}
       </div>
       {article.heroImage && (
-        <img
-          src={article.heroImage}
-          alt={article.title}
-          className="mt-3 aspect-[16/9] w-full rounded-xl object-cover"
-        />
+        <HeroImage src={article.heroImage} alt={article.title} className="mt-3" />
       )}
       <h1 className="mt-4 text-3xl font-bold leading-snug tracking-tight">{article.title}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-2.5 text-sm text-muted-foreground">
