@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { errorHandler } from './middleware/error-handler';
 import { originCheck } from './middleware/origin-check';
+import { requestLogger } from './middleware/request-logger';
 import { securityHeaders } from './middleware/security-headers';
 import { adminRoutes } from './routes/admin';
 import { articleRoutes } from './routes/articles';
@@ -29,6 +30,7 @@ export function buildApp(
       c.set('search', deps.search);
       await next();
     })
+    .use(requestLogger)
     .use(securityHeaders)
     .use(originCheck)
     .onError(errorHandler)
