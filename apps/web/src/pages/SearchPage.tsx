@@ -27,6 +27,7 @@ export function SearchPage() {
   const tag = searchParams.get('tag') ?? '';
   const authorId = searchParams.get('authorId');
   const [tagInput, setTagInput] = useState(tag);
+  const [qInput, setQInput] = useState(q);
 
   function updateParam(key: string, value: string | null) {
     const next = new URLSearchParams(searchParams);
@@ -65,6 +66,23 @@ export function SearchPage() {
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold tracking-tight">検索</h2>
+      <form
+        role="search"
+        className="mb-4 flex gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          updateParam('q', qInput.trim() || null);
+        }}
+      >
+        <Input
+          type="search"
+          aria-label="キーワード"
+          value={qInput}
+          onChange={(e) => setQInput(e.target.value)}
+          className="flex-1"
+        />
+        <Button type="submit">検索</Button>
+      </form>
       <div className="mb-6 grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="search-category">カテゴリ</Label>
