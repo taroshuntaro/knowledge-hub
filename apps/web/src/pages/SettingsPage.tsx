@@ -113,38 +113,40 @@ export function SettingsPage() {
           </form>
         </CardContent>
       </Card>
-      <Card>
-        <CardHeader>
-          <h3 className="leading-none font-semibold">パスワード変更</h3>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onChangePassword} className="flex flex-col gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="settings-current-password">現在のパスワード</Label>
-              <Input
-                id="settings-current-password"
-                type="password"
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className="grid gap-1.5">
-              <Label htmlFor="settings-new-password">新しいパスワード（12文字以上）</Label>
-              <Input
-                id="settings-new-password"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                minLength={12}
-              />
-            </div>
-            {passwordMsg && <p role="status" className="text-sm text-muted-foreground">{passwordMsg}</p>}
-            <Button type="submit">変更する</Button>
-          </form>
-        </CardContent>
-      </Card>
+      {me?.authProvider !== 'oidc' && (
+        <Card>
+          <CardHeader>
+            <h3 className="leading-none font-semibold">パスワード変更</h3>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={onChangePassword} className="flex flex-col gap-4">
+              <div className="grid gap-1.5">
+                <Label htmlFor="settings-current-password">現在のパスワード</Label>
+                <Input
+                  id="settings-current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="grid gap-1.5">
+                <Label htmlFor="settings-new-password">新しいパスワード（12文字以上）</Label>
+                <Input
+                  id="settings-new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={12}
+                />
+              </div>
+              {passwordMsg && <p role="status" className="text-sm text-muted-foreground">{passwordMsg}</p>}
+              <Button type="submit">変更する</Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
     </section>
   );
 }
