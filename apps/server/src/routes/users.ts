@@ -6,7 +6,12 @@ import { requireAuth, setSessionCookie } from '../middleware/session';
 import { validate } from '../middleware/validate';
 import { listByAuthor } from '../services/article-service';
 import { createSession } from '../services/session-service';
-import { changePassword, getPublicProfile, updateProfile } from '../services/user-service';
+import {
+  changePassword,
+  getPublicProfile,
+  listMentionCandidates,
+  updateProfile,
+} from '../services/user-service';
 import type { AppEnv } from '../types';
 
 function requireValidUuid(id: string): void {
@@ -18,6 +23,7 @@ function requireValidUuid(id: string): void {
 
 export const userRoutes = new Hono<AppEnv>()
   .use(requireAuth)
+  .get('/', async (c) => c.json(await listMentionCandidates(c.get('db'))))
   .patch('/me', validate('json', updateProfileSchema), async (c) => {
     const updated = await updateProfile(c.get('db'), c.get('user').id, c.req.valid('json'));
     return c.json(updated);

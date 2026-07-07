@@ -113,3 +113,14 @@ export async function updateUserByAdmin(
   if (patch.isActive === false) await deleteUserSessions(db, targetId);
   return toAdminView(row);
 }
+
+export type MentionCandidate = { id: string; displayName: string; avatarUrl: string | null };
+
+/** メンション候補（@ オートコンプリート用）。email 等の非公開情報は絶対に含めない。 */
+export async function listMentionCandidates(db: Db): Promise<MentionCandidate[]> {
+  return db
+    .select({ id: users.id, displayName: users.displayName, avatarUrl: users.avatarUrl })
+    .from(users)
+    .where(eq(users.isActive, true))
+    .orderBy(users.displayName);
+}
