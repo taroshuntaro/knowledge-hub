@@ -6,7 +6,10 @@
   "scripts": {
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @knowledge-hub/web check:contrast && pnpm --filter @knowledge-hub/web build && pnpm audit --audit-level=high"
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @knowledge-hub/web check:contrast && pnpm --filter @knowledge-hub/web build && pnpm audit --audit-level=high",
+    "e2e:up": "docker compose -p khub-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --wait db mailpit minio && docker compose -p khub-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d minio-setup && pnpm --filter @knowledge-hub/server db:migrate:e2e && pnpm --filter @knowledge-hub/server seed:admin:e2e",
+    "e2e": "pnpm --filter @knowledge-hub/web build && pnpm --filter @knowledge-hub/e2e e2e",
+    "e2e:down": "docker compose -p khub-e2e -f docker-compose.yml -f docker-compose.e2e.yml down -v"
   },
   "pnpm": {
     "overrides": {

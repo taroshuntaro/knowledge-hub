@@ -9,7 +9,10 @@
       "publicClient": false,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": false,
-      "redirectUris": ["http://localhost:5173/api/auth/oidc/callback"]
+      "redirectUris": [
+        "http://localhost:5173/api/auth/oidc/callback",
+        "http://localhost:54173/api/auth/oidc/callback"
+      ]
     }
   ],
   "users": [
