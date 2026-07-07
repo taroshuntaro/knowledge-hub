@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/session';
 import { getUpload, saveUpload } from '../services/upload-service';
 import { AppError } from '../errors';
 import type { AppEnv } from '../types';
+import { requireUuidParam } from './guards';
 
 export const uploadRoutes = new Hono<AppEnv>()
   .use(requireAuth)
@@ -27,6 +28,7 @@ export const uploadRoutes = new Hono<AppEnv>()
     },
   )
   .get('/:id', async (c) => {
+    requireUuidParam(c.req.param('id'), '画像が見つかりません');
     const found = await getUpload(c.get('db'), c.get('storage'), c.req.param('id'));
     if (!found) throw new AppError('NOT_FOUND', '画像が見つかりません', 404);
     c.header('Content-Type', found.contentType);

@@ -70,6 +70,15 @@ export async function deleteCategory(
   if (hasArticles && !reassignToId) {
     throw new AppError('CATEGORY_NOT_EMPTY', '記事があるため移行先を指定してください', 409);
   }
+  if (reassignToId) {
+    if (reassignToId === id) {
+      throw new AppError('VALIDATION', '移行先に削除対象のカテゴリは指定できません', 400);
+    }
+    const target = await db.query.categories.findFirst({
+      where: eq(categories.id, reassignToId), columns: { id: true },
+    });
+    if (!target) throw new AppError('VALIDATION', '移行先のカテゴリが存在しません', 400);
+  }
   await db.transaction(async (tx) => {
     await tx.update(articles).set({ categoryId: reassignToId ?? null }).where(eq(articles.categoryId, id));
     await tx.delete(categories).where(eq(categories.id, id));

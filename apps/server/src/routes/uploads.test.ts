@@ -68,4 +68,10 @@ describe('upload routes', () => {
     const result = await up.json();
     expect(result.code).toBe('VALIDATION');
   });
+
+  it('GET /api/uploads/:id は malformed UUID で 404 を返す', async () => {
+    const cookie = await login();
+    const res = await ctx.app.request('/api/uploads/not-a-uuid', { headers: { cookie } });
+    expect(res.status).toBe(404);
+  });
 });

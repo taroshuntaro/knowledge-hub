@@ -1,5 +1,6 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { createTestUser, TEST_PASSWORD } from '../test/factories';
+import { createTestArticle, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 
 describe('category routes', () => {
@@ -56,5 +57,39 @@ describe('category routes', () => {
     const page = await res.json();
     expect(page).toHaveProperty('items');
     expect(page).toHaveProperty('nextCursor');
+  });
+
+  it('DELETE /api/categories/:id は実在しない reassignToId で 400 を返す', async () => {
+    const admin = await login('a@example.com', 'admin');
+    const created = await (await ctx.app.request('/api/categories', {
+      method: 'POST', body: JSON.stringify({ name: 'テック' }),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    })).json();
+    await createTestArticle(ctx.db, { categoryId: created.id });
+    const res = await ctx.app.request(`/api/categories/${created.id}`, {
+      method: 'DELETE', body: JSON.stringify({ reassignToId: randomUUID() }),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('DELETE /api/categories/:id は reassignToId = 自分自身で 400 を返す', async () => {
+    const admin = await login('a@example.com', 'admin');
+    const created = await (await ctx.app.request('/api/categories', {
+      method: 'POST', body: JSON.stringify({ name: 'テック' }),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    })).json();
+    await createTestArticle(ctx.db, { categoryId: created.id });
+    const res = await ctx.app.request(`/api/categories/${created.id}`, {
+      method: 'DELETE', body: JSON.stringify({ reassignToId: created.id }),
+      headers: { 'content-type': 'application/json', cookie: admin },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /api/categories/:id/articles は malformed UUID で 404 を返す', async () => {
+    const admin = await login('a@example.com', 'admin');
+    const res = await ctx.app.request('/api/categories/not-a-uuid/articles', { headers: { cookie: admin } });
+    expect(res.status).toBe(404);
   });
 });

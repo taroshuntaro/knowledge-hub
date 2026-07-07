@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createTestCategory, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
@@ -43,5 +44,44 @@ describe('article routes', () => {
     const other = await login('other@example.com');
     const res = await ctx.app.request(`/api/articles/${created.id}`, { headers: { cookie: other } });
     expect(res.status).toBe(404);
+  });
+
+  it('GET /api/articles/:id は malformed UUID で 404 を返す', async () => {
+    const cookie = await login('a@example.com');
+    const res = await ctx.app.request('/api/articles/not-a-uuid', { headers: { cookie } });
+    expect(res.status).toBe(404);
+  });
+
+  it('PATCH /api/articles/:id は malformed UUID で 404 を返す', async () => {
+    const cookie = await login('a@example.com');
+    const res = await ctx.app.request('/api/articles/not-a-uuid', j(cookie, {
+      title: 't', bodyMd: 'b', tags: [], expectedUpdatedAt: new Date().toISOString(),
+    }, 'PATCH'));
+    expect(res.status).toBe(404);
+  });
+
+  it('publish/unpublish/restore/purge/pin/unpin/delete は malformed UUID で 404 を返す', async () => {
+    const cookie = await login('a@example.com');
+    const targets: Array<{ method: string; path: string }> = [
+      { method: 'POST', path: '/api/articles/not-a-uuid/publish' },
+      { method: 'POST', path: '/api/articles/not-a-uuid/unpublish' },
+      { method: 'DELETE', path: '/api/articles/not-a-uuid' },
+      { method: 'POST', path: '/api/articles/not-a-uuid/restore' },
+      { method: 'DELETE', path: '/api/articles/not-a-uuid/purge' },
+      { method: 'POST', path: '/api/articles/not-a-uuid/pin' },
+      { method: 'POST', path: '/api/articles/not-a-uuid/unpin' },
+    ];
+    for (const { method, path } of targets) {
+      const res = await ctx.app.request(path, { method, headers: { cookie } });
+      expect(res.status).toBe(404);
+    }
+  });
+
+  it('POST /api/articles は実在しない categoryId で 400 を返す', async () => {
+    const cookie = await login('a@example.com');
+    const res = await ctx.app.request('/api/articles', j(cookie, {
+      title: 't', bodyMd: 'b', tags: [], categoryId: randomUUID(),
+    }));
+    expect(res.status).toBe(400);
   });
 });

@@ -27,11 +27,19 @@ async function snapshot(db: Db, article: { id: string; title: string; bodyMd: st
   });
 }
 
+async function assertCategoryExists(db: Db, categoryId: string): Promise<void> {
+  const row = await db.query.categories.findFirst({
+    where: eq(categories.id, categoryId), columns: { id: true },
+  });
+  if (!row) throw new AppError('VALIDATION', '指定されたカテゴリが存在しません', 400);
+}
+
 export async function createArticle(
   db: Db,
   authorId: string,
   input: ArticleInput,
 ): Promise<ArticleRecord> {
+  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
   const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
   const [row] = await db
     .insert(articles)
@@ -62,6 +70,7 @@ export async function updateArticle(
   editor: SessionUser,
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
+  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
   const current = await loadEditable(db, id);
   if (!can(editor, 'article:edit', { authorId: current.authorId })) {
     throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
