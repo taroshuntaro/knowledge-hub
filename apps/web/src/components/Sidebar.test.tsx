@@ -40,7 +40,7 @@ describe('Sidebar', () => {
   it('主要な閲覧・作成ナビを表示する', async () => {
     renderSidebar();
     expect(await screen.findByRole('link', { name: 'フィード' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: '記事を書く' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: '記事を書く' })).toHaveLength(2);
     expect(screen.getByRole('link', { name: 'マイ記事' })).toBeInTheDocument();
   });
 
