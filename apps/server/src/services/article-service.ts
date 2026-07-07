@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import {
-  articleRevisions, articles, articleTags, categories, tags, users,
+  articleRevisions, articles, articleTags, categories, comments, reactions, tags, users,
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
@@ -16,6 +16,7 @@ export type ArticleInput = {
   title: string;
   bodyMd: string;
   categoryId?: string | null;
+  heroImageUploadId?: string | null;
   tags: string[];
 };
 
@@ -68,6 +69,7 @@ export async function createArticle(
     .values({
       authorId,
       categoryId: input.categoryId ?? null,
+      heroImageUploadId: input.heroImageUploadId ?? null,
       title: input.title,
       bodyMd: input.bodyMd,
       searchText,
@@ -123,6 +125,7 @@ export async function updateArticle(
         title: input.title,
         bodyMd: input.bodyMd,
         categoryId: input.categoryId ?? null,
+        heroImageUploadId: input.heroImageUploadId ?? null,
         searchText,
         updatedAt: new Date(),
       })
@@ -225,9 +228,33 @@ export type ArticleListItem = {
   pinnedAt: Date | null;
   publishedAt: Date | null;
   updatedAt: Date;
+  heroImage: string | null;
+  categoryName: string | null;
+  authorAvatarUrl: string | null;
+  tags: string[];
+  reactionCount: number;
+  commentCount: number;
 };
 export type Page<T> = { items: T[]; nextCursor: string | null };
 export type ArticleDetail = ArticleRecord & { authorName: string; tags: string[] };
+
+// カード表示用の付加情報（heroImage/categoryName/authorAvatarUrl 以外）は 1:N テーブルなので、
+// 主クエリに JOIN すると行が増幅しカーソルページングが壊れる。ページ内の articleId 集合に
+// 対する集約クエリ 3 本（tags/reactions/comments）にまとめて N+1 を避ける。
+type RawListRow = {
+  id: string;
+  title: string;
+  excerpt: string;
+  authorId: string;
+  authorName: string;
+  categoryId: string | null;
+  pinnedAt: Date | null;
+  publishedAt: Date | null;
+  updatedAt: Date;
+  heroImageUploadId: string | null;
+  categoryName: string | null;
+  authorAvatarUrl: string | null;
+};
 
 const LIST_COLUMNS = {
   id: articles.id,
@@ -239,7 +266,55 @@ const LIST_COLUMNS = {
   pinnedAt: articles.pinnedAt,
   publishedAt: articles.publishedAt,
   updatedAt: articles.updatedAt,
+  heroImageUploadId: articles.heroImageUploadId,
+  categoryName: categories.name,
+  authorAvatarUrl: users.avatarUrl,
 };
+
+function toListItem(row: RawListRow): ArticleListItem {
+  const { heroImageUploadId, ...rest } = row;
+  return {
+    ...rest,
+    heroImage: heroImageUploadId ? `/api/uploads/${heroImageUploadId}` : null,
+    tags: [],
+    reactionCount: 0,
+    commentCount: 0,
+  };
+}
+
+export async function enrichListItems(db: Db, items: ArticleListItem[]): Promise<ArticleListItem[]> {
+  if (items.length === 0) return items;
+  const ids = items.map((i) => i.id);
+  const tagRows = await db
+    .select({ articleId: articleTags.articleId, name: tags.name })
+    .from(articleTags)
+    .innerJoin(tags, eq(articleTags.tagId, tags.id))
+    .where(inArray(articleTags.articleId, ids));
+  const reactionRows = await db
+    .select({ articleId: reactions.articleId, count: sql<number>`count(*)::int` })
+    .from(reactions)
+    .where(inArray(reactions.articleId, ids))
+    .groupBy(reactions.articleId);
+  const commentRows = await db
+    .select({ articleId: comments.articleId, count: sql<number>`count(*)::int` })
+    .from(comments)
+    .where(and(inArray(comments.articleId, ids), isNull(comments.deletedAt)))
+    .groupBy(comments.articleId);
+  const tagsByArticle = new Map<string, string[]>();
+  for (const r of tagRows) {
+    const a = tagsByArticle.get(r.articleId) ?? [];
+    a.push(r.name);
+    tagsByArticle.set(r.articleId, a);
+  }
+  const reactionByArticle = new Map(reactionRows.map((r) => [r.articleId, r.count]));
+  const commentByArticle = new Map(commentRows.map((r) => [r.articleId, r.count]));
+  return items.map((i) => ({
+    ...i,
+    tags: tagsByArticle.get(i.id) ?? [],
+    reactionCount: reactionByArticle.get(i.id) ?? 0,
+    commentCount: commentByArticle.get(i.id) ?? 0,
+  }));
+}
 
 async function pagePublished(
   db: Db,
@@ -263,12 +338,14 @@ async function pagePublished(
     .select(LIST_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
+    .leftJoin(categories, eq(articles.categoryId, categories.id))
     .where(where)
     .orderBy(desc(articles.publishedAt), desc(articles.id))
     .limit(page.limit + 1);
-  const items = rows.slice(0, page.limit);
-  const last = items[items.length - 1];
+  const pageRows = rows.slice(0, page.limit);
+  const last = pageRows[pageRows.length - 1];
   const nextCursor = rows.length > page.limit ? encodeCursor(last.publishedAt, last.id) : null;
+  const items = await enrichListItems(db, pageRows.map(toListItem));
   return { items, nextCursor };
 }
 
@@ -277,12 +354,14 @@ export function listFeed(db: Db, page: { cursor?: string; limit: number }) {
 }
 
 export async function listPickup(db: Db): Promise<ArticleListItem[]> {
-  return db
+  const rows = await db
     .select(LIST_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
+    .leftJoin(categories, eq(articles.categoryId, categories.id))
     .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt), sql`${articles.pinnedAt} is not null`))
     .orderBy(desc(articles.pinnedAt), desc(articles.id));
+  return enrichListItems(db, rows.map(toListItem));
 }
 
 export async function listByCategory(db: Db, categoryId: string, page: { cursor?: string; limit: number }) {
@@ -338,12 +417,14 @@ export async function listMine(
     .select(LIST_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
+    .leftJoin(categories, eq(articles.categoryId, categories.id))
     .where(where)
     .orderBy(desc(updatedAtMs), desc(articles.id))
     .limit(page.limit + 1);
-  const items = rows.slice(0, page.limit);
-  const last = items[items.length - 1];
+  const pageRows = rows.slice(0, page.limit);
+  const last = pageRows[pageRows.length - 1];
   const nextCursor = rows.length > page.limit ? encodeCursor(last.updatedAt, last.id) : null;
+  const items = await enrichListItems(db, pageRows.map(toListItem));
   return { items, nextCursor };
 }
 

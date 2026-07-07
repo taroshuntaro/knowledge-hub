@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { articleRevisions } from '../db/schema';
+import { articleRevisions, uploads } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
@@ -131,6 +131,34 @@ describe('article write', () => {
     expect(revs).toHaveLength(1);
     expect(revs[0].title).toBe('v3');
     expect(revs[0].bodyMd).toBe('b3');
+  });
+
+  it('作成時に heroImageUploadId を保存できる', async () => {
+    const author = await createTestUser(ctx.db);
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: author.id, storageKey: 'uploads/hero.png', mimeType: 'image/png', size: 100 })
+      .returning();
+    const row = await createArticle(ctx.db, author.id, {
+      title: 't', bodyMd: 'b', tags: [], heroImageUploadId: upload.id,
+    });
+    expect(row.heroImageUploadId).toBe(upload.id);
+  });
+
+  it('更新で heroImageUploadId を差し替え・null 化できる', async () => {
+    const author = await createTestUser(ctx.db);
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: author.id, storageKey: 'uploads/hero.png', mimeType: 'image/png', size: 100 })
+      .returning();
+    const article = await createArticle(ctx.db, author.id, {
+      title: 't', bodyMd: 'b', tags: [], heroImageUploadId: upload.id,
+    });
+    const updated = await updateArticle(ctx.db, article.id, asUser(author.id), {
+      title: 't2', bodyMd: 'b', tags: [], heroImageUploadId: null,
+      expectedUpdatedAt: article.updatedAt.toISOString(),
+    });
+    expect(updated.heroImageUploadId).toBeNull();
   });
 
   it('10 分より古い直近リビジョンがある場合は新規リビジョンを作る', async () => {

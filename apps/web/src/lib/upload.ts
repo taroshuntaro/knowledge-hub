@@ -6,6 +6,14 @@ export function firstImageFile(list: FileList | null | undefined): File | null {
 
 /** 画像を POST /api/uploads に送り、本文に挿入する URL を返す */
 export async function uploadImage(file: File): Promise<{ url: string }> {
+  return uploadImageWithId(file);
+}
+
+/**
+ * 画像を POST /api/uploads に送り、id と url の両方を返す。
+ * ヒーロー画像のように id（heroImageUploadId）が必要な用途で使う。
+ */
+export async function uploadImageWithId(file: File): Promise<{ id: string; url: string }> {
   const form = new FormData();
   form.append('file', file);
   const res = await fetch('/api/uploads', { method: 'POST', body: form, credentials: 'same-origin' });
@@ -13,5 +21,5 @@ export async function uploadImage(file: File): Promise<{ url: string }> {
     const body = (await res.json().catch(() => null)) as { message?: string } | null;
     throw new Error(body?.message ?? '画像のアップロードに失敗しました');
   }
-  return (await res.json()) as { url: string };
+  return (await res.json()) as { id: string; url: string };
 }

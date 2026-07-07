@@ -83,6 +83,36 @@ describe('EditorPage', () => {
     expect(postMock).toHaveBeenCalled();
   });
 
+  it('新規作成の保存ペイロードに heroImageUploadId（未設定時は null）を含める', async () => {
+    postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
+    renderNew();
+    await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
+    await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
+    expect(postMock).toHaveBeenCalledWith({
+      json: expect.objectContaining({ heroImageUploadId: null }),
+    });
+  });
+
+  it('既存記事のロードで heroImageUploadId が反映され、更新ペイロードに含まれる', async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'a1', title: '既存記事', bodyMd: '本文', categoryId: null, tags: [],
+        updatedAt: '2026-07-05T00:00:00Z', heroImageUploadId: 'up1',
+      }),
+    });
+    patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: '2026-07-06T00:00:00Z' }) });
+    renderEdit('a1');
+    await screen.findByDisplayValue('既存記事');
+    expect(screen.getByRole('img', { name: 'ヒーロー画像' })).toHaveAttribute('src', '/api/uploads/up1');
+    await userEvent.type(screen.getByLabelText('タイトル'), '追記');
+    await userEvent.click(screen.getByRole('button', { name: '下書き保存' }));
+    expect(patchMock).toHaveBeenCalledWith({
+      param: { id: 'a1' },
+      json: expect.objectContaining({ heroImageUploadId: 'up1' }),
+    });
+  });
+
   it('保存が in-flight の間に再度保存しても記事は 1 つしか作られない', async () => {
     let resolveFirst!: (v: unknown) => void;
     patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: 'x' }) });
