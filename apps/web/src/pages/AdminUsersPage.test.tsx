@@ -33,5 +33,11 @@ describe('AdminUsersPage', () => {
     );
     expect(await screen.findByText('a@example.com')).toBeInTheDocument();
     expect(await screen.findByText('無効')).toBeInTheDocument();
+
+    const deactivateButton = await screen.findByRole('button', { name: '無効化' });
+    expect(deactivateButton).toHaveClass('border-destructive', 'text-destructive');
+
+    const activateButton = await screen.findByRole('button', { name: '有効化' });
+    expect(activateButton).not.toHaveClass('border-destructive');
   });
 });
