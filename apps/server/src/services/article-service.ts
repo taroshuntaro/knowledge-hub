@@ -5,8 +5,9 @@ import {
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { decodeCursor, encodeCursor } from './cursor';
 import { buildSearchText } from './markdown';
-import { notifyArticleMentions } from './notification-service';
+import { notifyArticleMentions, runNotify } from './notification-service';
 import { can } from './permissions';
 import { getArticleTagNames, setArticleTags } from './tag-service';
 
@@ -86,7 +87,9 @@ export async function updateArticle(
   await setArticleTags(db, id, input.tags);
   await snapshot(db, row);
   // 記事本文メンションは公開状態でのみ通知（draft 保存では通知しない）
-  if (row.status === 'published') await notifyArticleMentions(db, row);
+  if (row.status === 'published') {
+    await runNotify('article-mentions-update', () => notifyArticleMentions(db, row));
+  }
   return row;
 }
 
@@ -108,7 +111,7 @@ export async function publishArticle(db: Db, id: string, editor: SessionUser): P
     .set({ status: 'published', publishedAt: current.publishedAt ?? new Date(), updatedAt: new Date() })
     .where(eq(articles.id, id))
     .returning();
-  await notifyArticleMentions(db, row);
+  await runNotify('article-mentions-publish', () => notifyArticleMentions(db, row));
   return row;
 }
 
@@ -190,14 +193,6 @@ const LIST_COLUMNS = {
   publishedAt: articles.publishedAt,
   updatedAt: articles.updatedAt,
 };
-
-function encodeCursor(sortKey: Date | null, id: string): string {
-  return Buffer.from(`${sortKey?.toISOString() ?? ''}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
-}
 
 async function pagePublished(
   db: Db,

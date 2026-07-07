@@ -48,6 +48,16 @@ pnpm test                   # 全パッケージのテスト
 pnpm typecheck              # 全パッケージの型チェック
 ```
 
+### CI / 品質ゲート
+
+品質ゲートの実体はプラットフォーム非依存の単一エントリポイント `pnpm run verify` に集約している。
+
+```bash
+pnpm run verify   # typecheck → test（Testcontainers 実 DB）→ コントラスト検査 → web build → 依存脆弱性チェック
+```
+
+`pnpm run verify` はローカルでもそのまま実行できる。GitHub Actions（`.github/workflows/ci.yml`）はこのコマンドを呼ぶだけの薄いアダプタで、push（main）と Pull Request で自動実行される。GitLab CI や Jenkins へ移行する場合も同じ `pnpm run verify` を呼ぶ薄い設定を書くだけでよく、ゲートの実体はリポジトリ側に残る（オンプレ / クラウドの差分を薄いアダプタで吸収する本プロジェクトの方針に沿う）。
+
 ## 進捗
 
 - [x] **Phase 1** — 基盤・認証（招待制ログイン、セッション、パスワードリセット、ユーザー管理）

@@ -5,6 +5,12 @@
   "packageManager": "pnpm@10.0.0",
   "scripts": {
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm --filter @knowledge-hub/web check:contrast && pnpm --filter @knowledge-hub/web build && pnpm audit --audit-level=high"
+  },
+  "pnpm": {
+    "overrides": {
+      "undici": "^6.27.0"
+    }
   }
 }

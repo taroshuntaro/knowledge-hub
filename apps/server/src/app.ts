@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import { errorHandler } from './middleware/error-handler';
 import { originCheck } from './middleware/origin-check';
+import { requestLogger } from './middleware/request-logger';
+import { securityHeaders } from './middleware/security-headers';
 import { adminRoutes } from './routes/admin';
 import { articleRoutes } from './routes/articles';
 import { authRoutes } from './routes/auth';
@@ -28,10 +30,8 @@ export function buildApp(
       c.set('search', deps.search);
       await next();
     })
-    .use(async (c, next) => {
-      await next();
-      c.res.headers.set('X-Content-Type-Options', 'nosniff');
-    })
+    .use(requestLogger)
+    .use(securityHeaders)
     .use(originCheck)
     .onError(errorHandler)
     .route('/healthz', healthRoutes)

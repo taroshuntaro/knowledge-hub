@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { articles, notifications, users } from '../db/schema';
+import { logger } from '../logger';
 import type { Db } from '../types';
+import { decodeCursor, encodeCursor } from './cursor';
 import { extractMentionedUserIds } from './mention';
 
 export type NotificationRecord = typeof notifications.$inferSelect;
@@ -138,14 +140,6 @@ export type NotificationItem = {
 
 export type Page<T> = { items: T[]; nextCursor: string | null };
 
-function encodeCursor(sortKey: Date, id: string): string {
-  return Buffer.from(`${sortKey.toISOString()}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
-}
-
 // 一覧と未読数が共有する可視条件: 対象記事が公開中かつ未削除
 const visibleArticle = () => and(eq(articles.status, 'published'), isNull(articles.deletedAt));
 
@@ -220,4 +214,14 @@ export async function markAllRead(db: Db, userId: string): Promise<void> {
     .update(notifications)
     .set({ readAt: new Date() })
     .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt)));
+}
+
+// 通知生成は副次機能: 失敗しても中核操作（コメント/リアクション/公開）を巻き込まない。
+// トランザクションでは囲まず、失敗は警告ログに記録して握り潰す（best-effort）。
+export async function runNotify(label: string, fn: () => Promise<void>): Promise<void> {
+  try {
+    await fn();
+  } catch (err) {
+    logger.warn({ err, notification: label }, 'notification generation failed');
+  }
 }

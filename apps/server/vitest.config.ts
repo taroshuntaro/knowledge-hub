@@ -6,5 +6,6 @@ export default defineConfig({
     hookTimeout: 120_000,
     fileParallelism: false,
     globalSetup: ['./src/test/global-setup.ts'],
+    env: { LOG_LEVEL: 'silent' },
   },
 });

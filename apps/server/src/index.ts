@@ -18,10 +18,15 @@ const app = buildApp({
 app.use('*', serveStatic({ root: '../web/dist' }));
 app.get('*', serveStatic({ path: '../web/dist/index.html' }));
 
-// 検索は pg_bigm が無くても LIKE で動くが遅くなるため、欠如を運用者に知らせる
-const bigm = await pool.query(`select 1 from pg_extension where extname = 'pg_bigm'`);
-if (bigm.rowCount === 0) {
-  logger.warn('pg_bigm extension not installed: search runs without index acceleration');
+// 検索は pg_bigm が無くても LIKE で動くが遅くなるため、欠如を運用者に知らせる。
+// 起動時の DB 一時不達で serve() 前にクラッシュしないよう try/catch で保護する。
+try {
+  const bigm = await pool.query(`select 1 from pg_extension where extname = 'pg_bigm'`);
+  if (bigm.rowCount === 0) {
+    logger.warn('pg_bigm extension not installed: search runs without index acceleration');
+  }
+} catch (err) {
+  logger.warn({ err }, 'could not verify pg_bigm extension at startup');
 }
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {

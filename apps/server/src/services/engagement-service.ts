@@ -3,7 +3,8 @@ import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, comments, reactions, users } from '../db/schema';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
-import { notifyReactionAdded } from './notification-service';
+import { decodeCursor, encodeCursor } from './cursor';
+import { notifyReactionAdded, runNotify } from './notification-service';
 
 export type BookmarkedArticle = {
   id: string;
@@ -29,7 +30,9 @@ export async function addReaction(db: Db, userId: string, articleId: string, emo
     .returning({ id: reactions.id });
   // 既存行との衝突（同じリアクションの再 POST）では insert が起きないので通知もしない
   if (inserted.length > 0) {
-    await notifyReactionAdded(db, { actorId: userId, articleId, articleAuthorId: article.authorId });
+    await runNotify('reaction-added', () =>
+      notifyReactionAdded(db, { actorId: userId, articleId, articleAuthorId: article.authorId }),
+    );
   }
 }
 
@@ -85,14 +88,6 @@ export async function getEngagement(db: Db, userId: string, articleId: string): 
     bookmarked: !!bookmark,
     commentCount,
   };
-}
-
-function encodeCursor(sortKey: Date, id: string): string {
-  return Buffer.from(`${sortKey.toISOString()}|${id}`).toString('base64url');
-}
-function decodeCursor(cursor: string): { sortKey: string; id: string } {
-  const [sortKey, id] = Buffer.from(cursor, 'base64url').toString().split('|');
-  return { sortKey, id };
 }
 
 const BOOKMARK_COLUMNS = {
