@@ -3,6 +3,7 @@ import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, comments, reactions, users } from '../db/schema';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
+import { notifyReactionAdded } from './notification-service';
 
 export type BookmarkedArticle = {
   id: string;
@@ -21,12 +22,15 @@ export type Page<T> = { items: T[]; nextCursor: string | null };
 
 export async function addReaction(db: Db, userId: string, articleId: string, emoji: string): Promise<void> {
   const article = await assertPublishedArticle(db, articleId);
-  await db.insert(reactions).values({ userId, articleId, emoji }).onConflictDoNothing({
-    target: [reactions.userId, reactions.articleId, reactions.emoji],
-  });
-  // 通知の差し込み点（3c 用）: 記事著者 article.authorId・actor userId・emoji が
-  // ここで揃っている。「自分の記事へのリアクション」通知はこの成功後に生成する。
-  void article;
+  const inserted = await db
+    .insert(reactions)
+    .values({ userId, articleId, emoji })
+    .onConflictDoNothing({ target: [reactions.userId, reactions.articleId, reactions.emoji] })
+    .returning({ id: reactions.id });
+  // 既存行との衝突（同じリアクションの再 POST）では insert が起きないので通知もしない
+  if (inserted.length > 0) {
+    await notifyReactionAdded(db, { actorId: userId, articleId, articleAuthorId: article.authorId });
+  }
 }
 
 export async function removeReaction(db: Db, userId: string, articleId: string, emoji: string): Promise<void> {

@@ -3,6 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { articles, comments, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { notifyCommentCreated, notifyCommentMentionsOnEdit } from './notification-service';
 import { can } from './permissions';
 
 export type CommentRecord = typeof comments.$inferSelect;
@@ -88,8 +89,9 @@ export async function createComment(
 ): Promise<CommentRecord> {
   const article = await assertPublishedArticle(db, articleId);
 
+  let parent: CommentRecord | null = null;
   if (input.parentId) {
-    const parent = await db.query.comments.findFirst({ where: eq(comments.id, input.parentId) });
+    parent = (await db.query.comments.findFirst({ where: eq(comments.id, input.parentId) })) ?? null;
     if (!parent || parent.articleId !== articleId || parent.parentId !== null) {
       throw new AppError('VALIDATION', '返信先のコメントが不正です', 400);
     }
@@ -105,11 +107,11 @@ export async function createComment(
     })
     .returning();
 
-  // 通知の差し込み点（3c 用）: 新コメント row（id / articleId / parentId）と
-  // 記事著者 article.authorId がここで揃っている。返信の場合の親コメント著者が
-  // 必要なら input.parentId から再取得する（上の parent 検証で 1 度取得済み）。
-  // 「自分の記事へのコメント」「自分のコメントへの返信」通知はここに実装を足す。
-  void article;
+  await notifyCommentCreated(db, {
+    comment: row,
+    articleAuthorId: article.authorId,
+    parentAuthorId: parent?.authorId ?? null,
+  });
 
   return row;
 }
@@ -198,6 +200,7 @@ export async function updateComment(
     .set({ bodyMd: input.bodyMd, updatedAt: new Date() })
     .where(eq(comments.id, id))
     .returning();
+  await notifyCommentMentionsOnEdit(db, row);
   return row;
 }
 
