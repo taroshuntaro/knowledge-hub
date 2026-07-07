@@ -1,7 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import type { OidcAuth } from '../services/oidc-service';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { loginLimiter } from './auth';
+
+const dummyOidcAuth: OidcAuth = {
+  authorizationUrl: async () => ({ url: 'http://idp.example.com/authorize', txn: { state: 's', nonce: 'n', codeVerifier: 'c' } }),
+  exchangeCode: async () => ({ email: 'sso@example.com', emailVerified: true }),
+};
 
 function json(body: unknown): RequestInit {
   return {
@@ -111,5 +117,41 @@ describe('auth routes', () => {
     expect(res.status).toBe(200);
     expect((await res.json()).email).toBe('new@example.com');
     expect(res.headers.get('set-cookie')).toContain('sid=');
+  });
+
+  it('GET /api/auth/methods は認証なしで有効な認証手段を返す', async () => {
+    const res = await ctx.app.request('/api/auth/methods');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ password: true, oidc: false }); // デフォルト testConfig
+  });
+
+  it('oidcAuth があると oidc: true になる', async () => {
+    const withOidc = createTestApp({ oidcAuth: dummyOidcAuth });
+    const res = await withOidc.app.request('/api/auth/methods');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ password: true, oidc: true });
+    await withOidc.pool.end();
+  });
+
+  it('パスワード認証無効 + OIDC 有効なら { password: false, oidc: true }', async () => {
+    const withOidc = createTestApp({
+      config: { passwordAuthEnabled: false },
+      oidcAuth: dummyOidcAuth,
+    });
+    const res = await withOidc.app.request('/api/auth/methods');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ password: false, oidc: true });
+    await withOidc.pool.end();
+  });
+
+  it('GET /api/auth/me は authProvider を含む', async () => {
+    await createTestUser(ctx.db, { email: 'a@example.com' });
+    const login = await ctx.app.request(
+      '/api/auth/login',
+      json({ email: 'a@example.com', password: TEST_PASSWORD }),
+    );
+    const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0];
+    const me = await ctx.app.request('/api/auth/me', { headers: { cookie } });
+    expect((await me.json()).authProvider).toBe('password');
   });
 });

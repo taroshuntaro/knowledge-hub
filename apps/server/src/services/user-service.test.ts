@@ -31,6 +31,16 @@ describe('user service', () => {
     expect(await getSessionUser(ctx.db, sid)).toBeNull();
   });
 
+  it('changePassword は oidc ユーザーを 403 で拒否する', async () => {
+    const u = await createTestUser(ctx.db, {
+      authProvider: 'oidc',
+      passwordHash: null,
+    });
+    await expect(
+      changePassword(ctx.db, u.id, 'x', 'y'.repeat(12)),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('avatarUrl を設定できる', async () => {
     const u = await createTestUser(ctx.db);
     const updated = await updateProfile(ctx.db, u.id, {

@@ -26,6 +26,12 @@ import type { AppEnv } from '../types';
 export const loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
 
 export const authRoutes = new Hono<AppEnv>()
+  .get('/methods', (c) =>
+    c.json({
+      password: c.get('config').passwordAuthEnabled,
+      oidc: c.get('oidcAuth') !== null,
+    }),
+  )
   .post('/login', validate('json', loginSchema), async (c) => {
     const config = c.get('config');
     if (!config.passwordAuthEnabled) {

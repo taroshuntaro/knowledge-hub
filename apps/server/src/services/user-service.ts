@@ -52,6 +52,9 @@ export async function changePassword(
   newPassword: string,
 ): Promise<void> {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
+  if (user?.authProvider === 'oidc') {
+    throw new AppError('FORBIDDEN', 'SSO アカウントはパスワードを変更できません', 403);
+  }
   if (!user?.passwordHash || !(await verifyPassword(currentPassword, user.passwordHash))) {
     throw new AppError('INVALID_CREDENTIALS', '現在のパスワードが正しくありません', 400);
   }
