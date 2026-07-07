@@ -37,6 +37,7 @@ vi.mock('../api/client', () => ({
           $delete: (...args: unknown[]) => deleteComment(...args),
         },
       },
+      users: { $get: vi.fn().mockResolvedValue({ ok: true, json: async () => [] }) },
     },
   },
 }));

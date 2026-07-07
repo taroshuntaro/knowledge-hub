@@ -6,6 +6,7 @@ import { useMe } from '../auth/useMe';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { NotificationBell } from './NotificationBell';
 
 export function Layout() {
   const { data: me } = useMe();
@@ -49,6 +50,7 @@ export function Layout() {
             {me?.role === 'admin' && <Link to="/admin" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">管理</Link>}
             <Link to="/settings" className="rounded-md px-3 py-2 font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">設定</Link>
             <span className="hidden px-2 text-muted-foreground sm:inline">{me?.displayName}</span>
+            <NotificationBell />
             <ThemeToggle />
             <Button type="button" variant="outline" size="sm" onClick={onLogout}>ログアウト</Button>
           </nav>

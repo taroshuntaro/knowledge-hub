@@ -5,9 +5,9 @@ import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Loading } from './Loading';
 import { EmptyState } from './EmptyState';
+import { MentionTextarea } from './MentionTextarea';
 
 type CommentNode = {
   id: string;
@@ -64,10 +64,10 @@ function CommentForm({
 
   return (
     <div className="flex flex-col gap-2">
-      <Textarea
+      <MentionTextarea
         aria-label="コメント"
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={setValue}
         rows={3}
         maxLength={5000}
         autoFocus={autoFocus}

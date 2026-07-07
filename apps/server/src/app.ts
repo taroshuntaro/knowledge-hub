@@ -8,6 +8,7 @@ import { categoryRoutes } from './routes/categories';
 import { articleCommentRoutes, commentRoutes } from './routes/comments';
 import { articleEngagementRoutes, meRoutes } from './routes/engagement';
 import { healthRoutes } from './routes/health';
+import { notificationRoutes } from './routes/notifications';
 import { searchRoutes } from './routes/search';
 import { tagRoutes } from './routes/tags';
 import { uploadRoutes } from './routes/uploads';
@@ -44,6 +45,7 @@ export function buildApp(
     .route('/api/articles', articleEngagementRoutes)
     .route('/api/comments', commentRoutes)
     .route('/api/me', meRoutes)
+    .route('/api/notifications', notificationRoutes)
     .route('/api/uploads', uploadRoutes)
     .route('/api/search', searchRoutes);
 }

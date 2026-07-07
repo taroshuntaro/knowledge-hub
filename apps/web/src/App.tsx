@@ -11,6 +11,7 @@ import { HomePage } from './pages/HomePage';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { MyArticlesPage } from './pages/MyArticlesPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { PasswordResetConfirmPage } from './pages/PasswordResetConfirmPage';
 import { PasswordResetRequestPage } from './pages/PasswordResetRequestPage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -42,6 +43,7 @@ const router = createBrowserRouter([
       { path: '/search', element: <SearchPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
       { path: '/me/bookmarks', element: <BookmarksPage /> },
+      { path: '/notifications', element: <NotificationsPage /> },
       { path: '/admin/categories', element: <AdminCategoriesPage /> },
     ],
   },
