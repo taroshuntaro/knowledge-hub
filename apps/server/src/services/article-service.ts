@@ -23,7 +23,25 @@ export type ArticleInput = {
 // Db 全体ではなく実際に使うメソッドだけを要求する（tag-service.TagStore と同じ手法）。
 type RevisionStore = Pick<Db, 'select' | 'insert' | 'update'>;
 
+// 自動保存（2 秒デバウンス）のたびに全文スナップショットを積むとテーブルが際限なく
+// 膨張するため、(1) 同一内容はスキップ、(2) 直近 10 分以内は in-place 上書き、で間引く。
+const REVISION_COLLAPSE_MS = 10 * 60 * 1000;
+
 async function snapshot(db: RevisionStore, article: { id: string; title: string; bodyMd: string }) {
+  const [latest] = await db
+    .select()
+    .from(articleRevisions)
+    .where(eq(articleRevisions.articleId, article.id))
+    .orderBy(desc(articleRevisions.savedAt))
+    .limit(1);
+  if (latest && latest.title === article.title && latest.bodyMd === article.bodyMd) return;
+  if (latest && Date.now() - latest.savedAt.getTime() < REVISION_COLLAPSE_MS) {
+    await db
+      .update(articleRevisions)
+      .set({ title: article.title, bodyMd: article.bodyMd, savedAt: new Date() })
+      .where(eq(articleRevisions.id, latest.id));
+    return;
+  }
   await db.insert(articleRevisions).values({
     articleId: article.id,
     title: article.title,

@@ -104,4 +104,48 @@ describe('article write', () => {
     expect(ng).toHaveLength(1);
     expect((ng[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'CONFLICT' });
   });
+
+  it('同一内容の保存はリビジョンを増やさない', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    let current = a;
+    for (let i = 0; i < 2; i++) {
+      current = await updateArticle(ctx.db, a.id, asUser(u.id), {
+        title: 't', bodyMd: 'b', tags: [], expectedUpdatedAt: current.updatedAt.toISOString(),
+      });
+    }
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(1);
+  });
+
+  it('10 分以内の連続保存は直近リビジョンを上書きする', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    const v2 = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v2', bodyMd: 'b2', tags: [], expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v3', bodyMd: 'b3', tags: [], expectedUpdatedAt: v2.updatedAt.toISOString(),
+    });
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(1);
+    expect(revs[0].title).toBe('v3');
+    expect(revs[0].bodyMd).toBe('b3');
+  });
+
+  it('10 分より古い直近リビジョンがある場合は新規リビジョンを作る', async () => {
+    const u = await createTestUser(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: 'b', tags: [] });
+    const v2 = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v2', bodyMd: 'b2', tags: [], expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    await ctx.db.execute(
+      sql`update article_revisions set saved_at = now() - interval '11 minutes' where article_id = ${a.id}`,
+    );
+    await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 'v3', bodyMd: 'b3', tags: [], expectedUpdatedAt: v2.updatedAt.toISOString(),
+    });
+    const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
+    expect(revs).toHaveLength(2);
+  });
 });
