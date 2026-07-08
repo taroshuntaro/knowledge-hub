@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider } from 'react-router';
+import { createBrowserRouter, RouterProvider, useParams } from 'react-router';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
@@ -20,6 +20,14 @@ import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TagPage } from './pages/TagPage';
 
+// /articles/new と /articles/:id/edit は同じ EditorPage を描画する。key を記事 id で
+// 変えることで、記事間（new↔edit、別記事の edit↔edit）を SPA 遷移したときに必ず
+// 再マウントさせ、内部の id/updatedAt などの state が前の記事のまま残るのを防ぐ。
+function EditorRoute() {
+  const { id } = useParams();
+  return <EditorPage key={id ?? 'new'} />;
+}
+
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/invite/:token', element: <InvitePage /> },
@@ -35,8 +43,8 @@ const router = createBrowserRouter([
       { path: '/', element: <HomePage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/admin', element: <AdminUsersPage /> },
-      { path: '/articles/new', element: <EditorPage /> },
-      { path: '/articles/:id/edit', element: <EditorPage /> },
+      { path: '/articles/new', element: <EditorRoute /> },
+      { path: '/articles/:id/edit', element: <EditorRoute /> },
       { path: '/articles/:id', element: <ArticleDetailPage /> },
       { path: '/categories', element: <CategoriesPage /> },
       { path: '/categories/:id', element: <CategoryPage /> },

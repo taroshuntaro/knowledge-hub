@@ -53,21 +53,33 @@ export function EditorPage() {
   const navigate = useNavigate();
   const theme = useTheme();
 
+  // 読み込みによる state 反映で自動保存が誤発火しないよう、次回の自動保存を 1 回だけ抑止する。
+  // 既存記事を「開いただけ」で PATCH が走り updatedAt が進む（別編集者が 409 を食らう）のを防ぐ。
+  const skipAutosaveRef = useRef(false);
+
   // 既存記事の読み込み
   useEffect(() => {
     if (!routeId) return;
     (async () => {
-      const res = await api.api.articles[':id'].$get({ param: { id: routeId } });
-      if (!res.ok) { setLoadFailed(true); return; }
-      const a = await res.json();
-      setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
-      setHeroImageUploadId(a.heroImageUploadId ?? null);
-      setArticleStatus(a.status ?? 'draft');
-      if (isLossless(a.bodyMd)) {
-        setMode('rich');
-      } else {
-        setMode('source');
-        setStatus('この記事の Markdown はリッチ表示に完全対応していないため、Markdown モードで開きました');
+      try {
+        const res = await api.api.articles[':id'].$get({ param: { id: routeId } });
+        if (!res.ok) { setLoadFailed(true); return; }
+        const a = await res.json();
+        // これらの setState が自動保存 effect を発火させるが、ユーザー編集ではないので抑止する
+        skipAutosaveRef.current = true;
+        setTitle(a.title); setBodyMd(a.bodyMd); setCategoryId(a.categoryId); setTags(a.tags); setUpdatedAt(a.updatedAt);
+        setHeroImageUploadId(a.heroImageUploadId ?? null);
+        setArticleStatus(a.status ?? 'draft');
+        if (isLossless(a.bodyMd)) {
+          setMode('rich');
+        } else {
+          setMode('source');
+          setStatus('この記事の Markdown はリッチ表示に完全対応していないため、Markdown モードで開きました');
+        }
+      } catch {
+        // ネットワーク断などの例外も読み込み失敗として扱う（空フォーム化して新規 POST に
+        // 化けるのを防ぐ）
+        setLoadFailed(true);
       }
     })();
   }, [routeId]);
@@ -166,6 +178,11 @@ export function EditorPage() {
   // 自動保存（2 秒デバウンス。title が空の間は保存しない）
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
+    // 既存記事の読み込みに伴う state 反映では保存しない（開いただけの空更新を防ぐ）
+    if (skipAutosaveRef.current) {
+      skipAutosaveRef.current = false;
+      return;
+    }
     if (!title.trim()) return;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => { void runSave(); }, 2000);

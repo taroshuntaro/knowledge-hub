@@ -202,6 +202,27 @@ describe('EditorPage', () => {
     expect(postMock).not.toHaveBeenCalled();
   });
 
+  it('既存記事を開いただけでは自動保存（PATCH）は走らない', async () => {
+    getMock.mockResolvedValue({
+      ok: true,
+      json: async () => ({ id: 'a1', title: '既存記事', bodyMd: '本文', categoryId: 'c1', tags: [], updatedAt: '2026-07-05T00:00:00Z', status: 'published' }),
+    });
+    patchMock.mockResolvedValue({ ok: true, json: async () => ({ updatedAt: 'x' }) });
+    renderEdit('a1');
+    await screen.findByDisplayValue('既存記事');
+    // デバウンス（2秒）を超えて待っても、ユーザー編集がなければ PATCH は発生しない
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(patchMock).not.toHaveBeenCalled();
+  });
+
+  it('読み込みで例外が発生してもエラー表示し、新規 POST に化けない', async () => {
+    getMock.mockRejectedValue(new Error('network down'));
+    renderEdit('a1');
+    expect(await screen.findByRole('alert')).toHaveTextContent('記事の読み込みに失敗しました');
+    expect(screen.queryByLabelText('タイトル')).not.toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
   it('新規記事はリッチモードで開き、Markdown タブでソースに切り替わる', async () => {
     renderNew();
     expect(screen.getByRole('button', { name: 'リッチ' })).toHaveAttribute('aria-pressed', 'true');
