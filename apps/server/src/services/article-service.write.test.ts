@@ -85,6 +85,17 @@ describe('article write', () => {
     expect(updated.categoryId).toBeNull();
   });
 
+  it('categoryId を省略した更新はカテゴリを維持する（部分更新でクリアしない）', async () => {
+    const u = await createTestUser(ctx.db);
+    const cat = await createTestCategory(ctx.db);
+    const a = await createArticle(ctx.db, u.id, { title: 't', bodyMd: '', categoryId: cat.id, tags: [] });
+    // categoryId を送らない更新（undefined）はクリアではなく維持を意味する
+    const updated = await updateArticle(ctx.db, a.id, asUser(u.id), {
+      title: 't2', bodyMd: '', tags: [], expectedUpdatedAt: a.updatedAt.toISOString(),
+    });
+    expect(updated.categoryId).toBe(cat.id);
+  });
+
   it('同一 expectedUpdatedAt の並行更新は片方だけ成功する（楽観ロックの原子性）', async () => {
     const author = await createTestUser(ctx.db);
     const article = await createArticle(ctx.db, author.id, { title: 't', bodyMd: 'b', tags: [] });

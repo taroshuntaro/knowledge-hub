@@ -124,7 +124,14 @@ export async function updateArticle(
     if (current.updatedAt.toISOString() !== input.expectedUpdatedAt) {
       throw new AppError('CONFLICT', '別の場所で更新されています。読み込み直してください', 409);
     }
-    if (current.status === 'published' && !input.categoryId) {
+    // categoryId / heroImageUploadId は任意フィールド。未指定（undefined）は「変更しない」、
+    // 明示的な null は「クリア」を意味する（updateProfileSchema と同じ規約）。以前は undefined を
+    // null に潰していたため、これらを省いた部分更新でカテゴリ/ヒーロー画像が消える罠があった。
+    const nextCategoryId =
+      input.categoryId !== undefined ? input.categoryId : current.categoryId;
+    const nextHeroImageUploadId =
+      input.heroImageUploadId !== undefined ? input.heroImageUploadId : current.heroImageUploadId;
+    if (current.status === 'published' && !nextCategoryId) {
       throw new AppError('VALIDATION', '公開記事にはカテゴリの指定が必要です', 400);
     }
     const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
@@ -133,8 +140,8 @@ export async function updateArticle(
       .set({
         title: input.title,
         bodyMd: input.bodyMd,
-        categoryId: input.categoryId ?? null,
-        heroImageUploadId: input.heroImageUploadId ?? null,
+        categoryId: nextCategoryId,
+        heroImageUploadId: nextHeroImageUploadId,
         searchText,
         updatedAt: new Date(),
       })
