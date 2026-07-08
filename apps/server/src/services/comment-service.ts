@@ -85,7 +85,7 @@ export async function createComment(
   let parent: CommentRecord | null = null;
   if (input.parentId) {
     parent = (await db.query.comments.findFirst({ where: eq(comments.id, input.parentId) })) ?? null;
-    if (!parent || parent.articleId !== articleId || parent.parentId !== null) {
+    if (!parent || parent.articleId !== articleId || parent.parentId !== null || parent.deletedAt !== null) {
       throw new AppError('VALIDATION', '返信先のコメントが不正です', 400);
     }
   }
@@ -187,6 +187,11 @@ export async function updateComment(
   input: { bodyMd: string },
 ): Promise<CommentRecord> {
   const current = await loadOwnComment(db, id);
+  // 論理削除（モデレート削除）済みコメントは編集不可。編集で mention 通知を
+  // 再送してモデレーションを回避する経路を塞ぐ。
+  if (current.deletedAt !== null) {
+    throw new AppError('NOT_FOUND', 'コメントが見つかりません', 404);
+  }
   if (!can(editor, 'comment:edit', { authorId: current.authorId })) {
     throw new AppError('FORBIDDEN', 'このコメントを編集する権限がありません', 403);
   }

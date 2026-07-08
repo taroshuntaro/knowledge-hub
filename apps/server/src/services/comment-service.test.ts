@@ -119,6 +119,27 @@ describe('comment service', () => {
     expect(page.items[0].replies[0].bodyMd).toBe('残る返信');
   });
 
+  it('削除済みコメントへの返信は拒否される（VALIDATION 400）', async () => {
+    const article = await publishedArticle();
+    const commenter = await createTestUser(ctx.db);
+    const replier = await createTestUser(ctx.db);
+    const top = await createComment(ctx.db, article.id, asUser(commenter.id), { bodyMd: '親' });
+    await deleteComment(ctx.db, top.id, asUser(commenter.id));
+    await expect(
+      createComment(ctx.db, article.id, asUser(replier.id), { bodyMd: '返信', parentId: top.id }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('削除済みコメントの編集は拒否される（NOT_FOUND 404）', async () => {
+    const article = await publishedArticle();
+    const commenter = await createTestUser(ctx.db);
+    const created = await createComment(ctx.db, article.id, asUser(commenter.id), { bodyMd: '本文' });
+    await deleteComment(ctx.db, created.id, asUser(commenter.id));
+    await expect(
+      updateComment(ctx.db, created.id, asUser(commenter.id), { bodyMd: '復活' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
   it('9. admin は他人のコメントを削除できる（isDeleted: true になる）', async () => {
     const article = await publishedArticle();
     const commenter = await createTestUser(ctx.db);
