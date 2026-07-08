@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { articles, users } from '../db/schema';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 
@@ -7,14 +9,25 @@ describe('upload routes', () => {
   beforeEach(() => resetDb(ctx.db));
   afterAll(() => ctx.pool.end());
 
-  async function login(): Promise<string> {
-    await createTestUser(ctx.db, { email: 'a@example.com' });
+  async function loginAs(email: string): Promise<string> {
     const res = await ctx.app.request('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: 'a@example.com', password: TEST_PASSWORD }),
+      body: JSON.stringify({ email, password: TEST_PASSWORD }),
       headers: { 'content-type': 'application/json' },
     });
     return (res.headers.get('set-cookie') ?? '').split(';')[0];
+  }
+
+  async function login(): Promise<string> {
+    await createTestUser(ctx.db, { email: 'a@example.com' });
+    return loginAs('a@example.com');
+  }
+
+  async function upload(cookie: string): Promise<{ id: string; url: string }> {
+    const fd = new FormData();
+    fd.append('file', new File([PNG_BYTES], 'x.png', { type: 'image/png' }));
+    const up = await ctx.app.request('/api/uploads', { method: 'POST', body: fd, headers: { cookie } });
+    return up.json();
   }
 
   // 実際の PNG マジックバイト（\x89PNG\r\n\x1a\n）+ ダミーデータ
@@ -73,5 +86,52 @@ describe('upload routes', () => {
     const cookie = await login();
     const res = await ctx.app.request('/api/uploads/not-a-uuid', { headers: { cookie } });
     expect(res.status).toBe(404);
+  });
+
+  it('他ユーザーは公開文脈にない画像（ドラフトのヒーロー等）を取得できない（404）', async () => {
+    const author = await createTestUser(ctx.db, { email: 'author@example.com' });
+    const cookieA = await loginAs('author@example.com');
+    const { id, url } = await upload(cookieA);
+
+    await createTestUser(ctx.db, { email: 'other@example.com' });
+    const cookieB = await loginAs('other@example.com');
+
+    // 公開文脈がない状態では他人は取得不可
+    expect((await ctx.app.request(url, { headers: { cookie: cookieB } })).status).toBe(404);
+
+    // アップロード主体本人は取得可
+    expect((await ctx.app.request(url, { headers: { cookie: cookieA } })).status).toBe(200);
+
+    // ドラフト記事のヒーローに使っても他人はまだ取得不可
+    const [draft] = await ctx.db
+      .insert(articles)
+      .values({ authorId: author.id, title: 'draft', heroImageUploadId: id, status: 'draft' })
+      .returning();
+    expect((await ctx.app.request(url, { headers: { cookie: cookieB } })).status).toBe(404);
+
+    // 公開すると他人も取得可
+    await ctx.db.update(articles).set({ status: 'published', publishedAt: new Date() }).where(eq(articles.id, draft.id));
+    expect((await ctx.app.request(url, { headers: { cookie: cookieB } })).status).toBe(200);
+  });
+
+  it('admin は他人のドラフト画像も取得できる', async () => {
+    await createTestUser(ctx.db, { email: 'author2@example.com' });
+    const cookieA = await loginAs('author2@example.com');
+    const { url } = await upload(cookieA);
+
+    await createTestUser(ctx.db, { email: 'admin@example.com', role: 'admin' });
+    const cookieAdmin = await loginAs('admin@example.com');
+    expect((await ctx.app.request(url, { headers: { cookie: cookieAdmin } })).status).toBe(200);
+  });
+
+  it('アバターとして参照される画像は他ユーザーも取得できる', async () => {
+    const owner = await createTestUser(ctx.db, { email: 'avatar-owner@example.com' });
+    const cookieOwner = await loginAs('avatar-owner@example.com');
+    const { id, url } = await upload(cookieOwner);
+    await ctx.db.update(users).set({ avatarUrl: `/api/uploads/${id}` }).where(eq(users.id, owner.id));
+
+    await createTestUser(ctx.db, { email: 'viewer@example.com' });
+    const cookieViewer = await loginAs('viewer@example.com');
+    expect((await ctx.app.request(url, { headers: { cookie: cookieViewer } })).status).toBe(200);
   });
 });
