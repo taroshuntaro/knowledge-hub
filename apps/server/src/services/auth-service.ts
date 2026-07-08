@@ -10,9 +10,11 @@ const DUMMY_PASSWORD_HASH =
 
 export async function loginWithPassword(
   db: Db,
-  email: string,
+  rawEmail: string,
   password: string,
 ): Promise<{ sid: string; user: SessionUser } | null> {
+  // 保存時に小文字化しているため照合も小文字化して行う（大文字小文字揺れの吸収）。
+  const email = rawEmail.trim().toLowerCase();
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const passwordHash =
     user?.isActive && user.authProvider === 'password' ? user.passwordHash : null;

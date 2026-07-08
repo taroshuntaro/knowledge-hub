@@ -13,8 +13,9 @@ export async function requestPasswordReset(
   db: Db,
   mailer: Mailer,
   config: Config,
-  email: string,
+  rawEmail: string,
 ): Promise<void> {
+  const email = rawEmail.trim().toLowerCase();
   const user = await db.query.users.findFirst({
     where: and(eq(users.email, email), eq(users.isActive, true), eq(users.authProvider, 'password')),
   });
