@@ -1,18 +1,10 @@
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { listQuerySchema } from '@knowledge-hub/shared';
-import { AppError } from '../errors';
 import { requireAuth } from '../middleware/session';
 import { validate } from '../middleware/validate';
 import { countUnread, listNotifications, markAllRead, markRead } from '../services/notification-service';
 import type { AppEnv } from '../types';
-
-function requireValidNotificationId(id: string): void {
-  // 不正な UUID 形式は DB エラー（500）ではなく NOT_FOUND として扱う
-  if (!z.string().uuid().safeParse(id).success) {
-    throw new AppError('NOT_FOUND', '通知が見つかりません', 404);
-  }
-}
+import { requireUuidParam } from './guards';
 
 export const notificationRoutes = new Hono<AppEnv>()
   .use(requireAuth)
@@ -25,7 +17,7 @@ export const notificationRoutes = new Hono<AppEnv>()
     return c.body(null, 204);
   })
   .post('/:notificationId/read', async (c) => {
-    requireValidNotificationId(c.req.param('notificationId'));
+    requireUuidParam(c.req.param('notificationId'), '通知が見つかりません');
     await markRead(c.get('db'), c.get('user').id, c.req.param('notificationId'));
     return c.body(null, 204);
   });

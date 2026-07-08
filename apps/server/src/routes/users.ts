@@ -28,7 +28,10 @@ export const userRoutes = new Hono<AppEnv>()
     setSessionCookie(c, sid, c.get('config'));
     return c.body(null, 204);
   })
-  .get('/:id', async (c) => c.json(await getPublicProfile(c.get('db'), c.req.param('id'))))
+  .get('/:id', async (c) => {
+    requireUuidParam(c.req.param('id'), 'ユーザーが見つかりません');
+    return c.json(await getPublicProfile(c.get('db'), c.req.param('id')));
+  })
   .get('/:id/articles', validate('query', listQuerySchema), async (c) => {
     requireUuidParam(c.req.param('id'), 'ユーザーが見つかりません');
     return c.json(await listByAuthor(c.get('db'), c.req.param('id'), c.req.valid('query')));

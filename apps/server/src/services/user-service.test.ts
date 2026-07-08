@@ -98,11 +98,7 @@ describe('user service', () => {
         code: 'NOT_FOUND',
       });
     });
-
-    it('不正な UUID 形式 → NOT_FOUND（500 にならない）', async () => {
-      await expect(getPublicProfile(ctx.db, 'not-a-uuid')).rejects.toMatchObject({
-        code: 'NOT_FOUND',
-      });
-    });
+    // 不正な UUID 形式の弾き方はルート層（requireUuidParam）の責務に一元化したため、
+    // その検証は routes/users.test.ts の GET /api/users/:id で行う。
   });
 });
