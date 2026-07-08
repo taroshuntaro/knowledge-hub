@@ -26,6 +26,8 @@ const envSchema = z.object({
   OIDC_CLIENT_ID: emptyAsUndefined(z.string().min(1).optional()),
   OIDC_CLIENT_SECRET: emptyAsUndefined(z.string().min(1).optional()),
   OIDC_ALLOWED_EMAIL_DOMAINS: emptyAsUndefined(z.string().optional()),
+  // SPA 配信ディレクトリの上書き（未設定なら index.ts が import.meta 基準で解決）
+  WEB_DIST_DIR: emptyAsUndefined(z.string().min(1).optional()),
 });
 
 export type Config = {
@@ -46,6 +48,7 @@ export type Config = {
   s3AccessKeyId: string;
   s3SecretAccessKey: string;
   s3ForcePathStyle: boolean;
+  webDistDir?: string;
   oidc?: { issuer: string; clientId: string; clientSecret: string; allowedEmailDomains: string[] };
 };
 
@@ -99,6 +102,7 @@ export function loadConfig(source: Record<string, string | undefined> = process.
     s3AccessKeyId: e.S3_ACCESS_KEY_ID,
     s3SecretAccessKey: e.S3_SECRET_ACCESS_KEY,
     s3ForcePathStyle: e.S3_FORCE_PATH_STYLE === 'true',
+    webDistDir: e.WEB_DIST_DIR,
     oidc,
   };
 }

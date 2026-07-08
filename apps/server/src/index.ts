@@ -28,7 +28,7 @@ const app = buildApp({
 // 本番: ビルド済み SPA を配信（開発時は Vite dev server が担当するため 404 になるだけで無害）。
 // dist の場所は import.meta 基準で解決し、起動 cwd に依存しないようにする（M-7）。
 // （@hono/node-server の serveStatic は相対パス前提のため cwd からの相対に正規化して渡す）
-const webDistAbs = process.env.WEB_DIST_DIR ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
+const webDistAbs = config.webDistDir ?? fileURLToPath(new URL('../../web/dist', import.meta.url));
 const webDistRel = path.relative(process.cwd(), webDistAbs) || '.';
 app.use('*', serveStatic({ root: webDistRel }));
 app.get('*', serveStatic({ path: path.join(webDistRel, 'index.html') }));

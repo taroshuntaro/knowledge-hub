@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { articles, notifications, users } from '../db/schema';
 import { logger } from '../logger';
 import type { Db } from '../types';
-import { decodeCursor, encodeCursor } from './cursor';
+import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { extractMentionedUserIds } from './mention';
 
 export type NotificationRecord = typeof notifications.$inferSelect;
@@ -138,7 +138,7 @@ export type NotificationItem = {
   createdAt: Date;
 };
 
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type { Page };
 
 // 一覧と未読数が共有する可視条件: 対象記事が公開中かつ未削除
 const visibleArticle = () => and(eq(articles.status, 'published'), isNull(articles.deletedAt));
