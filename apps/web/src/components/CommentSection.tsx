@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
 import { formatDate } from '../lib/date';
+import { errorMessage } from '../lib/api-error';
 import { Button } from '@/components/ui/button';
 import { Loading } from './Loading';
 import { EmptyState } from './EmptyState';
@@ -22,11 +23,6 @@ type CommentNode = {
   updatedAt: string;
   replies: CommentNode[];
 };
-
-async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
-  const body = (await res.json().catch(() => null)) as { message?: string } | null;
-  return body?.message ?? fallback;
-}
 
 function CommentForm({
   onSubmit,

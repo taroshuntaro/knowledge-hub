@@ -14,11 +14,7 @@ import { CommentSection } from '../components/CommentSection';
 import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { HeroImage } from '../components/HeroImage';
-
-async function errorMessage(res: { json(): Promise<unknown> }, fallback: string): Promise<string> {
-  const body = (await res.json().catch(() => null)) as { message?: string } | null;
-  return body?.message ?? fallback;
-}
+import { errorMessage } from '../lib/api-error';
 
 export function ArticleDetailPage() {
   const { id = '' } = useParams();

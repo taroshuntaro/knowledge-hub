@@ -17,6 +17,7 @@ import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
 import { Markdown } from '@/lib/markdown';
 import { firstImageFile, uploadImage } from '@/lib/upload';
+import { errorMessage } from '../lib/api-error';
 
 type EditorMode = 'rich' | 'source';
 
@@ -123,8 +124,7 @@ export function EditorPage() {
         json: { title, bodyMd, categoryId, heroImageUploadId, tags, expectedUpdatedAt: currentUpdatedAt },
       });
       if (!res.ok) {
-        const b = (await res.json().catch(() => null)) as { message?: string } | null;
-        setError(b?.message ?? '保存に失敗しました');
+        setError(await errorMessage(res, '保存に失敗しました'));
         return null;
       }
       const a = await res.json();
@@ -212,8 +212,7 @@ export function EditorPage() {
       return;
     }
     if (!res.ok) {
-      const b = (await res.json().catch(() => null)) as { message?: string } | null;
-      setError(b?.message ?? '公開に失敗しました');
+      setError(await errorMessage(res, '公開に失敗しました'));
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['feed'] });

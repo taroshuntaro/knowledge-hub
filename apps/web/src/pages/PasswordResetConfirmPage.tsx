@@ -5,6 +5,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorMessage } from '../lib/api-error';
 
 export function PasswordResetConfirmPage() {
   const { token } = useParams<{ token: string }>();
@@ -21,8 +22,7 @@ export function PasswordResetConfirmPage() {
         json: { password },
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        setError(body?.message ?? '再設定に失敗しました');
+        setError(await errorMessage(res, '再設定に失敗しました'));
         return;
       }
     } catch {
