@@ -29,7 +29,11 @@ export const uploadRoutes = new Hono<AppEnv>()
   )
   .get('/:id', async (c) => {
     requireUuidParam(c.req.param('id'), '画像が見つかりません');
-    const found = await getUpload(c.get('db'), c.get('storage'), c.req.param('id'));
+    const user = c.get('user');
+    const found = await getUpload(c.get('db'), c.get('storage'), c.req.param('id'), {
+      id: user.id,
+      role: user.role,
+    });
     if (!found) throw new AppError('NOT_FOUND', '画像が見つかりません', 404);
     c.header('Content-Type', found.contentType);
     c.header('Cache-Control', 'private, max-age=86400');

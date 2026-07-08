@@ -14,8 +14,11 @@ export async function createInvitation(
   db: Db,
   mailer: Mailer,
   config: Config,
-  email: string,
+  rawEmail: string,
 ): Promise<void> {
+  // email は小文字化して保存する。OIDC は lower() で照合するため、
+  // 大文字小文字の違いで同一メールに複数行ができるのを防ぐ（アカウント重複/乗っ取り対策）。
+  const email = rawEmail.trim().toLowerCase();
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
     throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);

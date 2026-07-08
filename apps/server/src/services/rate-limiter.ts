@@ -21,8 +21,16 @@ export class RateLimiter {
     if (!this.hits.has(key) && this.hits.size >= Math.ceil(this.maxKeys)) {
       this.pruneExpired(now);
       if (this.hits.size >= Math.ceil(this.maxKeys)) {
-        const oldestKey = this.hits.keys().next().value;
-        if (oldestKey !== undefined) this.hits.delete(oldestKey);
+        // 現在ブロック中（上限到達）のキーは evict しない。攻撃者が大量の新規キーで
+        // マップを溢れさせ、ブロック中の被害者キーをフラッシュしてレート制限を
+        // リセットする攻撃を防ぐ。ブロック中でない最古のキーを退避対象にする。
+        const evictable = this.oldestEvictableKey(now);
+        if (evictable !== undefined) {
+          this.hits.delete(evictable);
+        } else {
+          // 全キーがブロック中（大規模攻撃下）: 新規キーは安全側で拒否する
+          return false;
+        }
       }
     }
 
@@ -42,6 +50,18 @@ export class RateLimiter {
 
   reset(): void {
     this.hits.clear();
+  }
+
+  // 挿入順（最古）で、かつ現在ブロック中でない最初のキーを返す。
+  private oldestEvictableKey(now: number): string | undefined {
+    for (const [key, timestamps] of this.hits) {
+      const recentCount = timestamps.reduce(
+        (count, timestamp) => (now - timestamp < this.windowMs ? count + 1 : count),
+        0,
+      );
+      if (recentCount < this.max) return key;
+    }
+    return undefined;
   }
 
   private pruneExpired(now: number): void {

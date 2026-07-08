@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
-import { uploads } from '../db/schema';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import { articles, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db, Storage } from '../types';
 
@@ -47,12 +47,55 @@ export async function saveUpload(
   return { id, url: `/api/uploads/${id}` };
 }
 
+type UploadViewer = { id: string; role: 'member' | 'admin' };
+
+// アップロード画像を閲覧してよいかを判定する。未公開ドラフトのヒーロー画像などが
+// 無関係な認証ユーザーに配信されるのを防ぐ（アップロード主体・admin・公開文脈のみ許可）。
+async function canViewUpload(
+  db: Db,
+  upload: typeof uploads.$inferSelect,
+  viewer: UploadViewer,
+): Promise<boolean> {
+  // 1. アップロード主体本人・管理者は常に閲覧可（自分のドラフト画像の編集プレビュー等）
+  if (viewer.role === 'admin' || upload.uploaderId === viewer.id) return true;
+  const urlPath = `/api/uploads/${upload.id}`;
+  // 2. 公開（削除されていない）記事のヒーロー画像
+  const hero = await db.query.articles.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(articles.heroImageUploadId, upload.id),
+      eq(articles.status, 'published'),
+      isNull(articles.deletedAt),
+    ),
+  });
+  if (hero) return true;
+  // 3. いずれかのユーザーのアバター（プロフィール等で公開表示される）
+  const avatar = await db.query.users.findFirst({
+    columns: { id: true },
+    where: eq(users.avatarUrl, urlPath),
+  });
+  if (avatar) return true;
+  // 4. 公開記事の本文に埋め込まれた画像（id は UUID 検証済みで LIKE メタ文字を含まない）
+  const inBody = await db.query.articles.findFirst({
+    columns: { id: true },
+    where: and(
+      eq(articles.status, 'published'),
+      isNull(articles.deletedAt),
+      sql`${articles.bodyMd} like ${`%${urlPath}%`}`,
+    ),
+  });
+  return Boolean(inBody);
+}
+
 export async function getUpload(
   db: Db,
   storage: Storage,
   id: string,
+  viewer: UploadViewer,
 ): Promise<{ body: Buffer; contentType: string } | null> {
   const row = await db.query.uploads.findFirst({ where: eq(uploads.id, id) });
-  if (!row) return null;
+  // 権限がない場合も存在しない場合と同じ null（呼び出し側で 404）にして
+  // 画像 id の存在有無を漏らさない。
+  if (!row || !(await canViewUpload(db, row, viewer))) return null;
   return storage.get(row.storageKey);
 }

@@ -24,6 +24,9 @@ import { deleteSession } from '../services/session-service';
 import type { AppEnv } from '../types';
 
 export const loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
+// パスワードリセット要求はメール爆撃・リセットトークン量産の踏み台になりうるため
+// email 単位で絞る（存在有無に関わらず 429 を返すため列挙攻撃には寄与しない）。
+export const passwordResetLimiter = new RateLimiter(5, 15 * 60 * 1000);
 
 export const authRoutes = new Hono<AppEnv>()
   .get('/methods', (c) =>
@@ -91,7 +94,15 @@ export const authRoutes = new Hono<AppEnv>()
         403,
       );
     }
-    await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), c.req.valid('json').email);
+    const { email } = c.req.valid('json');
+    if (!passwordResetLimiter.consume(email.toLowerCase())) {
+      throw new AppError(
+        'RATE_LIMITED',
+        '試行回数が上限に達しました。しばらくしてから再試行してください',
+        429,
+      );
+    }
+    await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), email);
     return c.body(null, 204);
   })
   .post('/password-reset/confirm/:token', validate('json', passwordResetConfirmSchema), async (c) => {
