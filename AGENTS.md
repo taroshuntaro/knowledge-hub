@@ -62,6 +62,14 @@ tests/e2e/        Playwright
 - Web の UI 文言は日本語。日付は `lib/date.ts`、カテゴリ色は `lib/category-color.ts` を使う。
 - コンポーネント / 色を追加したらコントラスト検査（`pnpm --filter @knowledge-hub/web check:contrast`）を green に保つ（verify に含まれる）。
 
+## ドキュメントの追従（画面 / API 一覧）
+
+[`docs/screens.md`](./docs/screens.md)（画面 / 機能一覧）と [`docs/api.md`](./docs/api.md)（API 一覧）はプロジェクト把握用のリファレンス。**実装を変えたら同じ変更セットで追従させる。**
+
+- **画面（`docs/screens.md`）:** `apps/web/src/App.tsx` のルートを追加 / 変更 / 削除した、あるいは画面の主な機能やアクセス権（`RequireAuth` / `RequireRole`）を変えたとき。パス・権限・主な機能を更新する。新規画面はキャプチャのプレースホルダー行（`./assets/screens/*.png`）も足す。
+- **API（`docs/api.md`）:** `apps/server/src/routes/` のエンドポイントを追加 / 変更 / 削除した、あるいは認可（`requireAuth` / `requireCan` / `requirePasswordAuth`）を変えたとき。メソッド・パス・認可・概要を更新する。
+- 凡例（権限記号）と実装（ミドルウェア）の対応がずれないよう、認可を変えたら両ドキュメントの表記も合わせる。
+
 ## コミット / ブランチ
 
 - コミットメッセージは英語・[Conventional Commits](https://www.conventionalcommits.org/)（`feat` / `fix` / `refactor` / `docs` / `test` / `chore` ...）。subject は命令形・50 字程度・末尾ピリオドなし。1 コミット = 1 論理変更。
