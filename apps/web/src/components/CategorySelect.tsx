@@ -1,16 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
-import { api } from '../api/client';
-
-type Node = { id: string; name: string; children: Node[] };
+import { useCategories } from '../api/categories';
 
 export function CategorySelect({ value, onChange, id }: { value: string | null; onChange: (v: string | null) => void; id?: string }) {
-  const { data } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.api.categories.$get();
-      return res.ok ? ((await res.json()) as Node[]) : [];
-    },
-  });
+  const { data } = useCategories();
   return (
     <select
       id={id}

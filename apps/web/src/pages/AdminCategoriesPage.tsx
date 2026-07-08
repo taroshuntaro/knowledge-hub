@@ -1,24 +1,17 @@
 import { useState, type FormEvent } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { useCategories } from '../api/categories';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 
-type Node = { id: string; name: string; parentId: string | null; children: Node[] };
-
 export function AdminCategoriesPage() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [parentId, setParentId] = useState<string | null>(null);
-  const { data: tree } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.api.categories.$get();
-      return res.ok ? ((await res.json()) as Node[]) : [];
-    },
-  });
+  const { data: tree } = useCategories();
   const create = useMutation({
     mutationFn: async () => {
       const res = await api.api.categories.$post({ json: { name, parentId } });

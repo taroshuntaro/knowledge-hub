@@ -1,19 +1,18 @@
 import { Link, NavLink, useNavigate } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Bookmark, FolderTree, Home, PenLine, Search, Settings, Users, LogOut, ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { categoryColorClass } from '../lib/category-color';
+import { useCategories } from '../api/categories';
 import { NotificationBell } from './NotificationBell';
 import { ThemeToggle } from './ThemeToggle';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-
-type CategoryNode = { id: string; name: string; parentId: string | null; sortOrder: number; children: CategoryNode[] };
 
 const navLink =
   'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground';
@@ -40,15 +39,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: categories } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.api.categories.$get();
-      if (!res.ok) throw new Error('failed');
-      return (await res.json()) as CategoryNode[];
-    },
-    staleTime: 300_000,
-  });
+  const { data: categories } = useCategories();
 
   async function onLogout() {
     try {
