@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- パッケージ: pnpm 10 workspaces、TypeScript strict、ESM、Node 22。web は `@knowledge-hub/web`。
+- パッケージ: pnpm 10 workspaces、TypeScript strict、ESM、Node 24。web は `@knowledge-hub/web`。
 - Tailwind v4 CSS-first。**生 hex を新規に持ち込まない**。色は既存トークン（`bg-card`, `text-muted-foreground`, `border-destructive` 等）を使う。
 - radix は統合パッケージ: `import { Dialog, VisuallyHidden } from 'radix-ui'`（`@radix-ui/react-*` を個別 import しない）。
 - 既存の日本語ラベルを壊さない: `getByLabelText('タイトル')`、`getByRole('button', { name: '下書き保存' })`、`{ name: 'リッチ' }` / `{ name: 'Markdown' }`、ヒーロー削除 `aria-label="画像を削除"`、設定済みヒーロー img `alt="ヒーロー画像"`（エディタ入力側）。

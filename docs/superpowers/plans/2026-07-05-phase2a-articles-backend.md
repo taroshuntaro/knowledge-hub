@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Node.js 22 系 / ESM（`"type": "module"`）/ TypeScript strict。
+- Node.js 24 系 / ESM（`"type": "module"`）/ TypeScript strict。
 - API エラーは統一形式 `{ code, message, details? }`。`code` は shared の `ErrorCode` に限定。HTTP は VALIDATION=400 / UNAUTHORIZED=401 / FORBIDDEN=403 / NOT_FOUND=404 / CONFLICT=409 / 500。
 - バリデーションの正は shared の Zod スキーマ。サーバー・Web 双方がこれを参照する。
 - 記事本文は **Markdown 文字列 `body_md` を正**とする。エディタ・検索・将来 RAG すべての源泉。

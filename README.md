@@ -39,7 +39,7 @@ docs/            設計書・実装計画
 
 ## 開発の始め方
 
-前提: Node.js 22 系 / pnpm 10 / Docker
+前提: Node.js 24 系 / pnpm 10 / Docker
 
 ```bash
 pnpm install
