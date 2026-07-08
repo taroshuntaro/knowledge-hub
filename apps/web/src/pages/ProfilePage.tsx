@@ -1,9 +1,11 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { api } from '../api/client';
+import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { Avatar } from '../components/Avatar';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
+import { ErrorState } from '../components/ErrorState';
 import { Loading } from '../components/Loading';
 
 export function ProfilePage() {
@@ -17,25 +19,19 @@ export function ProfilePage() {
       return res.json();
     },
   });
-  const articlesQuery = useInfiniteQuery({
-    queryKey: ['user-articles', id],
-    initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam }) => {
-      const res = await api.api.users[':id'].articles.$get({
-        param: { id }, query: pageParam ? { cursor: pageParam } : {},
-      });
-      if (!res.ok) throw new Error('failed');
-      return res.json();
-    },
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  const articlesQuery = useCursorList<ArticleItem>(['user-articles', id], async (cursor) => {
+    const res = await api.api.users[':id'].articles.$get({
+      param: { id }, query: cursor ? { cursor } : {},
+    });
+    if (!res.ok) throw new Error('failed');
+    return (await res.json()) as CursorPage<ArticleItem>;
   });
 
   if (profileQuery.isLoading) return <Loading />;
-  if (profileQuery.isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
+  if (profileQuery.isError) return <ErrorState />;
   if (!profileQuery.data) return <p className="text-muted-foreground">ユーザーが見つかりません。</p>;
 
   const profile = profileQuery.data;
-  const items = (articlesQuery.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
 
   return (
     <section>
@@ -51,9 +47,9 @@ export function ProfilePage() {
         <Loading />
       ) : (
         <ArticleList
-          items={items}
-          hasMore={!!articlesQuery.hasNextPage}
-          onLoadMore={() => articlesQuery.fetchNextPage()}
+          items={articlesQuery.items}
+          hasMore={articlesQuery.hasNextPage}
+          onLoadMore={articlesQuery.fetchNextPage}
           emptyText="公開記事はまだありません。"
         />
       )}

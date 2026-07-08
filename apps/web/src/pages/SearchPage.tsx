@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import type { ArticleCardData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
+import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { ArticleCard, type ArticleItem } from '../components/ArticleCard';
 import { CategorySelect } from '../components/CategorySelect';
 import { EmptyState } from '../components/EmptyState';
+import { ErrorState } from '../components/ErrorState';
 import { Loading } from '../components/Loading';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -55,27 +56,25 @@ export function SearchPage() {
     if (t !== tag) updateParam('tag', t || null);
   }
 
-  const query = useInfiniteQuery({
-    queryKey: ['search', q, categoryId, tag, authorId],
-    initialPageParam: undefined as string | undefined,
-    enabled: q.length > 0,
-    queryFn: async ({ pageParam }) => {
+  const query = useCursorList<SearchResultItem>(
+    ['search', q, categoryId, tag, authorId],
+    async (cursor) => {
       const res = await api.api.search.$get({
         query: {
           q,
           ...(categoryId ? { categoryId } : {}),
           ...(tag ? { tag } : {}),
           ...(authorId ? { authorId } : {}),
-          ...(pageParam ? { cursor: pageParam } : {}),
+          ...(cursor ? { cursor } : {}),
         },
       });
       if (!res.ok) throw new Error('failed');
-      return res.json();
+      return (await res.json()) as CursorPage<SearchResultItem>;
     },
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
-  });
+    { enabled: q.length > 0 },
+  );
 
-  const items = (query.data?.pages ?? []).flatMap((p) => p.items) as SearchResultItem[];
+  const items = query.items;
 
   return (
     <section>
@@ -123,9 +122,7 @@ export function SearchPage() {
 
       {q.length > 0 && query.isLoading && <Loading />}
 
-      {q.length > 0 && query.isError && (
-        <p className="text-destructive">読み込みに失敗しました。</p>
-      )}
+      {q.length > 0 && query.isError && <ErrorState />}
 
       {q.length > 0 && !query.isLoading && !query.isError && items.length === 0 && (
         <EmptyState message={`『${q}』に一致する記事はありません`} />
@@ -135,7 +132,7 @@ export function SearchPage() {
         <div className="flex flex-col gap-3">
           {items.map((item) => <ArticleCard key={item.id} item={toArticleItem(item)} />)}
           {query.hasNextPage && (
-            <Button type="button" variant="outline" className="self-center" onClick={() => query.fetchNextPage()}>もっと見る</Button>
+            <Button type="button" variant="outline" className="self-center" onClick={query.fetchNextPage}>もっと見る</Button>
           )}
         </div>
       )}
