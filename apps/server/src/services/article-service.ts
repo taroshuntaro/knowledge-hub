@@ -311,21 +311,24 @@ export type ListMetadata = { tags: string[]; reactionCount: number; commentCount
 // 集約クエリ 3 本（N+1 ではなく、呼び出し 1 回あたり定数本）にまとめる。
 export async function fetchListMetadata(db: Db, ids: string[]): Promise<Map<string, ListMetadata>> {
   if (ids.length === 0) return new Map();
-  const tagRows = await db
-    .select({ articleId: articleTags.articleId, name: tags.name })
-    .from(articleTags)
-    .innerJoin(tags, eq(articleTags.tagId, tags.id))
-    .where(inArray(articleTags.articleId, ids));
-  const reactionRows = await db
-    .select({ articleId: reactions.articleId, count: sql<number>`count(*)::int` })
-    .from(reactions)
-    .where(inArray(reactions.articleId, ids))
-    .groupBy(reactions.articleId);
-  const commentRows = await db
-    .select({ articleId: comments.articleId, count: sql<number>`count(*)::int` })
-    .from(comments)
-    .where(and(inArray(comments.articleId, ids), isNull(comments.deletedAt)))
-    .groupBy(comments.articleId);
+  // 3 本は互いに独立なので直列 await ではなく Promise.all で 1 往復ぶんの遅延にまとめる。
+  const [tagRows, reactionRows, commentRows] = await Promise.all([
+    db
+      .select({ articleId: articleTags.articleId, name: tags.name })
+      .from(articleTags)
+      .innerJoin(tags, eq(articleTags.tagId, tags.id))
+      .where(inArray(articleTags.articleId, ids)),
+    db
+      .select({ articleId: reactions.articleId, count: sql<number>`count(*)::int` })
+      .from(reactions)
+      .where(inArray(reactions.articleId, ids))
+      .groupBy(reactions.articleId),
+    db
+      .select({ articleId: comments.articleId, count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(inArray(comments.articleId, ids), isNull(comments.deletedAt)))
+      .groupBy(comments.articleId),
+  ]);
   const tagsByArticle = new Map<string, string[]>();
   for (const r of tagRows) {
     const a = tagsByArticle.get(r.articleId) ?? [];
@@ -383,7 +386,9 @@ async function pagePublished(
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
     .where(where)
-    .orderBy(desc(articles.publishedAt), desc(articles.id))
+    // 並び順は articles_feed_idx（published_at DESC NULLS LAST, id DESC NULLS LAST）に合わせて
+    // NULLS LAST を明示する。公開記事は published_at 非 NULL なので結果順は不変。
+    .orderBy(sql`${articles.publishedAt} desc nulls last`, sql`${articles.id} desc nulls last`)
     .limit(page.limit + 1);
   const pageRows = rows.slice(0, page.limit);
   const last = pageRows[pageRows.length - 1];
@@ -413,15 +418,15 @@ export async function listByCategory(db: Db, categoryId: string, page: { cursor?
   return pagePublished(db, inArray(articles.categoryId, ids), page);
 }
 
-export async function listByTag(db: Db, tagName: string, page: { cursor?: string; limit: number }) {
-  const ids = await db
-    .select({ articleId: articleTags.articleId })
-    .from(articleTags)
-    .innerJoin(tags, eq(articleTags.tagId, tags.id))
-    .where(eq(tags.name, tagName));
-  const articleIds = ids.map((r) => r.articleId);
-  if (articleIds.length === 0) return { items: [], nextCursor: null };
-  return pagePublished(db, inArray(articles.id, articleIds), page);
+export function listByTag(db: Db, tagName: string, page: { cursor?: string; limit: number }) {
+  // 全 articleId を JS へ取り出して巨大な IN を組む代わりに、articles.id に相関した
+  // EXISTS サブクエリで絞る（article_tags_tag_idx が効く。search-service と同方式）。
+  const tagged = sql`exists (
+    select 1 from ${articleTags}
+    inner join ${tags} on ${articleTags.tagId} = ${tags.id}
+    where ${articleTags.articleId} = ${articles.id} and ${tags.name} = ${tagName}
+  )`;
+  return pagePublished(db, tagged, page);
 }
 
 export function listByAuthor(db: Db, authorId: string, page: { cursor?: string; limit: number }) {
