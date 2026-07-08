@@ -5,6 +5,7 @@ import { fetchListMetadata } from './article-service';
 import type { Db } from '../types';
 import { assertPublishedArticle, publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
+import { heroImageUrl } from './upload-service';
 import { notifyReactionAdded, runNotify } from './notification-service';
 
 export type BookmarkedArticle = {
@@ -160,7 +161,7 @@ export async function listBookmarks(
     const m = meta.get(rest.id);
     return {
       ...rest,
-      heroImage: heroImageUploadId ? `/api/uploads/${heroImageUploadId}` : null,
+      heroImage: heroImageUrl(heroImageUploadId),
       tags: m?.tags ?? [],
       reactionCount: m?.reactionCount ?? 0,
       commentCount: m?.commentCount ?? 0,

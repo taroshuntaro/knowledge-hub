@@ -87,3 +87,13 @@ export async function deleteCategory(
     await tx.delete(categories).where(eq(categories.id, id));
   });
 }
+
+// カテゴリ id とその直下の子カテゴリ id をまとめて返す（2 階層固定）。親カテゴリ指定時に
+// 子カテゴリの記事も含める「カテゴリページ／検索の意味論」を 1 箇所に集約する。
+export async function categoryAndDescendantIds(db: Db, categoryId: string): Promise<string[]> {
+  const children = await db
+    .select({ id: categories.id })
+    .from(categories)
+    .where(eq(categories.parentId, categoryId));
+  return [categoryId, ...children.map((c) => c.id)];
+}

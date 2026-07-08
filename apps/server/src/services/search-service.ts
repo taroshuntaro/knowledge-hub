@@ -7,7 +7,9 @@ import {
 import type { Db } from '../types';
 import { fetchListMetadata } from './article-service';
 import { publishedArticleWhere } from './article-visibility';
+import { categoryAndDescendantIds } from './category-service';
 import { decodeCursor, encodeCursor } from './cursor';
+import { heroImageUrl } from './upload-service';
 
 export type SearchResultItem = {
   id: string;
@@ -60,11 +62,7 @@ export function createBigmSearchService(): SearchService {
       if (query.authorId) conds.push(eq(articles.authorId, query.authorId));
       if (query.categoryId) {
         // 親カテゴリ指定時は子カテゴリの記事も含める（カテゴリページと同じ意味論）
-        const children = await db
-          .select({ id: categories.id })
-          .from(categories)
-          .where(eq(categories.parentId, query.categoryId));
-        const ids = [query.categoryId, ...children.map((c) => c.id)];
+        const ids = await categoryAndDescendantIds(db, query.categoryId);
         conds.push(inArray(articles.categoryId, ids));
       }
       if (query.tag) {
@@ -137,7 +135,7 @@ export function createBigmSearchService(): SearchService {
             categoryId: r.categoryId,
             publishedAt: r.publishedAt?.toISOString() ?? null,
             updatedAt: r.updatedAt.toISOString(),
-            heroImage: r.heroImageUploadId ? `/api/uploads/${r.heroImageUploadId}` : null,
+            heroImage: heroImageUrl(r.heroImageUploadId),
             categoryName: r.categoryName,
             authorAvatarUrl: r.authorAvatarUrl,
             tags: m?.tags ?? [],
