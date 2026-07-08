@@ -1,4 +1,6 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { users } from '../db/schema';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { loginWithPassword } from './auth-service';
@@ -30,18 +32,35 @@ describe('resolveOidcUser', () => {
     expect(u.displayName).toBe('taro');
   });
 
-  it('既存パスワードユーザーは自動リンクされ SSO 専用化される', async () => {
+  it('既存パスワードユーザーは email 検証済みなら自動リンクされ SSO 専用化される', async () => {
     const existing = await createTestUser(ctx.db, {
       authProvider: 'password',
       email: 'linked@example.com',
     });
 
-    const u = await resolveOidcUser(ctx.db, { email: existing.email }, []);
+    const u = await resolveOidcUser(ctx.db, { email: existing.email, emailVerified: true }, []);
 
     expect(u.id).toBe(existing.id);
     expect(u.authProvider).toBe('oidc');
     expect(u.passwordHash).toBeNull();
     expect(await loginWithPassword(ctx.db, existing.email, TEST_PASSWORD)).toBeNull();
+  });
+
+  it('既存パスワードユーザーは email 未検証だと自動リンクせず OIDC_LINK_UNVERIFIED で拒否される', async () => {
+    const existing = await createTestUser(ctx.db, {
+      authProvider: 'password',
+      email: 'noverifylink@example.com',
+    });
+
+    // emailVerified 省略（未検証）では乗っ取り経路を塞ぐ
+    await expect(
+      resolveOidcUser(ctx.db, { email: existing.email }, []),
+    ).rejects.toMatchObject({ code: 'OIDC_LINK_UNVERIFIED' });
+
+    // パスワードアカウントは無傷のまま
+    const row = await ctx.db.query.users.findFirst({ where: eq(users.id, existing.id) });
+    expect(row?.authProvider).toBe('password');
+    expect(row?.passwordHash).not.toBeNull();
   });
 
   it('oidc 既存ユーザーはそのままログインできる', async () => {
