@@ -9,6 +9,9 @@ export function encodeCursor(sortKey: Date | null, id: string): string {
   return Buffer.from(`${sortKey?.toISOString() ?? ''}|${id}`).toString('base64url');
 }
 
+// カーソルページングの共通レスポンス封筒。各サービスで個別定義せず 1 箇所に集約する。
+export type Page<T> = { items: T[]; nextCursor: string | null };
+
 const uuidSchema = z.string().uuid();
 
 // 不正なカーソル（base64 化けで '|' 欠落 / id が UUID でない / sortKey が空を含め ISO でない）は

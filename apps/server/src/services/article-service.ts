@@ -5,7 +5,7 @@ import {
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
-import { decodeCursor, encodeCursor } from './cursor';
+import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { buildSearchText } from './markdown';
 import { notifyArticleMentions, runNotify } from './notification-service';
 import { can } from './permissions';
@@ -251,7 +251,7 @@ export type ArticleListItem = {
   reactionCount: number;
   commentCount: number;
 };
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type { Page };
 export type ArticleDetail = ArticleRecord & {
   authorName: string;
   authorAvatarUrl: string | null;

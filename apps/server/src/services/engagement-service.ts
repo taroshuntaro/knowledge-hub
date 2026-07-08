@@ -4,7 +4,7 @@ import { articles, bookmarks, categories, comments, reactions, users } from '../
 import { fetchListMetadata } from './article-service';
 import type { Db } from '../types';
 import { assertPublishedArticle } from './comment-service';
-import { decodeCursor, encodeCursor } from './cursor';
+import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { notifyReactionAdded, runNotify } from './notification-service';
 
 export type BookmarkedArticle = {
@@ -26,7 +26,7 @@ export type BookmarkedArticle = {
   commentCount: number;
 };
 
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type { Page };
 
 export async function addReaction(db: Db, userId: string, articleId: string, emoji: string): Promise<void> {
   const article = await assertPublishedArticle(db, articleId);

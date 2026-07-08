@@ -3,7 +3,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { articles, comments, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
-import { decodeCursor, encodeCursor } from './cursor';
+import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { notifyCommentCreated, notifyCommentMentionsOnEdit, runNotify } from './notification-service';
 import { can } from './permissions';
 
@@ -22,7 +22,7 @@ export type CommentNode = {
   replies: CommentNode[];
 };
 
-export type Page<T> = { items: T[]; nextCursor: string | null };
+export type { Page };
 
 /**
  * 対象記事が公開・未削除であることを確認する。draft / 削除済み / 不在は NOT_FOUND。
