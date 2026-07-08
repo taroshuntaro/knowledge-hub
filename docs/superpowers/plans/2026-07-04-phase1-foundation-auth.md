@@ -6,13 +6,13 @@
 
 **Architecture:** Hono（REST API + SPA 配信）+ Vite/React SPA + PostgreSQL(Drizzle) の単一コンテナ構成。API は `buildApp()` ファクトリで依存注入し、Testcontainers の実 PostgreSQL で統合テストする。認証は DB セッション + httpOnly Cookie。
 
-**Tech Stack:** Node.js 22 / TypeScript / pnpm workspace / Hono 4 / Drizzle ORM / PostgreSQL 16 / Vite 6 + React 19 / TanStack Query / Vitest + Testcontainers / nodemailer + Mailpit
+**Tech Stack:** Node.js 24 / TypeScript / pnpm workspace / Hono 4 / Drizzle ORM / PostgreSQL 16 / Vite 6 + React 19 / TanStack Query / Vitest + Testcontainers / nodemailer + Mailpit
 
 **このフェーズでやらないこと:** OIDC（フェーズ4）、記事関連すべて（フェーズ2）、検索・通知（フェーズ3）、アバター画像アップロード（S3 導入と同時=フェーズ2）、CI（フェーズ4）。
 
 ## Global Constraints
 
-- Node.js 22 / ESM（全 package.json に `"type": "module"`）/ TypeScript strict
+- Node.js 24 / ESM（全 package.json に `"type": "module"`）/ TypeScript strict
 - API エラー形式は全エンドポイント統一: `{ code, message, details? }`（code は shared の `ErrorCode`）
 - パスワードは 12 文字以上（shared の `passwordSchema` が唯一の定義箇所）
 - セッション Cookie: 名前 `sid`、httpOnly、SameSite=Lax、path=/、本番のみ Secure、有効期間 30 日

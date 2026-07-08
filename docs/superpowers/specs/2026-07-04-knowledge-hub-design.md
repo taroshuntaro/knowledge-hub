@@ -60,7 +60,7 @@
 ┌─────────────── Docker Compose / ECS ───────────────┐
 │                                                     │
 │  ┌─────────────────────────────┐                    │
-│  │  app コンテナ (Node.js 22)   │                    │
+│  │  app コンテナ (Node.js 24)   │                    │
 │  │                             │    ┌────────────┐  │
 │  │  Hono                       │───▶│ PostgreSQL │  │
 │  │  ├─ /api/*   REST API       │    │ ・pg_bigm  │  │
@@ -77,7 +77,7 @@
 
 | レイヤ | 技術 | 備考 |
 |---|---|---|
-| バックエンド | Hono (Node.js 22) | REST API + SPA 静的配信。RPC モードで型をフロントと共有 |
+| バックエンド | Hono (Node.js 24) | REST API + SPA 静的配信。RPC モードで型をフロントと共有 |
 | フロントエンド | Vite + React SPA | 社内ツールのため SSR 不要 |
 | エディタ | Tiptap + CodeMirror | リッチモード / Markdown ソースモード |
 | DB | PostgreSQL 16+ | 拡張: pg_bigm（全文検索）、pgvector（将来 RAG） |

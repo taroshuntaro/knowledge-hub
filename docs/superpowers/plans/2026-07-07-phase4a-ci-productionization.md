@@ -6,7 +6,7 @@
 
 **Architecture:** CI の実体はルート `package.json` の `verify` スクリプト（プラットフォーム非依存、ローカルでも動く）に集約し、GitHub Actions はそれを呼ぶだけの薄いアダプタにする（GitLab 等へ移行時は同じ `verify` を呼ぶ薄い yaml を書くだけ）。セキュリティヘッダ・リクエストロギングは Hono ミドルウェアとして buildApp に配線。カーソル復号は 5 サービス共通ユーティリティに集約し不正入力を 400 に統一。通知生成は best-effort（失敗しても中核操作を巻き込まない）に変更。
 
-**Tech Stack:** Hono + Drizzle + PostgreSQL（Testcontainers postgres:16-alpine、pg_bigm なし）、pino、Vitest、pnpm 10 workspaces、Node 22、GitHub Actions。
+**Tech Stack:** Hono + Drizzle + PostgreSQL（Testcontainers postgres:16-alpine、pg_bigm なし）、pino、Vitest、pnpm 10 workspaces、Node 24、GitHub Actions。
 
 ## Global Constraints
 
@@ -20,7 +20,7 @@
 - **構造化ロギング（§13）**: pino のリクエストロギングミドルウェア（`requestId` / `method` / `path` / `status` / `durationMs`）。**リクエストボディはログに出さない**（パスワード等の漏洩防止）。
 - **既存 API のレスポンス形状は変えない**（web の `hc<AppType>` 型推論を壊さない）。
 - **テストは `LOG_LEVEL=silent`**（vitest の env で設定、ログ氾濫防止）。
-- Node 22 / pnpm 10 / ESM。コミットは Conventional Commits（英語・subject 小文字開始）、1 タスク 1 コミット。
+- Node 24 / pnpm 10 / ESM。コミットは Conventional Commits（英語・subject 小文字開始）、1 タスク 1 コミット。
 
 ---
 
