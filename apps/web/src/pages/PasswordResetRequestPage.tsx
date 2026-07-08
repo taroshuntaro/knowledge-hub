@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { api } from '../api/client';
+import { NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,7 +17,7 @@ export function PasswordResetRequestPage() {
     try {
       await api.api.auth['password-reset'].request.$post({ json: { email } });
     } catch {
-      setError('通信に失敗しました。時間をおいて再試行してください');
+      setError(NETWORK_ERROR_MESSAGE);
       return;
     }
     setDone(true);

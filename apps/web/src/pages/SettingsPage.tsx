@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 export function SettingsPage() {
   const { data: me } = useMe();
@@ -52,7 +52,7 @@ export function SettingsPage() {
         setProfileMsg('保存に失敗しました');
       }
     } catch {
-      setProfileMsg('通信に失敗しました。時間をおいて再試行してください');
+      setProfileMsg(NETWORK_ERROR_MESSAGE);
     }
   }
 
@@ -68,7 +68,7 @@ export function SettingsPage() {
         setPasswordMsg(await errorMessage(res, '変更に失敗しました'));
       }
     } catch {
-      setPasswordMsg('通信に失敗しました。時間をおいて再試行してください');
+      setPasswordMsg(NETWORK_ERROR_MESSAGE);
     }
   }
 

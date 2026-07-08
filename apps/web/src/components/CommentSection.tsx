@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
 import { formatDate } from '../lib/date';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 import { Button } from '@/components/ui/button';
 import { Loading } from './Loading';
 import { EmptyState } from './EmptyState';
@@ -139,7 +139,7 @@ function CommentItem({
       await invalidate();
     } catch {
       // ネットワーク断などの例外も握りつぶさずユーザーに提示する
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      setActionError(NETWORK_ERROR_MESSAGE);
     } finally {
       setDeletePending(false);
     }
