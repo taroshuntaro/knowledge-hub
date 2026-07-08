@@ -24,13 +24,31 @@ describe('RateLimiter', () => {
     expect(rl.consume('b')).toBe(true);
   });
 
-  it('キー上限では最も長く使われていないキーを破棄する', () => {
+  it('未ブロックのキーだけならキー上限を超えても新規キーを受け付ける', () => {
+    // 未ブロックのキーは常に退避対象になれるため、通常トラフィックは阻害されない
+    const rl = new RateLimiter(5, 1000, 2);
+    for (let i = 0; i < 10; i++) {
+      expect(rl.consume(`k${i}`, 1000 + i)).toBe(true);
+    }
+  });
+
+  it('ブロック中のキーは新規キーの流入で退避されない（フラッシュ攻撃対策）', () => {
+    const rl = new RateLimiter(2, 1000, 2);
+    expect(rl.consume('victim', 1000)).toBe(true);
+    expect(rl.consume('victim', 1001)).toBe(true);
+    expect(rl.consume('victim', 1002)).toBe(false); // 上限到達（ブロック中）
+    // マップ上限まで新規キーを流入させても victim は退避されない
+    expect(rl.consume('atk1', 1003)).toBe(true);
+    expect(rl.consume('atk2', 1004)).toBe(true); // 未ブロックの atk1 が退避される
+    // victim のブロックは維持される（フラッシュでリセットされない）
+    expect(rl.consume('victim', 1005)).toBe(false);
+  });
+
+  it('全キーがブロック中なら新規キーは安全側で拒否する', () => {
     const rl = new RateLimiter(1, 1000, 2);
-    expect(rl.consume('a', 1000)).toBe(true);
-    expect(rl.consume('b', 1001)).toBe(true);
-    expect(rl.consume('a', 1002)).toBe(false);
-    expect(rl.consume('c', 1003)).toBe(true);
-    expect(rl.consume('b', 1003)).toBe(true);
+    expect(rl.consume('a', 1000)).toBe(true); // a ブロック
+    expect(rl.consume('b', 1001)).toBe(true); // b ブロック（満杯）
+    expect(rl.consume('c', 1002)).toBe(false); // 退避可能キーなし → 拒否
   });
 
   it('キー上限では期限切れキーを回収して有効なキーを保持する', () => {
