@@ -57,15 +57,11 @@ export function NotificationsPage() {
 
   async function readAll() {
     setActionError(null);
-    let res: Awaited<ReturnType<typeof api.api.notifications['read-all']['$post']>>;
     try {
-      res = await api.api.notifications['read-all'].$post();
+      const res = await api.api.notifications['read-all'].$post();
+      // hono クライアントは非 2xx でも throw しないため、明示的に確認して catch に流す
+      if (!res.ok) throw new Error('failed');
     } catch {
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
-      return;
-    }
-    // hono クライアントは非 2xx でも throw しないため、res.ok を明示的に確認する
-    if (!res.ok) {
       setActionError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }
