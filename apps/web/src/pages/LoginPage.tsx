@@ -6,7 +6,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 const OIDC_ERRORS: Record<string, string> = {
   oidc_failed: 'SSO ログインに失敗しました。もう一度お試しください',
@@ -47,7 +47,7 @@ export function LoginPage() {
         return;
       }
     } catch {
-      setError('通信に失敗しました。時間をおいて再試行してください');
+      setError(NETWORK_ERROR_MESSAGE);
       return;
     }
     await queryClient.invalidateQueries({ queryKey: ['me'] });

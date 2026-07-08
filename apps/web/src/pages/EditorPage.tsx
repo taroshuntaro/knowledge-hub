@@ -17,7 +17,7 @@ import { RichEditor } from '@/components/editor/RichEditor';
 import { isLossless, roundTrip } from '@/lib/editor/markdown-bridge';
 import { Markdown } from '@/lib/markdown';
 import { firstImageFile, uploadImage } from '@/lib/upload';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 type EditorMode = 'rich' | 'source';
 
@@ -208,7 +208,7 @@ export function EditorPage() {
     try {
       res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
     } catch {
-      setError('通信に失敗しました。時間をおいて再試行してください');
+      setError(NETWORK_ERROR_MESSAGE);
       return;
     }
     if (!res.ok) {
@@ -239,8 +239,7 @@ export function EditorPage() {
   const savingLabel =
     saveState === 'saving' ? '保存中…' :
     saveState === 'error' ? '保存に失敗' :
-    saveState === 'saved' ? '保存済み' :
-    updatedAt ? '保存済み' : '未保存';
+    saveState === 'saved' || updatedAt ? '保存済み' : '未保存';
 
   return (
     <div className="flex flex-col">

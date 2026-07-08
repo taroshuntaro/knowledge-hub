@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useInfiniteQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
+import { ErrorState } from '../components/ErrorState';
 
 const TABS = [
   { key: 'draft', label: '下書き' },
@@ -12,20 +13,14 @@ const TABS = [
 
 export function MyArticlesPage() {
   const [tab, setTab] = useState<'draft' | 'published' | 'trash'>('draft');
-  const q = useInfiniteQuery({
-    queryKey: ['mine', tab],
-    initialPageParam: undefined as string | undefined,
-    queryFn: async ({ pageParam }) => {
-      const res = await api.api.articles.mine.$get({
-        query: { tab, ...(pageParam ? { cursor: pageParam } : {}) },
-      });
-      if (!res.ok) throw new Error('failed');
-      return res.json();
-    },
-    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  const q = useCursorList<ArticleItem>(['mine', tab], async (cursor) => {
+    const res = await api.api.articles.mine.$get({
+      query: { tab, ...(cursor ? { cursor } : {}) },
+    });
+    if (!res.ok) throw new Error('failed');
+    return (await res.json()) as CursorPage<ArticleItem>;
   });
-  const items = (q.data?.pages ?? []).flatMap((p) => p.items) as ArticleItem[];
-  if (q.isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
+  if (q.isError) return <ErrorState />;
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold tracking-tight">マイ記事</h2>
@@ -42,7 +37,7 @@ export function MyArticlesPage() {
           </button>
         ))}
       </nav>
-      <ArticleList items={items} hasMore={!!q.hasNextPage} onLoadMore={() => q.fetchNextPage()} emptyText="記事がありません。" />
+      <ArticleList items={q.items} hasMore={q.hasNextPage} onLoadMore={q.fetchNextPage} emptyText="記事がありません。" />
     </section>
   );
 }

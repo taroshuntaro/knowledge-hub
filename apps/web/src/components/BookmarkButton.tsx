@@ -1,20 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Bookmark } from 'lucide-react';
 import { api } from '../api/client';
+import { engagementKey, useEngagement } from '../api/engagement';
 import { cn } from '@/lib/utils';
 
 export function BookmarkButton({ articleId }: { articleId: string }) {
   const queryClient = useQueryClient();
-  const queryKey = ['engagement', articleId];
+  const queryKey = engagementKey(articleId);
 
-  const query = useQuery({
-    queryKey,
-    queryFn: async () => {
-      const res = await api.api.articles[':id'].engagement.$get({ param: { id: articleId } });
-      if (!res.ok) throw new Error('failed');
-      return await res.json();
-    },
-  });
+  const query = useEngagement(articleId);
 
   const mutation = useMutation({
     mutationFn: async (bookmarked: boolean) => {

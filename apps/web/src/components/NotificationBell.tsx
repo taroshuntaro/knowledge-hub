@@ -1,26 +1,17 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
+import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { api } from '../api/client';
+import { useOpenNotification, useUnreadCount } from '../api/notifications';
 import { notificationMessage, type NotificationItem } from '../lib/notification-message';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 export function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
-  const { data: unread } = useQuery({
-    queryKey: ['notifications', 'unread-count'],
-    queryFn: async () => {
-      const res = await api.api.notifications['unread-count'].$get();
-      if (!res.ok) throw new Error('failed');
-      return res.json();
-    },
-    refetchInterval: 30_000,
-  });
+  const { data: unread } = useUnreadCount({ refetchInterval: 30_000 });
 
   const { data: recent } = useQuery({
     queryKey: ['notifications', 'recent'],
@@ -32,19 +23,7 @@ export function NotificationBell() {
     enabled: open,
   });
 
-  async function openNotification(n: NotificationItem) {
-    setOpen(false);
-    if (!n.readAt) {
-      try {
-        const res = await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
-        // 既読化に失敗しても記事遷移は行う。成功時のみ再取得して未読表示を更新する。
-        if (res.ok) await queryClient.invalidateQueries({ queryKey: ['notifications'] });
-      } catch {
-        // ignore: navigation must still happen even if marking as read fails
-      }
-    }
-    navigate(`/articles/${n.articleId}`);
-  }
+  const openNotification = useOpenNotification(() => setOpen(false));
 
   const count = unread?.count ?? 0;
   const items = (recent?.items ?? []) as NotificationItem[];

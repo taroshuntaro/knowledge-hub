@@ -5,7 +5,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 export function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -27,7 +27,7 @@ export function InvitePage() {
         return;
       }
     } catch {
-      setError('通信に失敗しました。時間をおいて再試行してください');
+      setError(NETWORK_ERROR_MESSAGE);
       return;
     }
     navigate('/');

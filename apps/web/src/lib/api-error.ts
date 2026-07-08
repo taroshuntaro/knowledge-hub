@@ -1,3 +1,7 @@
+// 例外（fetch 失敗など、レスポンスすら得られないケース）の共通文言。
+// 非 2xx で本文にメッセージがあるときは errorMessage を使うこと。
+export const NETWORK_ERROR_MESSAGE = '通信に失敗しました。時間をおいて再試行してください';
+
 // サーバーの ApiError({code,message}) からメッセージを取り出す共通ヘルパー。
 // 非 2xx レスポンスのボディが JSON でない場合も throw せず fallback に落とす。
 // 各画面で同じ cast+fallback を書かないよう 1 箇所に集約する。

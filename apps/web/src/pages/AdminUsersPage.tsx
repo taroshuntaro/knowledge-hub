@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar } from '@/components/Avatar';
-import { errorMessage } from '../lib/api-error';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -48,7 +48,7 @@ export function AdminUsersPage() {
         setInviteMsg(await errorMessage(res, '招待に失敗しました'));
       }
     } catch {
-      setInviteMsg('通信に失敗しました。時間をおいて再試行してください');
+      setInviteMsg(NETWORK_ERROR_MESSAGE);
     }
   }
 

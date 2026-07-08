@@ -14,7 +14,8 @@ import { CommentSection } from '../components/CommentSection';
 import { ReactionBar } from '../components/ReactionBar';
 import { BookmarkButton } from '../components/BookmarkButton';
 import { HeroImage } from '../components/HeroImage';
-import { errorMessage } from '../lib/api-error';
+import { ErrorState } from '../components/ErrorState';
+import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 export function ArticleDetailPage() {
   const { id = '' } = useParams();
@@ -25,7 +26,7 @@ export function ArticleDetailPage() {
   const [actionError, setActionError] = useState<string | null>(null);
 
   if (isLoading) return <Loading />;
-  if (isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
+  if (isError) return <ErrorState />;
   if (!article) return <p className="text-muted-foreground">記事が見つかりません。</p>;
 
   const isTrashed = Boolean(article.deletedAt);
@@ -34,66 +35,56 @@ export function ArticleDetailPage() {
   const canPin = me?.role === 'admin' && article.status === 'published' && !isTrashed;
   const canEngage = article.status === 'published' && !isTrashed;
 
-  async function togglePin() {
+  // 記事管理アクション共通処理: エラー初期化 → 実行 → 失敗表示 → 成功時の後処理。
+  // call はレスポンスを返す API 呼び出し、fallback は !ok 時の既定文言、onOk は成功後の副作用。
+  async function runAction(
+    call: () => Promise<Response>,
+    fallback: string,
+    onOk: () => void | Promise<void>,
+  ) {
     setActionError(null);
     try {
-      const res = await api.api.articles[':id'][article!.pinnedAt ? 'unpin' : 'pin'].$post({ param: { id } });
+      const res = await call();
       if (!res.ok) {
-        setActionError(await errorMessage(res, '操作に失敗しました'));
+        setActionError(await errorMessage(res, fallback));
         return;
       }
     } catch {
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      setActionError(NETWORK_ERROR_MESSAGE);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['article', id] });
+    await onOk();
   }
 
-  async function moveToTrash() {
-    setActionError(null);
-    try {
-      const res = await api.api.articles[':id'].$delete({ param: { id } });
-      if (!res.ok) {
-        setActionError(await errorMessage(res, '削除に失敗しました'));
-        return;
-      }
-    } catch {
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
-      return;
-    }
-    navigate('/me/articles');
-  }
+  const invalidateArticle = () => queryClient.invalidateQueries({ queryKey: ['article', id] });
 
-  async function restore() {
-    setActionError(null);
-    try {
-      const res = await api.api.articles[':id'].restore.$post({ param: { id } });
-      if (!res.ok) {
-        setActionError(await errorMessage(res, '復元に失敗しました'));
-        return;
-      }
-    } catch {
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
-      return;
-    }
-    await queryClient.invalidateQueries({ queryKey: ['article', id] });
-  }
+  const togglePin = () =>
+    runAction(
+      () => api.api.articles[':id'][article!.pinnedAt ? 'unpin' : 'pin'].$post({ param: { id } }),
+      '操作に失敗しました',
+      invalidateArticle,
+    );
 
-  async function purge() {
+  const moveToTrash = () =>
+    runAction(() => api.api.articles[':id'].$delete({ param: { id } }), '削除に失敗しました', () =>
+      navigate('/me/articles'),
+    );
+
+  const restore = () =>
+    runAction(
+      () => api.api.articles[':id'].restore.$post({ param: { id } }),
+      '復元に失敗しました',
+      invalidateArticle,
+    );
+
+  const purge = () => {
     if (!window.confirm('この記事を完全に削除しますか？この操作は取り消せません。')) return;
-    setActionError(null);
-    try {
-      const res = await api.api.articles[':id'].purge.$delete({ param: { id } });
-      if (!res.ok) {
-        setActionError(await errorMessage(res, '完全削除に失敗しました'));
-        return;
-      }
-    } catch {
-      setActionError('通信に失敗しました。時間をおいて再試行してください');
-      return;
-    }
-    navigate('/me/articles');
-  }
+    return runAction(
+      () => api.api.articles[':id'].purge.$delete({ param: { id } }),
+      '完全削除に失敗しました',
+      () => navigate('/me/articles'),
+    );
+  };
 
   const authorName = article.authorName;
   const date = formatDate(article.publishedAt ?? article.updatedAt);

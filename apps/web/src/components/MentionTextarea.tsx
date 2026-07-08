@@ -45,8 +45,9 @@ export function MentionTextarea({
 
   const matches = useMemo(() => {
     if (!token || !candidates) return [];
+    const q = token.query.toLowerCase();
     return (candidates as Candidate[])
-      .filter((c) => c.displayName.toLowerCase().includes(token.query.toLowerCase()))
+      .filter((c) => c.displayName.toLowerCase().includes(q))
       .slice(0, 5);
   }, [token, candidates]);
 
@@ -74,7 +75,7 @@ export function MentionTextarea({
 
   const suppressNextSync = useRef(false);
 
-  function onKeyUp(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+  function onKeyUp() {
     if (suppressNextSync.current) {
       suppressNextSync.current = false;
       return;
