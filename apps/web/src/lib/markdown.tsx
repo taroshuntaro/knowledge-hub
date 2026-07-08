@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
@@ -18,7 +19,9 @@ const schema = {
   },
 };
 
-export function Markdown({ source }: { source: string }) {
+// source が変わらない限り再パース・再ハイライトを避ける（親の再レンダーで
+// 記事本文やコメント本文が毎回パースし直されるのを防ぐ）。props は source のみ。
+export const Markdown = memo(function Markdown({ source }: { source: string }) {
   return (
     <div className="prose max-w-none">
       <ReactMarkdown
@@ -29,4 +32,4 @@ export function Markdown({ source }: { source: string }) {
       </ReactMarkdown>
     </div>
   );
-}
+});
