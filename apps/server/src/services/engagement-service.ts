@@ -65,29 +65,29 @@ export async function removeBookmark(db: Db, userId: string, articleId: string):
 export async function getEngagement(db: Db, userId: string, articleId: string): Promise<ArticleEngagement> {
   await assertPublishedArticle(db, articleId);
 
-  const counts = await db
-    .select({ emoji: reactions.emoji, count: sql<number>`count(*)::int` })
-    .from(reactions)
-    .where(eq(reactions.articleId, articleId))
-    .groupBy(reactions.emoji);
+  // 集計・自分の反応・ブックマーク有無・コメント数は互いに独立。Promise.all で 1 往復にまとめる。
+  const [counts, mine, bookmark, [{ count: commentCount }]] = await Promise.all([
+    db
+      .select({ emoji: reactions.emoji, count: sql<number>`count(*)::int` })
+      .from(reactions)
+      .where(eq(reactions.articleId, articleId))
+      .groupBy(reactions.emoji),
+    db
+      .select({ emoji: reactions.emoji })
+      .from(reactions)
+      .where(and(eq(reactions.articleId, articleId), eq(reactions.userId, userId))),
+    db.query.bookmarks.findFirst({
+      where: and(eq(bookmarks.userId, userId), eq(bookmarks.articleId, articleId)),
+    }),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(comments)
+      .where(and(eq(comments.articleId, articleId), isNull(comments.deletedAt))),
+  ]);
   const reactionMap: Record<string, number> = Object.fromEntries(REACTION_EMOJIS.map((e) => [e, 0]));
   for (const row of counts) {
     if (row.emoji in reactionMap) reactionMap[row.emoji] = row.count;
   }
-
-  const mine = await db
-    .select({ emoji: reactions.emoji })
-    .from(reactions)
-    .where(and(eq(reactions.articleId, articleId), eq(reactions.userId, userId)));
-
-  const bookmark = await db.query.bookmarks.findFirst({
-    where: and(eq(bookmarks.userId, userId), eq(bookmarks.articleId, articleId)),
-  });
-
-  const [{ count: commentCount }] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(comments)
-    .where(and(eq(comments.articleId, articleId), isNull(comments.deletedAt)));
 
   return {
     reactions: reactionMap,

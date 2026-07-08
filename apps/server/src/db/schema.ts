@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   AnyPgColumn, boolean, index, integer, pgEnum, pgTable, text, timestamp, unique, uniqueIndex, uuid,
 } from 'drizzle-orm/pg-core';
@@ -62,23 +63,35 @@ export const tags = pgTable('tags', {
   name: text('name').notNull().unique(),
 });
 
-export const articles = pgTable('articles', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  authorId: uuid('author_id')
-    .notNull()
-    .references(() => users.id),
-  categoryId: uuid('category_id').references(() => categories.id),
-  heroImageUploadId: uuid('hero_image_upload_id').references(() => uploads.id),
-  title: text('title').notNull(),
-  bodyMd: text('body_md').notNull().default(''),
-  searchText: text('search_text').notNull().default(''),
-  status: articleStatusEnum('status').notNull().default('draft'),
-  pinnedAt: timestamp('pinned_at', { withTimezone: true }),
-  publishedAt: timestamp('published_at', { withTimezone: true }),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  deletedAt: timestamp('deleted_at', { withTimezone: true }),
-});
+export const articles = pgTable(
+  'articles',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    authorId: uuid('author_id')
+      .notNull()
+      .references(() => users.id),
+    categoryId: uuid('category_id').references(() => categories.id),
+    heroImageUploadId: uuid('hero_image_upload_id').references(() => uploads.id),
+    title: text('title').notNull(),
+    bodyMd: text('body_md').notNull().default(''),
+    searchText: text('search_text').notNull().default(''),
+    status: articleStatusEnum('status').notNull().default('draft'),
+    pinnedAt: timestamp('pinned_at', { withTimezone: true }),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  },
+  (t) => ({
+    // フィード（公開・未削除を published_at desc, id desc でカーソルページング）用の部分インデックス
+    feedIdx: index('articles_feed_idx')
+      .on(t.publishedAt.desc(), t.id.desc())
+      .where(sql`${t.status} = 'published' AND ${t.deletedAt} is null`),
+    // listByAuthor / listMine の author 絞り込み、listByCategory の category 絞り込み
+    authorIdx: index('articles_author_idx').on(t.authorId),
+    categoryIdx: index('articles_category_idx').on(t.categoryId),
+  }),
+);
 
 export const articleTags = pgTable(
   'article_tags',
@@ -90,18 +103,24 @@ export const articleTags = pgTable(
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (t) => ({ uq: unique().on(t.articleId, t.tagId) }),
+  // uq の先頭列は articleId なので tagId 単独の絞り込み（listByTag）には効かない。tagId 索引を足す。
+  (t) => ({ uq: unique().on(t.articleId, t.tagId), tagIdx: index('article_tags_tag_idx').on(t.tagId) }),
 );
 
-export const articleRevisions = pgTable('article_revisions', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  articleId: uuid('article_id')
-    .notNull()
-    .references(() => articles.id, { onDelete: 'cascade' }),
-  title: text('title').notNull(),
-  bodyMd: text('body_md').notNull(),
-  savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
-});
+export const articleRevisions = pgTable(
+  'article_revisions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    articleId: uuid('article_id')
+      .notNull()
+      .references(() => articles.id, { onDelete: 'cascade' }),
+    title: text('title').notNull(),
+    bodyMd: text('body_md').notNull(),
+    savedAt: timestamp('saved_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  // 自動保存のたびに最新リビジョンを (article_id, saved_at desc) で 1 件引くための索引
+  (t) => ({ articleSavedIdx: index('article_revisions_article_saved_idx').on(t.articleId, t.savedAt) }),
+);
 
 export const uploads = pgTable('uploads', {
   id: uuid('id').primaryKey().defaultRandom(),
