@@ -1,26 +1,39 @@
 # knowledge-hub
 
-> チームのためのブログ型ナレッジ共有サービス。計画していた全フェーズ（基盤/記事/ソーシャル/OIDC/CI/E2E/本番化）の実装が完了しています。
+> チームのためのブログ型ナレッジ共有サービス。
 
 チームや組織の知見を蓄積・共有するための、ブログ中心のナレッジ共有サービス。数十〜百人規模での運用を想定しています。記事は **Markdown を正**として管理し、2 階層カテゴリ + フリータグで分類、全体フィードを主役に据えます。オンプレ / クラウド（AWS）の両対応（差分は環境変数のみ）を前提に設計しています。
 
+## 主な機能
+
+- **認証** — 招待制ログイン、セッション、パスワードリセット、ユーザー管理（有効化 / 無効化・ロール）。OIDC 汎用ログイン（PKCE・JIT プロビジョニング・email 自動リンク・ドメイン制限）にも対応し、パスワード認証との共存 / OIDC 専用運用を切り替え可能。
+- **記事** — 作成・下書き / 公開・論理削除 / 復元・リビジョン・楽観ロック・ピックアップ（ピン留め）。エディタは **リッチ（Tiptap）⇔ Markdown ソース（CodeMirror）** の切替式で、両者は無損失往復する。ヒーロー画像・画像 D&D / ペースト（S3 互換ストレージへ magic-byte 検証付きアップロード）。
+- **分類・検索** — 2 階層カテゴリ（公開時必須）+ フリータグ、全体 / カテゴリ / タグ / 著者の各フィード（カーソルページング）。pg_bigm による日本語部分一致の全文検索 + スニペット + 絞り込み。
+- **ソーシャル** — コメント（フラット + 1 階層返信・Markdown・論理削除）、リアクション（絵文字プリセット・楽観的更新）、ブックマーク、著者プロフィールページ + アバター。
+- **通知** — アプリ内通知（ベル + 未読バッジ + 一覧・既読管理）。コメント / 返信 / リアクション / @メンションが契機。メンションはコメント欄でオートコンプリート。
+- **UI/UX** — サイドバー型アプリシェル（モバイルはドロワー）、統一記事カード、インディゴ配色（ライト / ダーク・コントラスト AA）、執筆没入エディタ。
+- **運用** — セキュリティヘッダ + CSP、構造化リクエストログ、SMTP 認証 / TLS、production での設定 fail-fast・HSTS。品質ゲートはプラットフォーム非依存の `pnpm run verify` に集約し、E2E（Playwright）を隔離スタックで実行。
+
 ## 技術スタック
 
-- **Server:** [Hono](https://hono.dev/)（Node.js / ESM） + [Drizzle ORM](https://orm.drizzle.team/) + PostgreSQL
-- **Web:** React SPA（[Vite](https://vitejs.dev/)） + TanStack Query + React Router + [CodeMirror 6](https://codemirror.net/)
+- **Server:** [Hono](https://hono.dev/)（Node.js / ESM） + [Drizzle ORM](https://orm.drizzle.team/) + PostgreSQL（[pg_bigm](https://github.com/pgbigm/pg_bigm) 全文検索）
+- **Web:** React 19 SPA（[Vite](https://vitejs.dev/)） + [TanStack Query](https://tanstack.com/query) + React Router + [shadcn/ui](https://ui.shadcn.com/) / Tailwind v4 + [Tiptap](https://tiptap.dev/)（リッチ） / [CodeMirror 6](https://codemirror.net/)（ソース）
 - **Shared:** TypeScript 統一 / [Zod](https://zod.dev/) スキーマ（サーバー・Web 双方が参照）
 - **画像ストレージ:** S3 互換（オンプレ = MinIO / AWS = S3）
-- **テスト:** Vitest + [Testcontainers](https://testcontainers.com/)（実 PostgreSQL 起動）
+- **認証:** セッション（パスワード）+ OIDC（[openid-client](https://github.com/panva/node-openid-client) + PKCE）
+- **テスト:** Vitest + [Testcontainers](https://testcontainers.com/)（実 PostgreSQL 起動）/ [Playwright](https://playwright.dev/)（E2E）
 - **モノレポ:** pnpm workspaces
 
 ## リポジトリ構成
 
 ```
 apps/
-  server/        Hono API（認証・記事・カテゴリ・タグ・アップロード）
+  server/        Hono API（認証・記事・カテゴリ・タグ・通知・アップロード）
   web/           React SPA
 packages/
-  shared/        共有 Zod スキーマ・型・エラーコード
+  shared/        共有 Zod スキーマ・型・エラーコード（サーバー / Web の契約）
+tests/
+  e2e/           Playwright E2E スイート
 docs/            設計書・実装計画
 ```
 
@@ -76,27 +89,6 @@ pnpm run e2e:down   # スタックとボリュームを破棄
 
 SSO spec は dev Keycloak（`docker compose --profile idp up -d`）起動時のみ実行され、未起動なら自動 skip する。CI では verify と並列の `e2e` ジョブが同じコマンドを呼ぶ。
 
-## 進捗
+## アーキテクチャ・貢献
 
-- [x] **Phase 1** — 基盤・認証（招待制ログイン、セッション、パスワードリセット、ユーザー管理）
-- [x] **Phase 2a** — 記事バックエンド + 閲覧画面 + Markdown ソースエディタ（CodeMirror）
-  - 記事の作成 / 下書き・公開 / 論理削除・復元 / リビジョン / 楽観ロック / ピックアップ
-  - 2 階層カテゴリ・フリータグ、カーソルページング、S3 互換画像アップロード（magic-byte 検証）
-  - Markdown サニタイズ表示（rehype-sanitize）
-- [x] **Phase 2b-1** — デザイン基盤（shadcn/ui + Tailwind v4、デザイントークン、ライト/ダークテーマ）+ 全画面刷新
-- [x] **Phase 2b-2** — リッチ Tiptap ⇔ Markdown 無損失往復、画像 D&D/ペースト、コードハイライト・タスクリスト表示
-- [x] **Phase 3a** — 全文検索（pg_bigm 日本語部分一致 + スニペット、カテゴリ / タグ / 著者絞り込み）、著者プロフィールページ + アバターアップロード
-- [x] **Phase 3b** — コメント（フラット + 1 階層返信・Markdown・論理削除）、リアクション（絵文字プリセット・楽観的更新）、ブックマーク（トグル + 一覧ページ）
-- [x] **Phase 3c** — アプリ内通知（ベル + 未読バッジ + 一覧・既読管理、コメント / 返信 / リアクション / メンションが契機）、@メンション（コメント・記事本文の検出、コメント欄オートコンプリート）
-- [x] **Phase 4a** — CI・本番化（移植可能な `pnpm run verify` + GitHub Actions、セキュリティヘッダ + CSP、構造化リクエストログ、共有カーソル codec、best-effort 通知、依存脆弱性修正）
-- [x] **Phase 4b** — OIDC 汎用ログイン（openid-client + PKCE、JIT プロビジョニング、email 自動リンク、ドメイン制限、パスワード認証との共存 / OIDC 専用運用）
-- [x] **UI/UX 刷新** — サイドバー型アプリシェル、記事サムネイル、インディゴ配色、執筆没入エディタ、情報設計・一貫性の底上げ（S1〜S5）
-  - [x] **S1** — デザイントークン（インディゴ・AA 再検証）+ アプリシェル（サイドバー / モバイルドロワー = Radix Dialog・カテゴリ 2 階層・アカウントメニュー）
-  - [x] **S2** — 記事ヒーロー画像（スキーマ + エディタ設定 + 一覧 API 拡張）
-  - [x] **S3** — 統一記事カード + フィード / ピックアップ + 各一覧画面
-  - [x] **S4** — 記事詳細 / 検索統合 / 認証・設定・管理 + 一貫性パス
-  - [x] **S5** — 記事エディタ執筆没入化（記事体裁キャンバス・sticky アクションバー・ヒーロー 16:9 contain＋ぼかし背景・公開パネルへメタ分離・一覧サムネ 4:3）
-- [x] **Phase 4c-1** — E2E スイート（Playwright: 認証/招待/記事作成・公開/ヒーロー画像/検索/コメント・リアクション・ブックマーク/通知/モバイル + ローカル限定 SSO。専用隔離スタック・CI 並列ジョブ）
-- [x] **Phase 4c-2** — 本番化仕上げ（SMTP 認証/TLS、production fail-fast・HSTS・cwd 非依存の静的配信、トークン消費のアトミック化、カテゴリ整合性、通信失敗の可視化ほか Minor 横断掃除）
-
-設計・計画の詳細は [`docs/`](./docs/) を参照。
+設計・アーキテクチャの要点と開発規約は [`AGENTS.md`](./AGENTS.md) にまとめている。設計書・実装計画の詳細は [`docs/`](./docs/) を参照。
