@@ -2,6 +2,7 @@ import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { articles, notifications, users } from '../db/schema';
 import { logger } from '../logger';
 import type { Db } from '../types';
+import { publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { extractMentionedUserIds } from './mention';
 
@@ -138,16 +139,12 @@ export type NotificationItem = {
   createdAt: Date;
 };
 
-
-// 一覧と未読数が共有する可視条件: 対象記事が公開中かつ未削除
-const visibleArticle = () => and(eq(articles.status, 'published'), isNull(articles.deletedAt));
-
 export async function listNotifications(
   db: Db,
   userId: string,
   page: { cursor?: string; limit: number },
 ): Promise<Page<NotificationItem>> {
-  const base = and(eq(notifications.recipientId, userId), visibleArticle());
+  const base = and(eq(notifications.recipientId, userId), publishedArticleWhere());
   // created_at は DB の now()（µs 精度）、カーソルは JS Date（ms 精度）。WHERE と ORDER BY の
   // 両方で同じ date_trunc('milliseconds', ...) キーを使わないと同一 ms バケット内で行が
   // 永久欠落しうる（comment/bookmark カーソルと同じ確立パターン）。
@@ -196,7 +193,7 @@ export async function countUnread(db: Db, userId: string): Promise<number> {
     .select({ count: sql<number>`count(*)::int` })
     .from(notifications)
     .innerJoin(articles, eq(notifications.articleId, articles.id))
-    .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt), visibleArticle()));
+    .where(and(eq(notifications.recipientId, userId), isNull(notifications.readAt), publishedArticleWhere()));
   return count;
 }
 

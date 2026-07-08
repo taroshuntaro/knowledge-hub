@@ -5,6 +5,7 @@ import {
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { isArticleVisible, publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { buildSearchText } from './markdown';
 import { notifyArticleMentions, runNotify } from './notification-service';
@@ -366,7 +367,7 @@ async function pagePublished(
   extraWhere: ReturnType<typeof and>,
   page: { cursor?: string; limit: number },
 ): Promise<Page<ArticleListItem>> {
-  const base = and(eq(articles.status, 'published'), isNull(articles.deletedAt), extraWhere);
+  const base = and(publishedArticleWhere(), extraWhere);
   const where = page.cursor
     ? and(
         base,
@@ -406,7 +407,7 @@ export async function listPickup(db: Db): Promise<ArticleListItem[]> {
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
-    .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt), sql`${articles.pinnedAt} is not null`))
+    .where(and(publishedArticleWhere(), sql`${articles.pinnedAt} is not null`))
     .orderBy(desc(articles.pinnedAt), desc(articles.id));
   return enrichListItems(db, rows.map(toListItem));
 }
@@ -483,7 +484,7 @@ export async function getArticleForViewer(
   const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
   if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
   const isOwnerOrAdmin = viewer.role === 'admin' || viewer.id === row.authorId;
-  const visible = row.status === 'published' && !row.deletedAt;
+  const visible = isArticleVisible(row);
   if (!visible && !isOwnerOrAdmin) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
   const [author] = await db
     .select({ name: users.displayName, avatarUrl: users.avatarUrl })

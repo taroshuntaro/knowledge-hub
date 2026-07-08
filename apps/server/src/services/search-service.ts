@@ -1,11 +1,12 @@
 import {
-  and, desc, eq, exists, inArray, isNull, lt, or, sql,
+  and, desc, eq, exists, inArray, lt, or, sql,
 } from 'drizzle-orm';
 import {
   articles, articleTags, categories, tags, users,
 } from '../db/schema';
 import type { Db } from '../types';
 import { fetchListMetadata } from './article-service';
+import { publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor } from './cursor';
 
 export type SearchResultItem = {
@@ -53,8 +54,7 @@ export function createBigmSearchService(): SearchService {
       const qLower = query.q.toLowerCase();
       // lower() 式で比較する（GIN 式インデックス lower(search_text) gin_bigm_ops に一致する形）
       const conds = [
-        eq(articles.status, 'published'),
-        isNull(articles.deletedAt),
+        publishedArticleWhere(),
         sql`lower(${articles.searchText}) like lower(${pattern})`,
       ];
       if (query.authorId) conds.push(eq(articles.authorId, query.authorId));

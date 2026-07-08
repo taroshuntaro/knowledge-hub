@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { articles, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db, Storage } from '../types';
+import { publishedArticleWhere } from './article-visibility';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const EXT: Record<string, string> = {
@@ -59,8 +60,7 @@ async function canViewUpload(
   // 1. アップロード主体本人・管理者は常に閲覧可（自分のドラフト画像の編集プレビュー等）
   if (viewer.role === 'admin' || upload.uploaderId === viewer.id) return true;
   const urlPath = `/api/uploads/${upload.id}`;
-  // 公開（未削除）記事に絞る述語。ヒーロー・本文の両方で使う。
-  const publiclyVisible = and(eq(articles.status, 'published'), isNull(articles.deletedAt));
+  const publiclyVisible = publishedArticleWhere();
   // 2. 公開記事のヒーロー画像
   const hero = await db.query.articles.findFirst({
     columns: { id: true },

@@ -1,8 +1,9 @@
 import { and, asc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { articles, comments, users } from '../db/schema';
+import { comments, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { assertPublishedArticle } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { notifyCommentCreated, notifyCommentMentionsOnEdit, runNotify } from './notification-service';
 import { can } from './permissions';
@@ -21,20 +22,6 @@ export type CommentNode = {
   updatedAt: Date;
   replies: CommentNode[];
 };
-
-
-/**
- * 対象記事が公開・未削除であることを確認する。draft / 削除済み / 不在は NOT_FOUND。
- * create/list の両方から呼ばれる（Task 4 も同様に利用する）。見つかった記事行を返す。
- */
-export async function assertPublishedArticle(db: Db, articleId: string) {
-  const row = await db.query.articles.findFirst({ where: eq(articles.id, articleId) });
-  if (!row || row.status !== 'published' || row.deletedAt) {
-    throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
-  }
-  return row;
-}
-
 function toNode(row: {
   id: string;
   articleId: string;
