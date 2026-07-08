@@ -41,6 +41,12 @@ describe('user routes', () => {
     expect((await ctx.app.request('/api/auth/me', { headers: { cookie: newCookie } })).status).toBe(200);
   });
 
+  it('GET /api/users/:id は不正な UUID 形式で 404（500 にならない）', async () => {
+    const cookie = await loginCookie('viewer@example.com');
+    const res = await ctx.app.request('/api/users/not-a-uuid', { headers: { cookie } });
+    expect(res.status).toBe(404);
+  });
+
   it('GET /api/users/:id で公開プロフィールが取得できる', async () => {
     const cookie = await loginCookie('viewer@example.com');
     const author = await createTestUser(ctx.db, { displayName: '公開太郎' });

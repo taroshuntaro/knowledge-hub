@@ -1,8 +1,9 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { articles, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db, Storage } from '../types';
+import { publishedArticleWhere } from './article-visibility';
 
 const MAX_SIZE = 10 * 1024 * 1024;
 const EXT: Record<string, string> = {
@@ -28,6 +29,16 @@ const MAGIC_CHECKS: Record<string, (b: Buffer) => boolean> = {
     b.subarray(8, 12).toString('latin1') === 'WEBP',
 };
 
+// アップロード画像を配信する URL。ルート接頭辞（/api/uploads）をここ 1 箇所に閉じ込める。
+export function uploadUrl(id: string): string {
+  return `/api/uploads/${id}`;
+}
+
+// ヒーロー画像 upload id → 配信 URL（未設定は null）。カード/詳細の各所で使う。
+export function heroImageUrl(id: string | null): string | null {
+  return id ? uploadUrl(id) : null;
+}
+
 export async function saveUpload(
   db: Db,
   storage: Storage,
@@ -44,7 +55,7 @@ export async function saveUpload(
   const key = `uploads/${id}.${EXT[file.mimeType]}`;
   await storage.put(key, file.buffer, file.mimeType);
   await db.insert(uploads).values({ id, uploaderId, storageKey: key, mimeType: file.mimeType, size: file.size });
-  return { id, url: `/api/uploads/${id}` };
+  return { id, url: uploadUrl(id) };
 }
 
 type UploadViewer = { id: string; role: 'member' | 'admin' };
@@ -58,9 +69,8 @@ async function canViewUpload(
 ): Promise<boolean> {
   // 1. アップロード主体本人・管理者は常に閲覧可（自分のドラフト画像の編集プレビュー等）
   if (viewer.role === 'admin' || upload.uploaderId === viewer.id) return true;
-  const urlPath = `/api/uploads/${upload.id}`;
-  // 公開（未削除）記事に絞る述語。ヒーロー・本文の両方で使う。
-  const publiclyVisible = and(eq(articles.status, 'published'), isNull(articles.deletedAt));
+  const urlPath = uploadUrl(upload.id);
+  const publiclyVisible = publishedArticleWhere();
   // 2. 公開記事のヒーロー画像
   const hero = await db.query.articles.findFirst({
     columns: { id: true },

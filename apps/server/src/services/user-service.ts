@@ -1,5 +1,4 @@
 import { and, eq } from 'drizzle-orm';
-import { z } from 'zod';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { users } from '../db/schema';
 import { AppError } from '../errors';
@@ -32,11 +31,7 @@ export type PublicProfile = {
 };
 
 export async function getPublicProfile(db: Db, id: string): Promise<PublicProfile> {
-  // 不正な UUID 形式は DB エラー（500）ではなく NOT_FOUND として扱う
-  // （既知の課題: 2a の :id 系ルートは malformed UUID で 500 になる。ここでは踏襲しない）
-  if (!z.string().uuid().safeParse(id).success) {
-    throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
-  }
+  // UUID 形式の検証はルート層（requireUuidParam）に一元化した。
   const row = await db.query.users.findFirst({
     where: eq(users.id, id),
     columns: { id: true, displayName: true, bio: true, avatarUrl: true },

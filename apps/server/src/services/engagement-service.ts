@@ -3,8 +3,9 @@ import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, categories, comments, reactions, users } from '../db/schema';
 import { fetchListMetadata } from './article-service';
 import type { Db } from '../types';
-import { assertPublishedArticle } from './comment-service';
+import { assertPublishedArticle, publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
+import { heroImageUrl } from './upload-service';
 import { notifyReactionAdded, runNotify } from './notification-service';
 
 export type BookmarkedArticle = {
@@ -121,11 +122,7 @@ export async function listBookmarks(
   userId: string,
   page: { cursor?: string; limit: number },
 ): Promise<Page<BookmarkedArticle>> {
-  const base = and(
-    eq(bookmarks.userId, userId),
-    eq(articles.status, 'published'),
-    isNull(articles.deletedAt),
-  );
+  const base = and(eq(bookmarks.userId, userId), publishedArticleWhere());
   // bookmarks.createdAt は DB の now()（マイクロ秒精度）で入るが、カーソルは JS Date
   // （ミリ秒精度）で encode するため、WHERE と ORDER BY の両方で
   // date_trunc('milliseconds', ...) に丸めた同じキーを使う。丸めないと、同一 ms
@@ -164,7 +161,7 @@ export async function listBookmarks(
     const m = meta.get(rest.id);
     return {
       ...rest,
-      heroImage: heroImageUploadId ? `/api/uploads/${heroImageUploadId}` : null,
+      heroImage: heroImageUrl(heroImageUploadId),
       tags: m?.tags ?? [],
       reactionCount: m?.reactionCount ?? 0,
       commentCount: m?.commentCount ?? 0,

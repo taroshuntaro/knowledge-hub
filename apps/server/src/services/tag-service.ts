@@ -1,6 +1,7 @@
-import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { desc, eq, inArray, sql } from 'drizzle-orm';
 import { articles, articleTags, tags } from '../db/schema';
 import type { Db } from '../types';
+import { publishedArticleWhere } from './article-visibility';
 
 function normalize(names: string[]): string[] {
   const seen = new Set<string>();
@@ -60,7 +61,7 @@ export async function listPopularTags(
     .from(articleTags)
     .innerJoin(tags, eq(articleTags.tagId, tags.id))
     .innerJoin(articles, eq(articleTags.articleId, articles.id))
-    .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt)))
+    .where(publishedArticleWhere())
     .groupBy(tags.name)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);

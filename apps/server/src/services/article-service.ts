@@ -5,11 +5,14 @@ import {
 } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { isArticleVisible, publishedArticleWhere } from './article-visibility';
+import { categoryAndDescendantIds } from './category-service';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
 import { buildSearchText } from './markdown';
 import { notifyArticleMentions, runNotify } from './notification-service';
 import { can } from './permissions';
 import { getArticleTagNames, setArticleTags } from './tag-service';
+import { heroImageUrl } from './upload-service';
 
 export type ArticleRecord = typeof articles.$inferSelect;
 export type ArticleInput = {
@@ -57,7 +60,7 @@ async function assertCategoryExists(db: Db, categoryId: string): Promise<void> {
   if (!row) throw new AppError('VALIDATION', '指定されたカテゴリが存在しません', 400);
 }
 
-export async function assertUploadExists(db: Db, uploadId: string): Promise<void> {
+async function assertUploadExists(db: Db, uploadId: string): Promise<void> {
   const row = await db.query.uploads.findFirst({
     where: eq(uploads.id, uploadId), columns: { id: true },
   });
@@ -69,8 +72,11 @@ export async function createArticle(
   authorId: string,
   input: ArticleInput,
 ): Promise<ArticleRecord> {
-  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
-  if (input.heroImageUploadId) await assertUploadExists(db, input.heroImageUploadId);
+  // カテゴリ／アップロードの存在チェックは互いに独立。並列に走らせる。
+  await Promise.all([
+    input.categoryId ? assertCategoryExists(db, input.categoryId) : Promise.resolve(),
+    input.heroImageUploadId ? assertUploadExists(db, input.heroImageUploadId) : Promise.resolve(),
+  ]);
   const searchText = buildSearchText({ title: input.title, bodyMd: input.bodyMd, tags: input.tags });
   const [row] = await db
     .insert(articles)
@@ -102,8 +108,11 @@ export async function updateArticle(
   editor: SessionUser,
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
-  if (input.categoryId) await assertCategoryExists(db, input.categoryId);
-  if (input.heroImageUploadId) await assertUploadExists(db, input.heroImageUploadId);
+  // カテゴリ／アップロードの存在チェックは互いに独立。並列に走らせる。
+  await Promise.all([
+    input.categoryId ? assertCategoryExists(db, input.categoryId) : Promise.resolve(),
+    input.heroImageUploadId ? assertUploadExists(db, input.heroImageUploadId) : Promise.resolve(),
+  ]);
   // SELECT → JS 比較 → 無条件 UPDATE の check-then-act だと、同一 expectedUpdatedAt の
   // 並行 PATCH が両方とも「一致している」と判定して両方成功してしまう（lost update）。
   // SELECT ... FOR UPDATE で対象行をロックし、比較と UPDATE を同一トランザクションに
@@ -296,7 +305,7 @@ function toListItem(row: RawListRow): ArticleListItem {
   const { heroImageUploadId, ...rest } = row;
   return {
     ...rest,
-    heroImage: heroImageUploadId ? `/api/uploads/${heroImageUploadId}` : null,
+    heroImage: heroImageUrl(heroImageUploadId),
     tags: [],
     reactionCount: 0,
     commentCount: 0,
@@ -366,7 +375,7 @@ async function pagePublished(
   extraWhere: ReturnType<typeof and>,
   page: { cursor?: string; limit: number },
 ): Promise<Page<ArticleListItem>> {
-  const base = and(eq(articles.status, 'published'), isNull(articles.deletedAt), extraWhere);
+  const base = and(publishedArticleWhere(), extraWhere);
   const where = page.cursor
     ? and(
         base,
@@ -406,14 +415,13 @@ export async function listPickup(db: Db): Promise<ArticleListItem[]> {
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
-    .where(and(eq(articles.status, 'published'), isNull(articles.deletedAt), sql`${articles.pinnedAt} is not null`))
+    .where(and(publishedArticleWhere(), sql`${articles.pinnedAt} is not null`))
     .orderBy(desc(articles.pinnedAt), desc(articles.id));
   return enrichListItems(db, rows.map(toListItem));
 }
 
 export async function listByCategory(db: Db, categoryId: string, page: { cursor?: string; limit: number }) {
-  const children = await db.select({ id: categories.id }).from(categories).where(eq(categories.parentId, categoryId));
-  const ids = [categoryId, ...children.map((c) => c.id)];
+  const ids = await categoryAndDescendantIds(db, categoryId);
   return pagePublished(db, inArray(articles.categoryId, ids), page);
 }
 
@@ -483,24 +491,24 @@ export async function getArticleForViewer(
   const row = await db.query.articles.findFirst({ where: eq(articles.id, id) });
   if (!row) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
   const isOwnerOrAdmin = viewer.role === 'admin' || viewer.id === row.authorId;
-  const visible = row.status === 'published' && !row.deletedAt;
+  const visible = isArticleVisible(row);
   if (!visible && !isOwnerOrAdmin) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
-  const [author] = await db
-    .select({ name: users.displayName, avatarUrl: users.avatarUrl })
-    .from(users)
-    .where(eq(users.id, row.authorId));
-  let categoryName: string | null = null;
-  if (row.categoryId) {
-    const [c] = await db.select({ name: categories.name }).from(categories).where(eq(categories.id, row.categoryId));
-    categoryName = c?.name ?? null;
-  }
-  const tagNames = await getArticleTagNames(db, id);
+  // author / category / tags は row に依存するだけで互いに独立。Promise.all で 1 往復にまとめる。
+  const [authorRows, categoryRows, tagNames] = await Promise.all([
+    db.select({ name: users.displayName, avatarUrl: users.avatarUrl }).from(users).where(eq(users.id, row.authorId)),
+    row.categoryId
+      ? db.select({ name: categories.name }).from(categories).where(eq(categories.id, row.categoryId))
+      : Promise.resolve([] as { name: string }[]),
+    getArticleTagNames(db, id),
+  ]);
+  const author = authorRows[0];
+  const categoryName = categoryRows[0]?.name ?? null;
   return {
     ...row,
     authorName: author?.name ?? '',
     authorAvatarUrl: author?.avatarUrl ?? null,
     categoryName,
-    heroImage: row.heroImageUploadId ? `/api/uploads/${row.heroImageUploadId}` : null,
+    heroImage: heroImageUrl(row.heroImageUploadId),
     tags: tagNames,
   };
 }
@@ -517,6 +525,3 @@ export async function listRevisions(db: Db, id: string, editor: SessionUser) {
     .where(eq(articleRevisions.articleId, id))
     .orderBy(desc(articleRevisions.savedAt));
 }
-
-// re-export（read/lifecycle タスクで同ファイルに追記される getArticleTagNames の橋渡し）
-export { getArticleTagNames };
