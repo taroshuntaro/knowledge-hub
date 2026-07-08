@@ -6,6 +6,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorMessage } from '../lib/api-error';
 
 const OIDC_ERRORS: Record<string, string> = {
   oidc_failed: 'SSO ログインに失敗しました。もう一度お試しください',
@@ -42,8 +43,7 @@ export function LoginPage() {
     try {
       const res = await api.api.auth.login.$post({ json: { email, password } });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        setError(body?.message ?? 'ログインに失敗しました');
+        setError(await errorMessage(res, 'ログインに失敗しました'));
         return;
       }
     } catch {

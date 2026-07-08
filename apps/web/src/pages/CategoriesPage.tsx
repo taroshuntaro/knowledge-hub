@@ -1,20 +1,10 @@
-import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { api } from '../api/client';
+import { useCategories } from '../api/categories';
 import { EmptyState } from '../components/EmptyState';
 import { Loading } from '../components/Loading';
 
-type CategoryNode = { id: string; name: string; parentId: string | null; sortOrder: number; children: CategoryNode[] };
-
 export function CategoriesPage() {
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['categories'],
-    queryFn: async () => {
-      const res = await api.api.categories.$get();
-      if (!res.ok) throw new Error('failed');
-      return (await res.json()) as CategoryNode[];
-    },
-  });
+  const { data, isLoading, isError } = useCategories();
 
   const categories = data ?? [];
 

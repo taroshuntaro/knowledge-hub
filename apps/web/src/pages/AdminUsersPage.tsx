@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar } from '@/components/Avatar';
+import { errorMessage } from '../lib/api-error';
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -28,8 +29,7 @@ export function AdminUsersPage() {
       const { id, ...json } = input;
       const res = await api.api.admin.users[':id'].$patch({ param: { id }, json });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(body?.message ?? '更新に失敗しました');
+        throw new Error(await errorMessage(res, '更新に失敗しました'));
       }
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
@@ -45,8 +45,7 @@ export function AdminUsersPage() {
         setInviteMsg(`${inviteEmail} に招待を送りました`);
         setInviteEmail('');
       } else {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        setInviteMsg(body?.message ?? '招待に失敗しました');
+        setInviteMsg(await errorMessage(res, '招待に失敗しました'));
       }
     } catch {
       setInviteMsg('通信に失敗しました。時間をおいて再試行してください');

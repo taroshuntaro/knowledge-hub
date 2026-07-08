@@ -5,6 +5,7 @@ import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { errorMessage } from '../lib/api-error';
 
 export function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -22,8 +23,7 @@ export function InvitePage() {
         json: { displayName, password },
       });
       if (!res.ok) {
-        const body = (await res.json().catch(() => null)) as { message?: string } | null;
-        setError(body?.message ?? '登録に失敗しました');
+        setError(await errorMessage(res, '登録に失敗しました'));
         return;
       }
     } catch {

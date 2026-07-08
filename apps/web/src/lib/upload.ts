@@ -1,3 +1,5 @@
+import { errorMessage } from './api-error';
+
 /** DataTransfer/ClipboardData の files から最初の画像ファイルを取り出す（無ければ null）。 */
 export function firstImageFile(list: FileList | null | undefined): File | null {
   if (!list) return null;
@@ -18,8 +20,7 @@ export async function uploadImageWithId(file: File): Promise<{ id: string; url: 
   form.append('file', file);
   const res = await fetch('/api/uploads', { method: 'POST', body: form, credentials: 'same-origin' });
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { message?: string } | null;
-    throw new Error(body?.message ?? '画像のアップロードに失敗しました');
+    throw new Error(await errorMessage(res, '画像のアップロードに失敗しました'));
   }
   return (await res.json()) as { id: string; url: string };
 }
