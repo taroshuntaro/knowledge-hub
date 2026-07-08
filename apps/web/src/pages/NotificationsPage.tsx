@@ -45,8 +45,9 @@ export function NotificationsPage() {
   async function openNotification(n: NotificationItem) {
     if (!n.readAt) {
       try {
-        await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
-        await invalidate();
+        const res = await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
+        // 既読化に失敗しても記事遷移は行う。成功時のみ再取得して未読表示を更新する。
+        if (res.ok) await invalidate();
       } catch {
         // ignore: navigation must still happen even if marking as read fails
       }
@@ -56,9 +57,15 @@ export function NotificationsPage() {
 
   async function readAll() {
     setActionError(null);
+    let res: Awaited<ReturnType<typeof api.api.notifications['read-all']['$post']>>;
     try {
-      await api.api.notifications['read-all'].$post();
+      res = await api.api.notifications['read-all'].$post();
     } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
+    // hono クライアントは非 2xx でも throw しないため、res.ok を明示的に確認する
+    if (!res.ok) {
       setActionError('通信に失敗しました。時間をおいて再試行してください');
       return;
     }

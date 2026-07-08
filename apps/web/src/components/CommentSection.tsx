@@ -141,6 +141,9 @@ function CommentItem({
         return;
       }
       await invalidate();
+    } catch {
+      // ネットワーク断などの例外も握りつぶさずユーザーに提示する
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
     } finally {
       setDeletePending(false);
     }

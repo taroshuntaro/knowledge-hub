@@ -136,6 +136,23 @@ describe('CommentSection', () => {
     expect(getComments.mock.calls.length).toBeGreaterThan(1);
   });
 
+  it('削除がネットワーク例外で失敗するとエラーメッセージを表示する', async () => {
+    getComments.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ items: [makeComment({ id: 'own', authorId: 'u1', authorName: '自分' })], nextCursor: null }),
+    });
+    deleteComment.mockRejectedValue(new Error('network down'));
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      renderSection();
+      await userEvent.click(await screen.findByRole('button', { name: '削除' }));
+      expect(await screen.findByText('通信に失敗しました。時間をおいて再試行してください')).toBeInTheDocument();
+    } finally {
+      confirmSpy.mockRestore();
+    }
+  });
+
   it('自分のコメントには編集/削除が出て、他人のコメントには出ない', async () => {
     getComments.mockResolvedValue({
       ok: true,

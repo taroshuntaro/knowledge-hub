@@ -36,8 +36,9 @@ export function NotificationBell() {
     setOpen(false);
     if (!n.readAt) {
       try {
-        await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
-        await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        const res = await api.api.notifications[':notificationId'].read.$post({ param: { notificationId: n.id } });
+        // 既読化に失敗しても記事遷移は行う。成功時のみ再取得して未読表示を更新する。
+        if (res.ok) await queryClient.invalidateQueries({ queryKey: ['notifications'] });
       } catch {
         // ignore: navigation must still happen even if marking as read fails
       }
