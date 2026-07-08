@@ -12,6 +12,7 @@ import {
   requireAuth,
   setSessionCookie,
 } from '../middleware/session';
+import { requirePasswordAuth } from '../middleware/password-auth';
 import { validate } from '../middleware/validate';
 import { loginWithPassword } from '../services/auth-service';
 import { acceptInvitation } from '../services/invitation-service';
@@ -35,16 +36,8 @@ export const authRoutes = new Hono<AppEnv>()
       oidc: c.get('oidcAuth') !== null,
     }),
   )
-  .post('/login', validate('json', loginSchema), async (c) => {
+  .post('/login', requirePasswordAuth, validate('json', loginSchema), async (c) => {
     const config = c.get('config');
-    if (!config.passwordAuthEnabled) {
-      throw new AppError(
-        'PASSWORD_AUTH_DISABLED',
-        'パスワードログインは無効化されています',
-        403,
-      );
-    }
-
     const { email, password } = c.req.valid('json');
     if (!loginLimiter.consume(email.toLowerCase())) {
       throw new AppError(
@@ -86,14 +79,7 @@ export const authRoutes = new Hono<AppEnv>()
       return c.json(user);
     },
   )
-  .post('/password-reset/request', validate('json', passwordResetRequestSchema), async (c) => {
-    if (!c.get('config').passwordAuthEnabled) {
-      throw new AppError(
-        'PASSWORD_AUTH_DISABLED',
-        'パスワードログインは無効化されています',
-        403,
-      );
-    }
+  .post('/password-reset/request', requirePasswordAuth, validate('json', passwordResetRequestSchema), async (c) => {
     const { email } = c.req.valid('json');
     if (!passwordResetLimiter.consume(email.toLowerCase())) {
       throw new AppError(
@@ -105,14 +91,7 @@ export const authRoutes = new Hono<AppEnv>()
     await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), email);
     return c.body(null, 204);
   })
-  .post('/password-reset/confirm/:token', validate('json', passwordResetConfirmSchema), async (c) => {
-    if (!c.get('config').passwordAuthEnabled) {
-      throw new AppError(
-        'PASSWORD_AUTH_DISABLED',
-        'パスワードログインは無効化されています',
-        403,
-      );
-    }
+  .post('/password-reset/confirm/:token', requirePasswordAuth, validate('json', passwordResetConfirmSchema), async (c) => {
     await resetPassword(c.get('db'), c.req.param('token'), c.req.valid('json').password);
     return c.body(null, 204);
   });
