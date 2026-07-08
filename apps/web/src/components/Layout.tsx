@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router';
 import { Dialog, VisuallyHidden } from 'radix-ui';
 import { Menu, PenLine } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { NotificationBell } from './NotificationBell';
+import { Loading } from './Loading';
 import { Button } from '@/components/ui/button';
 
 export function Layout() {
@@ -53,7 +54,10 @@ export function Layout() {
 
       <main className="min-w-0 flex-1">
         <div className="mx-auto max-w-4xl px-4 py-6 md:px-8 md:py-10">
-          <Outlet />
+          {/* 遅延ロードするルート（エディタ/記事詳細）の読み込み中フォールバック */}
+          <Suspense fallback={<Loading />}>
+            <Outlet />
+          </Suspense>
         </div>
       </main>
     </div>

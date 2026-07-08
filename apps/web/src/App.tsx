@@ -1,14 +1,13 @@
+import { lazy } from 'react';
 import { createBrowserRouter, RouterProvider, useParams } from 'react-router';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
-import { ArticleDetailPage } from './pages/ArticleDetailPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { CategoryPage } from './pages/CategoryPage';
-import { EditorPage } from './pages/EditorPage';
 import { HomePage } from './pages/HomePage';
 import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
@@ -20,6 +19,13 @@ import { ProfilePage } from './pages/ProfilePage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TagPage } from './pages/TagPage';
+
+// 重いエディタ（CodeMirror + Tiptap + lowlight）と記事詳細（Markdown パイプライン）は
+// 初期バンドルから切り離し、開いたときにだけ読み込む（フィード/ログインを軽くする）。
+const EditorPage = lazy(() => import('./pages/EditorPage').then((m) => ({ default: m.EditorPage })));
+const ArticleDetailPage = lazy(() =>
+  import('./pages/ArticleDetailPage').then((m) => ({ default: m.ArticleDetailPage })),
+);
 
 // /articles/new と /articles/:id/edit は同じ EditorPage を描画する。key を記事 id で
 // 変えることで、記事間（new↔edit、別記事の edit↔edit）を SPA 遷移したときに必ず
