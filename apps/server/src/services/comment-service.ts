@@ -22,7 +22,6 @@ export type CommentNode = {
   replies: CommentNode[];
 };
 
-export type { Page };
 
 /**
  * 対象記事が公開・未削除であることを確認する。draft / 削除済み / 不在は NOT_FOUND。

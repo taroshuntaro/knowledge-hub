@@ -2,6 +2,7 @@ import type { SessionUser } from '@knowledge-hub/shared';
 import { eq } from 'drizzle-orm';
 import { users } from '../db/schema';
 import type { Db } from '../types';
+import { normalizeEmail } from './email';
 import { verifyPassword } from './password';
 import { createSession, toSessionUser } from './session-service';
 
@@ -13,8 +14,8 @@ export async function loginWithPassword(
   rawEmail: string,
   password: string,
 ): Promise<{ sid: string; user: SessionUser } | null> {
-  // 保存時に小文字化しているため照合も小文字化して行う（大文字小文字揺れの吸収）。
-  const email = rawEmail.trim().toLowerCase();
+  // 保存時に正規化しているため照合も同じ正準形で行う（大文字小文字揺れの吸収）。
+  const email = normalizeEmail(rawEmail);
   const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
   const passwordHash =
     user?.isActive && user.authProvider === 'password' ? user.passwordHash : null;

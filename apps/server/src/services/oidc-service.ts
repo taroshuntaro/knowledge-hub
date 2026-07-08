@@ -4,6 +4,7 @@ import { users } from '../db/schema';
 import type { Config } from '../config';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { normalizeEmail } from './email';
 
 export type OidcClaims = { email?: string; emailVerified?: boolean; name?: string };
 
@@ -56,7 +57,7 @@ export async function resolveOidcUser(
   claims: OidcClaims,
   allowedEmailDomains: string[],
 ): Promise<typeof users.$inferSelect> {
-  const email = claims.email?.trim().toLowerCase();
+  const email = claims.email ? normalizeEmail(claims.email) : undefined;
   if (!email || claims.emailVerified === false) {
     throw new AppError('OIDC_EMAIL', 'メールアドレスを確認できませんでした', 403);
   }

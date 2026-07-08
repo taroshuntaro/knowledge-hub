@@ -26,7 +26,6 @@ export type BookmarkedArticle = {
   commentCount: number;
 };
 
-export type { Page };
 
 export async function addReaction(db: Db, userId: string, articleId: string, emoji: string): Promise<void> {
   const article = await assertPublishedArticle(db, articleId);

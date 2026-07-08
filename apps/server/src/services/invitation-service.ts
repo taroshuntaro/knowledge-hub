@@ -5,6 +5,7 @@ import type { Config } from '../config';
 import { invitations, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db, Mailer } from '../types';
+import { normalizeEmail } from './email';
 import { hashPassword } from './password';
 import { createSession, hashToken, toSessionUser } from './session-service';
 
@@ -16,9 +17,9 @@ export async function createInvitation(
   config: Config,
   rawEmail: string,
 ): Promise<void> {
-  // email は小文字化して保存する。OIDC は lower() で照合するため、
+  // email は正準形（小文字）で保存する。OIDC は lower() で照合するため、
   // 大文字小文字の違いで同一メールに複数行ができるのを防ぐ（アカウント重複/乗っ取り対策）。
-  const email = rawEmail.trim().toLowerCase();
+  const email = normalizeEmail(rawEmail);
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) {
     throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);

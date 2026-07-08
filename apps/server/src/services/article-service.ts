@@ -251,7 +251,6 @@ export type ArticleListItem = {
   reactionCount: number;
   commentCount: number;
 };
-export type { Page };
 export type ArticleDetail = ArticleRecord & {
   authorName: string;
   authorAvatarUrl: string | null;

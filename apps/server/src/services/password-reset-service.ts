@@ -4,6 +4,7 @@ import type { Config } from '../config';
 import { passwordResetTokens, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db, Mailer } from '../types';
+import { normalizeEmail } from './email';
 import { hashPassword } from './password';
 import { deleteUserSessions, hashToken } from './session-service';
 
@@ -15,7 +16,7 @@ export async function requestPasswordReset(
   config: Config,
   rawEmail: string,
 ): Promise<void> {
-  const email = rawEmail.trim().toLowerCase();
+  const email = normalizeEmail(rawEmail);
   const user = await db.query.users.findFirst({
     where: and(eq(users.email, email), eq(users.isActive, true), eq(users.authProvider, 'password')),
   });

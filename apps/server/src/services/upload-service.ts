@@ -59,14 +59,12 @@ async function canViewUpload(
   // 1. アップロード主体本人・管理者は常に閲覧可（自分のドラフト画像の編集プレビュー等）
   if (viewer.role === 'admin' || upload.uploaderId === viewer.id) return true;
   const urlPath = `/api/uploads/${upload.id}`;
-  // 2. 公開（削除されていない）記事のヒーロー画像
+  // 公開（未削除）記事に絞る述語。ヒーロー・本文の両方で使う。
+  const publiclyVisible = and(eq(articles.status, 'published'), isNull(articles.deletedAt));
+  // 2. 公開記事のヒーロー画像
   const hero = await db.query.articles.findFirst({
     columns: { id: true },
-    where: and(
-      eq(articles.heroImageUploadId, upload.id),
-      eq(articles.status, 'published'),
-      isNull(articles.deletedAt),
-    ),
+    where: and(eq(articles.heroImageUploadId, upload.id), publiclyVisible),
   });
   if (hero) return true;
   // 3. いずれかのユーザーのアバター（プロフィール等で公開表示される）
@@ -78,11 +76,7 @@ async function canViewUpload(
   // 4. 公開記事の本文に埋め込まれた画像（id は UUID 検証済みで LIKE メタ文字を含まない）
   const inBody = await db.query.articles.findFirst({
     columns: { id: true },
-    where: and(
-      eq(articles.status, 'published'),
-      isNull(articles.deletedAt),
-      sql`${articles.bodyMd} like ${`%${urlPath}%`}`,
-    ),
+    where: and(publiclyVisible, sql`${articles.bodyMd} like ${`%${urlPath}%`}`),
   });
   return Boolean(inBody);
 }
