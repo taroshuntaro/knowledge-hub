@@ -32,9 +32,11 @@ export function ArticleDetailPage() {
   if (isError) return <p className="text-destructive">読み込みに失敗しました。</p>;
   if (!article) return <p className="text-muted-foreground">記事が見つかりません。</p>;
 
-  const canEdit = me && (me.role === 'admin' || me.id === article.authorId);
-  const canPin = me?.role === 'admin' && article.status === 'published';
-  const canEngage = article.status === 'published' && !article.deletedAt;
+  const isTrashed = Boolean(article.deletedAt);
+  // 記事の管理権限（著者本人か admin）。編集/ゴミ箱操作/復元・完全削除に共通。
+  const canManage = Boolean(me && (me.role === 'admin' || me.id === article.authorId));
+  const canPin = me?.role === 'admin' && article.status === 'published' && !isTrashed;
+  const canEngage = article.status === 'published' && !isTrashed;
 
   async function togglePin() {
     setActionError(null);
@@ -57,6 +59,37 @@ export function ArticleDetailPage() {
       const res = await api.api.articles[':id'].$delete({ param: { id } });
       if (!res.ok) {
         setActionError(await errorMessage(res, '削除に失敗しました'));
+        return;
+      }
+    } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
+    navigate('/me/articles');
+  }
+
+  async function restore() {
+    setActionError(null);
+    try {
+      const res = await api.api.articles[':id'].restore.$post({ param: { id } });
+      if (!res.ok) {
+        setActionError(await errorMessage(res, '復元に失敗しました'));
+        return;
+      }
+    } catch {
+      setActionError('通信に失敗しました。時間をおいて再試行してください');
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ['article', id] });
+  }
+
+  async function purge() {
+    if (!window.confirm('この記事を完全に削除しますか？この操作は取り消せません。')) return;
+    setActionError(null);
+    try {
+      const res = await api.api.articles[':id'].purge.$delete({ param: { id } });
+      if (!res.ok) {
+        setActionError(await errorMessage(res, '完全削除に失敗しました'));
         return;
       }
     } catch {
@@ -99,14 +132,14 @@ export function ArticleDetailPage() {
         ))}
       </div>
       <div className="mt-4 flex flex-wrap items-center gap-2 border-b pb-4">
-        {canEdit && (
+        {canManage && !isTrashed && (
           <Button asChild size="sm">
             <Link to={`/articles/${id}/edit`}>編集</Link>
           </Button>
         )}
         {canEngage && <BookmarkButton articleId={article.id} />}
         {canPin && <Button type="button" variant="outline" size="sm" onClick={togglePin}>{article.pinnedAt ? 'ピン解除' : 'ピン留め'}</Button>}
-        {canEdit && (
+        {canManage && !isTrashed && (
           <Button
             type="button"
             variant="outline"
@@ -116,6 +149,20 @@ export function ArticleDetailPage() {
           >
             ゴミ箱へ
           </Button>
+        )}
+        {canManage && isTrashed && (
+          <>
+            <Button type="button" size="sm" onClick={restore}>復元</Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="ml-auto border-destructive text-destructive hover:text-destructive"
+              onClick={purge}
+            >
+              完全に削除
+            </Button>
+          </>
         )}
       </div>
       {actionError && <p role="status" className="mt-2 text-sm text-destructive">{actionError}</p>}

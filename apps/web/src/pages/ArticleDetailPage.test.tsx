@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,6 +34,8 @@ const article = {
 
 const getArticle = vi.fn();
 const deleteArticle = vi.fn();
+const restoreArticle = vi.fn();
+const purgeArticle = vi.fn();
 
 vi.mock('../api/client', () => ({
   api: {
@@ -45,6 +47,8 @@ vi.mock('../api/client', () => ({
           $delete: (...args: unknown[]) => deleteArticle(...args),
           pin: { $post: vi.fn() },
           unpin: { $post: vi.fn() },
+          restore: { $post: (...args: unknown[]) => restoreArticle(...args) },
+          purge: { $delete: (...args: unknown[]) => purgeArticle(...args) },
         },
       },
     },
@@ -71,6 +75,43 @@ describe('ArticleDetailPage', () => {
   beforeEach(() => {
     getArticle.mockReset();
     deleteArticle.mockReset();
+    restoreArticle.mockReset();
+    purgeArticle.mockReset();
+  });
+
+  const trashed = { ...article, status: 'draft', deletedAt: '2026-07-02T00:00:00Z' };
+
+  it('ゴミ箱記事では編集/ゴミ箱へを出さず、復元/完全削除を出す', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => trashed });
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: '復元' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '完全に削除' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: '編集' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'ゴミ箱へ' })).not.toBeInTheDocument();
+  });
+
+  it('復元ボタンで restore エンドポイントを呼ぶ', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => trashed });
+    restoreArticle.mockResolvedValue({ ok: true });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: '復元' }));
+    await waitFor(() => expect(restoreArticle).toHaveBeenCalledWith({ param: { id: 'a1' } }));
+  });
+
+  it('完全削除は確認後に purge エンドポイントを呼びマイ記事へ遷移する', async () => {
+    getArticle.mockResolvedValue({ ok: true, status: 200, json: async () => trashed });
+    purgeArticle.mockResolvedValue({ ok: true });
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    try {
+      renderPage();
+      await userEvent.click(await screen.findByRole('button', { name: '完全に削除' }));
+      await waitFor(() => expect(purgeArticle).toHaveBeenCalledWith({ param: { id: 'a1' } }));
+      expect(await screen.findByText('マイ記事一覧')).toBeInTheDocument();
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 
   it('削除失敗時はページに留まり、エラーメッセージを表示する', async () => {
