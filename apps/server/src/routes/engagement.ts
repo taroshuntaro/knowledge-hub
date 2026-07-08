@@ -23,7 +23,10 @@ export const articleEngagementRoutes = new Hono<AppEnv>()
   })
   .delete('/:id/reactions/:emoji', async (c) => {
     requireUuidParam(c.req.param('id'), '記事が見つかりません');
-    const emoji = decodeURIComponent(c.req.param('emoji'));
+    // Hono はパスパラメータを既にデコードしている。ここで decodeURIComponent を
+    // 重ねると "%" 等の不正シーケンスで URIError を投げ 500 になるため二重デコードしない。
+    // 未知の値は下の allowlist で 400 に落とす。
+    const emoji = c.req.param('emoji');
     if (!(REACTION_EMOJIS as readonly string[]).includes(emoji)) {
       throw new AppError('VALIDATION', '不正な絵文字です', 400);
     }

@@ -61,6 +61,18 @@ describe('engagement routes', () => {
     expect(res.status).toBe(400);
   });
 
+  it('不正なパーセントエンコード（%）の DELETE は 500 でなく 400', async () => {
+    const author = await login('author4@example.com');
+    const articleId = await publishedArticle(author);
+    const user = await login('user4@example.com');
+    // 生の "%" は不正なエスケープシーケンス。二重デコードで URIError→500 になっていた回帰。
+    const res = await ctx.app.request(
+      `/api/articles/${articleId}/reactions/%`,
+      { method: 'DELETE', headers: { cookie: user } },
+    );
+    expect(res.status).toBe(400);
+  });
+
   it('bookmark POST 後、GET /me/bookmarks に出る', async () => {
     const author = await login('author4@example.com');
     const articleId = await publishedArticle(author);
