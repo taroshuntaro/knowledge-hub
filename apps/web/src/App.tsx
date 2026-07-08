@@ -1,6 +1,7 @@
 import { createBrowserRouter, RouterProvider, useParams } from 'react-router';
 import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
+import { RequireRole } from './auth/RequireRole';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { ArticleDetailPage } from './pages/ArticleDetailPage';
@@ -42,7 +43,7 @@ const router = createBrowserRouter([
     children: [
       { path: '/', element: <HomePage /> },
       { path: '/settings', element: <SettingsPage /> },
-      { path: '/admin', element: <AdminUsersPage /> },
+      { path: '/admin', element: <RequireRole role="admin"><AdminUsersPage /></RequireRole> },
       { path: '/articles/new', element: <EditorRoute /> },
       { path: '/articles/:id/edit', element: <EditorRoute /> },
       { path: '/articles/:id', element: <ArticleDetailPage /> },
@@ -54,7 +55,7 @@ const router = createBrowserRouter([
       { path: '/me/articles', element: <MyArticlesPage /> },
       { path: '/me/bookmarks', element: <BookmarksPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
-      { path: '/admin/categories', element: <AdminCategoriesPage /> },
+      { path: '/admin/categories', element: <RequireRole role="admin"><AdminCategoriesPage /></RequireRole> },
     ],
   },
 ]);
