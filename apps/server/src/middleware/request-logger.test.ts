@@ -1,6 +1,9 @@
+import { Hono } from 'hono';
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { logger } from '../logger';
 import { createTestApp } from '../test/helpers';
+import type { AppEnv } from '../types';
+import { requestLogger } from './request-logger';
 
 describe('request logger', () => {
   const ctx = createTestApp();
@@ -46,5 +49,12 @@ describe('request logger', () => {
     );
     const logged = JSON.stringify(info.mock.calls);
     expect(logged).not.toContain('SECRET-TOKEN-123');
+  });
+
+  it('レスポンスに X-Request-Id ヘッダ（UUID）を付与する', async () => {
+    const app = new Hono<AppEnv>().use(requestLogger).get('/ping', (c) => c.text('ok'));
+    const res = await app.request('/ping');
+    const id = res.headers.get('X-Request-Id');
+    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 });

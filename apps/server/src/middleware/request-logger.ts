@@ -8,6 +8,8 @@ export const requestLogger: MiddlewareHandler<AppEnv> = async (c, next) => {
   const start = Date.now();
   const requestId = randomUUID();
   await next();
+  // ログの requestId と突き合わせられるようにレスポンスにも返す（障害調査用）
+  c.res.headers.set('X-Request-Id', requestId);
   logger.info(
     {
       requestId,
