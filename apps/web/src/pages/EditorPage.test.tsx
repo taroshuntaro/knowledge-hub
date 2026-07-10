@@ -167,6 +167,26 @@ describe('EditorPage', () => {
     expect(navigateMock).toHaveBeenCalledWith('/articles/a1');
   });
 
+  it('公開失敗時はパネルが開いたままエラーが表示される', async () => {
+    postMock.mockResolvedValue({ ok: true, json: async () => ({ id: 'a1', updatedAt: '2026-07-05T00:00:00Z' }) });
+    publishMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: async () => ({ code: 'VALIDATION', message: '公開に失敗しました' }),
+    });
+    renderNew();
+    await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');
+    await userEvent.click(screen.getByRole('button', { name: '公開する' })); // パネルを開く
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByRole('option', { name: 'エンジニアリング' });
+    await userEvent.selectOptions(within(dialog).getByLabelText(/カテゴリ/), 'c1');
+    await userEvent.click(within(dialog).getByRole('button', { name: '公開する' }));
+    await waitFor(() => expect(publishMock).toHaveBeenCalledWith({ param: { id: 'a1' } }));
+    expect(screen.getByRole('dialog', { name: '公開設定' })).toBeInTheDocument();
+    expect(await screen.findByText('公開に失敗しました')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
   it('公開パネルはカテゴリ未選択だと公開実行ボタンが無効', async () => {
     renderNew();
     await userEvent.type(screen.getByLabelText('タイトル'), 'あたらしい記事');

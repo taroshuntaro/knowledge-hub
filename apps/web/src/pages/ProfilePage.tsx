@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { Avatar } from '../components/Avatar';
 import { type ArticleItem } from '../components/ArticleCard';
@@ -11,7 +12,7 @@ import { Loading } from '../components/Loading';
 export function ProfilePage() {
   const { id = '' } = useParams();
   const profileQuery = useQuery({
-    queryKey: ['user', id],
+    queryKey: keys.user(id),
     queryFn: async () => {
       const res = await api.api.users[':id'].$get({ param: { id } });
       if (res.status === 404) return null;
@@ -19,7 +20,7 @@ export function ProfilePage() {
       return res.json();
     },
   });
-  const articlesQuery = useCursorList<ArticleItem>(['user-articles', id], async (cursor) => {
+  const articlesQuery = useCursorList<ArticleItem>(keys.userArticles(id), async (cursor) => {
     const res = await api.api.users[':id'].articles.$get({
       param: { id }, query: cursor ? { cursor } : {},
     });

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
 import { Pin } from 'lucide-react';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { ArticleCard, type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
@@ -9,14 +10,14 @@ import { ErrorState } from '../components/ErrorState';
 
 export function HomePage() {
   const pickup = useQuery({
-    queryKey: ['pickup'],
+    queryKey: keys.pickup,
     queryFn: async () => {
       const res = await api.api.articles.pickup.$get();
       if (!res.ok) throw new Error('failed');
-      return (await res.json()) as ArticleItem[];
+      return res.json();
     },
   });
-  const feed = useCursorList<ArticleItem>(['feed'], async (cursor) => {
+  const feed = useCursorList<ArticleItem>(keys.feed, async (cursor) => {
     const res = await api.api.articles.$get({ query: cursor ? { cursor } : {} });
     if (!res.ok) throw new Error('failed');
     return (await res.json()) as CursorPage<ArticleItem>;

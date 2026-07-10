@@ -2,10 +2,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import type { NotificationItem } from '../lib/notification-message';
 import { api } from './client';
+import { keys } from './keys';
 
 export function useUnreadCount(options?: { refetchInterval?: number }) {
   return useQuery({
-    queryKey: ['notifications', 'unread-count'],
+    queryKey: keys.notifications.unreadCount,
     queryFn: async () => {
       const res = await api.api.notifications['unread-count'].$get();
       if (!res.ok) throw new Error('failed');
@@ -30,7 +31,7 @@ export function useOpenNotification(beforeNavigate?: () => void) {
         const res = await api.api.notifications[':notificationId'].read.$post({
           param: { notificationId: n.id },
         });
-        if (res.ok) await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        if (res.ok) await queryClient.invalidateQueries({ queryKey: keys.notifications.all });
       } catch {
         // ignore: navigation must still happen even if marking as read fails
       }

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCategories } from '../api/categories';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -17,7 +18,7 @@ export function AdminCategoriesPage() {
       const res = await api.api.categories.$post({ json: { name, parentId } });
       if (!res.ok) throw new Error('作成に失敗しました');
     },
-    onSuccess: () => { setName(''); queryClient.invalidateQueries({ queryKey: ['categories'] }); },
+    onSuccess: () => { setName(''); queryClient.invalidateQueries({ queryKey: keys.categories }); },
     onError: (e) => alert(e.message),
   });
   function onSubmit(e: FormEvent) { e.preventDefault(); create.mutate(); }

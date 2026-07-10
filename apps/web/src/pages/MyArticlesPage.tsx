@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
@@ -13,7 +14,7 @@ const TABS = [
 
 export function MyArticlesPage() {
   const [tab, setTab] = useState<'draft' | 'published' | 'trash'>('draft');
-  const q = useCursorList<ArticleItem>(['mine', tab], async (cursor) => {
+  const q = useCursorList<ArticleItem>(keys.mine(tab), async (cursor) => {
     const res = await api.api.articles.mine.$get({
       query: { tab, ...(cursor ? { cursor } : {}) },
     });

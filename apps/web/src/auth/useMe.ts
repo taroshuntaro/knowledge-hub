@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 
 export function useMe() {
   return useQuery({
-    queryKey: ['me'],
+    queryKey: keys.me,
     queryFn: async () => {
       const res = await api.api.auth.me.$get();
       if (res.status === 401) return null;

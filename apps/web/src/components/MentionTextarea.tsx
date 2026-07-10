@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { Textarea } from '@/components/ui/textarea';
 
 type Candidate = { id: string; displayName: string; avatarUrl: string | null };
@@ -33,7 +34,7 @@ export function MentionTextarea({
   const [active, setActive] = useState(0);
 
   const { data: candidates } = useQuery({
-    queryKey: ['mention-candidates'],
+    queryKey: keys.mentionCandidates,
     queryFn: async () => {
       const res = await api.api.users.$get();
       if (!res.ok) throw new Error('failed');
@@ -135,18 +136,13 @@ export function MentionTextarea({
               key={c.id}
               role="option"
               aria-selected={i === active}
+              className={`w-full cursor-pointer rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? 'bg-accent text-accent-foreground' : ''}`}
               onMouseDown={(e) => {
                 e.preventDefault();
                 insertMention(c);
               }}
             >
-              <button
-                type="button"
-                tabIndex={-1}
-                className={`w-full rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? 'bg-accent text-accent-foreground' : ''}`}
-              >
-                {c.displayName}
-              </button>
+              {c.displayName}
             </li>
           ))}
         </ul>

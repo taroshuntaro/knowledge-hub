@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { Bell } from 'lucide-react';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useOpenNotification, useUnreadCount } from '../api/notifications';
 import { notificationMessage, type NotificationItem } from '../lib/notification-message';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ export function NotificationBell() {
   const { data: unread } = useUnreadCount({ refetchInterval: 30_000 });
 
   const { data: recent } = useQuery({
-    queryKey: ['notifications', 'recent'],
+    queryKey: keys.notifications.recent,
     queryFn: async () => {
       const res = await api.api.notifications.$get({ query: { limit: '5' } });
       if (!res.ok) throw new Error('failed');

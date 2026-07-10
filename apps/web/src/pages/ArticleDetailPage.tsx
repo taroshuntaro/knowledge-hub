@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useArticle } from '../api/articles';
 import { useMe } from '../auth/useMe';
+import { useCanManage } from '../auth/useCanManage';
 import { Markdown } from '../lib/markdown';
 import { formatDate } from '../lib/date';
 import { Badge } from '../components/ui/badge';
@@ -24,14 +26,14 @@ export function ArticleDetailPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [actionError, setActionError] = useState<string | null>(null);
+  // 記事の管理権限（著者本人か admin）。編集/ゴミ箱操作/復元・完全削除に共通。
+  const canManage = useCanManage(article?.authorId);
 
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState />;
   if (!article) return <p className="text-muted-foreground">記事が見つかりません。</p>;
 
   const isTrashed = Boolean(article.deletedAt);
-  // 記事の管理権限（著者本人か admin）。編集/ゴミ箱操作/復元・完全削除に共通。
-  const canManage = Boolean(me && (me.role === 'admin' || me.id === article.authorId));
   const canPin = me?.role === 'admin' && article.status === 'published' && !isTrashed;
   const canEngage = article.status === 'published' && !isTrashed;
 
@@ -56,7 +58,7 @@ export function ArticleDetailPage() {
     await onOk();
   }
 
-  const invalidateArticle = () => queryClient.invalidateQueries({ queryKey: ['article', id] });
+  const invalidateArticle = () => queryClient.invalidateQueries({ queryKey: keys.article(id) });
 
   const togglePin = () =>
     runAction(

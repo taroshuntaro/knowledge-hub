@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { ArticleCardData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { ArticleCard, type ArticleItem } from '../components/ArticleCard';
 import { CategorySelect } from '../components/CategorySelect';
@@ -57,7 +58,7 @@ export function SearchPage() {
   }
 
   const query = useCursorList<SearchResultItem>(
-    ['search', q, categoryId, tag, authorId],
+    keys.search(q, categoryId, tag, authorId),
     async (cursor) => {
       const res = await api.api.search.$get({
         query: {

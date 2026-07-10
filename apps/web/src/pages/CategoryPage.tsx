@@ -1,5 +1,6 @@
 import { useParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
@@ -7,7 +8,7 @@ import { ErrorState } from '../components/ErrorState';
 
 export function CategoryPage() {
   const { id = '' } = useParams();
-  const q = useCursorList<ArticleItem>(['category', id], async (cursor) => {
+  const q = useCursorList<ArticleItem>(keys.category(id), async (cursor) => {
     const res = await api.api.categories[':id'].articles.$get({
       param: { id }, query: cursor ? { cursor } : {},
     });
