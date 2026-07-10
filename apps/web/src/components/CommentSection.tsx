@@ -5,6 +5,7 @@ import type { CommentItemData, CommentNodeData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
 import { keys } from '../api/keys';
 import { useMe } from '../auth/useMe';
+import { useCanManage } from '../auth/useCanManage';
 import { Markdown } from '../lib/markdown';
 import { formatDate } from '../lib/date';
 import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
@@ -88,7 +89,7 @@ function CommentItem({
   const [deletePending, setDeletePending] = useState(false);
 
   const canEdit = me?.id === comment.authorId;
-  const canDelete = me?.id === comment.authorId || me?.role === 'admin';
+  const canDelete = useCanManage(comment.authorId);
 
   async function invalidate() {
     await Promise.all([
