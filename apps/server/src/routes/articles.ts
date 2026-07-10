@@ -9,13 +9,15 @@ import {
   updateArticle, unpublishArticle,
 } from '../services/article-service';
 import type { AppEnv } from '../types';
-import { requireUuidParam } from './guards';
+import { uuidParam } from './guards';
 
 const NOT_FOUND_MESSAGE = '記事が見つかりません';
 
 const mineQuerySchema = listQuerySchema.extend({
   tab: z.enum(['draft', 'published', 'trash']).default('draft'),
 });
+
+const validArticleId = uuidParam('id', NOT_FOUND_MESSAGE);
 
 export const articleRoutes = new Hono<AppEnv>()
   .use(requireAuth)
@@ -30,42 +32,33 @@ export const articleRoutes = new Hono<AppEnv>()
     const { tab, ...page } = c.req.valid('query');
     return c.json(await listMine(c.get('db'), c.get('user').id, tab, page));
   })
-  .get('/:id', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await getArticleForViewer(c.get('db'), c.req.param('id'), c.get('user')));
-  })
-  .patch('/:id', validate('json', updateArticleSchema), async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await updateArticle(c.get('db'), c.req.param('id'), c.get('user'), c.req.valid('json')));
-  })
-  .post('/:id/publish', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await publishArticle(c.get('db'), c.req.param('id'), c.get('user')));
-  })
-  .post('/:id/unpublish', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await unpublishArticle(c.get('db'), c.req.param('id'), c.get('user')));
-  })
-  .delete('/:id', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
+  .get('/:id', validArticleId, async (c) =>
+    c.json(await getArticleForViewer(c.get('db'), c.req.param('id'), c.get('user'))),
+  )
+  .patch('/:id', validArticleId, validate('json', updateArticleSchema), async (c) =>
+    c.json(await updateArticle(c.get('db'), c.req.param('id'), c.get('user'), c.req.valid('json'))),
+  )
+  .post('/:id/publish', validArticleId, async (c) =>
+    c.json(await publishArticle(c.get('db'), c.req.param('id'), c.get('user'))),
+  )
+  .post('/:id/unpublish', validArticleId, async (c) =>
+    c.json(await unpublishArticle(c.get('db'), c.req.param('id'), c.get('user'))),
+  )
+  .delete('/:id', validArticleId, async (c) => {
     await softDeleteArticle(c.get('db'), c.req.param('id'), c.get('user'));
     return c.body(null, 204);
   })
-  .post('/:id/restore', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
+  .post('/:id/restore', validArticleId, async (c) => {
     await restoreArticle(c.get('db'), c.req.param('id'), c.get('user'));
     return c.body(null, 204);
   })
-  .delete('/:id/purge', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
+  .delete('/:id/purge', validArticleId, async (c) => {
     await purgeArticle(c.get('db'), c.req.param('id'), c.get('user'));
     return c.body(null, 204);
   })
-  .post('/:id/pin', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), true));
-  })
-  .post('/:id/unpin', async (c) => {
-    requireUuidParam(c.req.param('id'), NOT_FOUND_MESSAGE);
-    return c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), false));
-  });
+  .post('/:id/pin', validArticleId, async (c) =>
+    c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), true)),
+  )
+  .post('/:id/unpin', validArticleId, async (c) =>
+    c.json(await setPinned(c.get('db'), c.req.param('id'), c.get('user'), false)),
+  );
