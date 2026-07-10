@@ -21,7 +21,7 @@
 
 1. **記事カード列 + metadata 付与の統合**: article-service に基底定数 `ARTICLE_CARD_COLUMNS`（現 `LIST_COLUMNS` を改名・export）を置き、engagement の `BOOKMARK_COLUMNS` は `{...ARTICLE_CARD_COLUMNS, bookmarkedAt, bookmarkId}`、search は `{...ARTICLE_CARD_COLUMNS 相当, snippet}` の spread + 差分宣言に置換。search は select を spread + `snippet` 追加とし、レスポンス mapping で excerpt/pinnedAt を含めない（現行 API 形状を維持）。「取得→`fetchListMetadata`→map で合成」の呼び出し定型も `enrichListItems` 系ヘルパーに寄せられる範囲で寄せる。**全 API レスポンス形状は不変・既存テスト無修正 green が合格条件。**
 2. **mention 通知 2 関数の統合**: `notifyCommentMentionsOnEdit` / `notifyArticleMentions` の共通部（メンション抽出→受信者解決→dedupe→insert）を private ヘルパーに抽出。通知の発生条件・優先度は不変。
-3. **articles routes の `:id` 検証ミドルウェア化**: ルートごとの `requireUuidParam` 呼び出しをルータレベルのミドルウェアに集約（routes/articles.ts 内、guards.ts のヘルパーは維持）。
+3. **articles routes の `:id` 検証ミドルウェア化**: ルートごとの `requireUuidParam` 呼び出しを per-route ミドルウェア（`uuidParam(name, message)` ファクトリをハンドラ前段に挟む）に集約。ルータレベルの `.use('/:id')` は Hono では `/pickup` `/mine` 等のリテラルパスにもマッチして誤発動するため採用しない。guards.ts の `requireUuidParam` は他ルートが使うため維持。
 4. **`@types/nodemailer` 要否確認**: nodemailer 9 が型を同梱していれば devDependency から削除。typecheck green で判定。
 
 ### ブランチ 2: `fix/server-minors`（挙動修正・契約変更）
