@@ -53,14 +53,18 @@ async function snapshot(db: RevisionStore, article: { id: string; title: string;
   });
 }
 
-async function assertCategoryExists(db: Db, categoryId: string): Promise<void> {
+// updateArticle の SELECT ... FOR UPDATE トランザクション内から tx を渡せるように、
+// Db 全体ではなく実際に使うメソッドだけを要求する（RevisionStore と同じ手法）。
+type ExistenceStore = Pick<Db, 'query'>;
+
+async function assertCategoryExists(db: ExistenceStore, categoryId: string): Promise<void> {
   const row = await db.query.categories.findFirst({
     where: eq(categories.id, categoryId), columns: { id: true },
   });
   if (!row) throw new AppError('VALIDATION', '指定されたカテゴリが存在しません', 400);
 }
 
-async function assertUploadExists(db: Db, uploadId: string): Promise<void> {
+async function assertUploadExists(db: ExistenceStore, uploadId: string): Promise<void> {
   const row = await db.query.uploads.findFirst({
     where: eq(uploads.id, uploadId), columns: { id: true },
   });
@@ -108,11 +112,6 @@ export async function updateArticle(
   editor: SessionUser,
   input: ArticleInput & { expectedUpdatedAt: string },
 ): Promise<ArticleRecord> {
-  // カテゴリ／アップロードの存在チェックは互いに独立。並列に走らせる。
-  await Promise.all([
-    input.categoryId ? assertCategoryExists(db, input.categoryId) : Promise.resolve(),
-    input.heroImageUploadId ? assertUploadExists(db, input.heroImageUploadId) : Promise.resolve(),
-  ]);
   // SELECT → JS 比較 → 無条件 UPDATE の check-then-act だと、同一 expectedUpdatedAt の
   // 並行 PATCH が両方とも「一致している」と判定して両方成功してしまう（lost update）。
   // SELECT ... FOR UPDATE で対象行をロックし、比較と UPDATE を同一トランザクションに
@@ -127,6 +126,12 @@ export async function updateArticle(
       .where(and(eq(articles.id, id), isNull(articles.deletedAt)))
       .for('update');
     if (!current) throw new AppError('NOT_FOUND', '記事が見つかりません', 404);
+    // カテゴリ／アップロードの存在チェックは tx 内で行う（tx 外だと deleteCategory との
+    // TOCTOU で、チェック通過後に削除されたカテゴリを指す更新が通り FK 違反 → 500 になる）。
+    await Promise.all([
+      input.categoryId ? assertCategoryExists(tx, input.categoryId) : Promise.resolve(),
+      input.heroImageUploadId ? assertUploadExists(tx, input.heroImageUploadId) : Promise.resolve(),
+    ]);
     if (!can(editor, 'article:edit', { authorId: current.authorId })) {
       throw new AppError('FORBIDDEN', 'この記事を編集する権限がありません', 403);
     }
