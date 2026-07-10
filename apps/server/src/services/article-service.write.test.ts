@@ -5,7 +5,7 @@ import { articleRevisions, uploads } from '../db/schema';
 import { eq, sql } from 'drizzle-orm';
 import { createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
-import { createArticle, publishArticle, updateArticle } from './article-service';
+import { createArticle, listRevisions, publishArticle, updateArticle } from './article-service';
 import { getArticleTagNames } from './tag-service';
 
 const asUser = (id: string, role: 'member' | 'admin' = 'member'): SessionUser => ({
@@ -207,5 +207,22 @@ describe('article write', () => {
     });
     const revs = await ctx.db.select().from(articleRevisions).where(eq(articleRevisions.articleId, a.id));
     expect(revs).toHaveLength(2);
+  });
+
+  it('listRevisions は同一 savedAt のリビジョンを id 降順で安定して返す', async () => {
+    const author = await createTestUser(ctx.db);
+    const article = await createArticle(ctx.db, author.id, { title: 'rev-tie', bodyMd: 'v1', tags: [] });
+    // 同一タイムスタンプのリビジョンを直接 insert（snapshot の間引きを迂回）
+    const savedAt = new Date('2026-01-01T00:00:00.000Z');
+    await ctx.db.insert(articleRevisions).values([
+      { articleId: article.id, title: 't1', bodyMd: 'b1', savedAt },
+      { articleId: article.id, title: 't2', bodyMd: 'b2', savedAt },
+      { articleId: article.id, title: 't3', bodyMd: 'b3', savedAt },
+    ]);
+    const first = await listRevisions(ctx.db, article.id, asUser(author.id));
+    const second = await listRevisions(ctx.db, article.id, asUser(author.id));
+    expect(first.map((r) => r.id)).toEqual(second.map((r) => r.id));
+    const tied = first.filter((r) => r.savedAt.getTime() === savedAt.getTime());
+    expect(tied.map((r) => r.id)).toEqual([...tied.map((r) => r.id)].sort().reverse());
   });
 });

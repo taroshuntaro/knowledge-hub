@@ -36,7 +36,7 @@ async function snapshot(db: RevisionStore, article: { id: string; title: string;
     .select()
     .from(articleRevisions)
     .where(eq(articleRevisions.articleId, article.id))
-    .orderBy(desc(articleRevisions.savedAt))
+    .orderBy(desc(articleRevisions.savedAt), desc(articleRevisions.id))
     .limit(1);
   if (latest && latest.title === article.title && latest.bodyMd === article.bodyMd) return;
   if (latest && Date.now() - latest.savedAt.getTime() < REVISION_COLLAPSE_MS) {
@@ -525,5 +525,5 @@ export async function listRevisions(db: Db, id: string, editor: SessionUser) {
     .select({ id: articleRevisions.id, title: articleRevisions.title, savedAt: articleRevisions.savedAt })
     .from(articleRevisions)
     .where(eq(articleRevisions.articleId, id))
-    .orderBy(desc(articleRevisions.savedAt));
+    .orderBy(desc(articleRevisions.savedAt), desc(articleRevisions.id));
 }
