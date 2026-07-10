@@ -1,4 +1,5 @@
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
@@ -6,7 +7,7 @@ import { ErrorState } from '../components/ErrorState';
 import { Loading } from '../components/Loading';
 
 export function BookmarksPage() {
-  const q = useCursorList<ArticleItem>(['bookmarks'], async (cursor) => {
+  const q = useCursorList<ArticleItem>(keys.bookmarks, async (cursor) => {
     const res = await api.api.me.bookmarks.$get({ query: cursor ? { cursor } : {} });
     if (!res.ok) throw new Error('failed');
     return (await res.json()) as CursorPage<ArticleItem>;

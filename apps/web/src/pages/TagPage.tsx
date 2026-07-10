@@ -1,5 +1,6 @@
 import { useParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { type ArticleItem } from '../components/ArticleCard';
 import { ArticleList } from '../components/ArticleList';
@@ -7,7 +8,7 @@ import { ErrorState } from '../components/ErrorState';
 
 export function TagPage() {
   const { name = '' } = useParams();
-  const q = useCursorList<ArticleItem>(['tag', name], async (cursor) => {
+  const q = useCursorList<ArticleItem>(keys.tag(name), async (cursor) => {
     const res = await api.api.tags[':name'].articles.$get({
       param: { name }, query: cursor ? { cursor } : {},
     });

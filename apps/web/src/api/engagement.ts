@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
+import { keys } from './keys';
 
 /** BookmarkButton / ReactionBar が同一記事のエンゲージメントを 1 キャッシュ・1 キーで共有する。 */
 export function engagementKey(articleId: string) {
-  return ['engagement', articleId] as const;
+  return keys.engagement(articleId);
 }
 
 export function useEngagement(articleId: string) {

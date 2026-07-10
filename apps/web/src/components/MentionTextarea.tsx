@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { Textarea } from '@/components/ui/textarea';
 
 type Candidate = { id: string; displayName: string; avatarUrl: string | null };
@@ -33,7 +34,7 @@ export function MentionTextarea({
   const [active, setActive] = useState(0);
 
   const { data: candidates } = useQuery({
-    queryKey: ['mention-candidates'],
+    queryKey: keys.mentionCandidates,
     queryFn: async () => {
       const res = await api.api.users.$get();
       if (!res.ok) throw new Error('failed');

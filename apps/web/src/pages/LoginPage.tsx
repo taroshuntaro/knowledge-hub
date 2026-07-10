@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,7 +29,7 @@ export function LoginPage() {
   const navigate = useNavigate();
 
   const { data: methods, isLoading } = useQuery({
-    queryKey: ['auth-methods'],
+    queryKey: keys.authMethods,
     queryFn: async () => {
       const res = await api.api.auth.methods.$get();
       if (!res.ok) throw new Error('failed to fetch auth methods');
@@ -50,7 +51,7 @@ export function LoginPage() {
       setError(NETWORK_ERROR_MESSAGE);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['me'] });
+    await queryClient.invalidateQueries({ queryKey: keys.me });
     navigate('/');
   }
 

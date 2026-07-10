@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
+import { keys } from './keys';
 
 // GET /api/categories が返すカテゴリツリーの 1 ノード。各画面で個別に（しかも
 // 微妙に異なる形で）宣言していたのを 1 つに統一する。
@@ -13,7 +14,7 @@ export type CategoryNode = {
 
 export function useCategories() {
   return useQuery({
-    queryKey: ['categories'],
+    queryKey: keys.categories,
     queryFn: async (): Promise<CategoryNode[]> => {
       const res = await api.api.categories.$get();
       if (!res.ok) throw new Error('failed');

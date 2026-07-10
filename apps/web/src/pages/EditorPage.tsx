@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams, Link } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { CategorySelect } from '../components/CategorySelect';
 import { TagInput } from '../components/TagInput';
 import { HeroImageInput } from '../components/HeroImageInput';
@@ -215,7 +216,7 @@ export function EditorPage() {
       setError(await errorMessage(res, '公開に失敗しました'));
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['feed'] });
+    await queryClient.invalidateQueries({ queryKey: keys.feed });
     navigate(`/articles/${target}`);
   }
 

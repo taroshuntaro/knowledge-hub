@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-q
 import { Link } from 'react-router';
 import type { CommentItemData, CommentNodeData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
 import { formatDate } from '../lib/date';
@@ -91,8 +92,8 @@ function CommentItem({
 
   async function invalidate() {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['comments', articleId] }),
-      queryClient.invalidateQueries({ queryKey: ['engagement', articleId] }),
+      queryClient.invalidateQueries({ queryKey: keys.comments(articleId) }),
+      queryClient.invalidateQueries({ queryKey: keys.engagement(articleId) }),
     ]);
   }
 
@@ -200,7 +201,7 @@ export function CommentSection({ articleId }: { articleId: string }) {
   const [postError, setPostError] = useState<string | null>(null);
 
   const query = useInfiniteQuery({
-    queryKey: ['comments', articleId],
+    queryKey: keys.comments(articleId),
     initialPageParam: undefined as string | undefined,
     queryFn: async ({ pageParam }) => {
       const res = await api.api.articles[':id'].comments.$get({
@@ -227,8 +228,8 @@ export function CommentSection({ articleId }: { articleId: string }) {
       throw new Error(message);
     }
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['comments', articleId] }),
-      queryClient.invalidateQueries({ queryKey: ['engagement', articleId] }),
+      queryClient.invalidateQueries({ queryKey: keys.comments(articleId) }),
+      queryClient.invalidateQueries({ queryKey: keys.engagement(articleId) }),
     ]);
   }
 

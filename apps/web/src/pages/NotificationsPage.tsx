@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useCursorList, type CursorPage } from '../api/cursor-list';
 import { useOpenNotification, useUnreadCount } from '../api/notifications';
 import { NETWORK_ERROR_MESSAGE } from '../lib/api-error';
@@ -14,7 +15,7 @@ export function NotificationsPage() {
   const queryClient = useQueryClient();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const query = useCursorList<NotificationItem>(['notifications', 'list'], async (cursor) => {
+  const query = useCursorList<NotificationItem>(keys.notifications.list, async (cursor) => {
     const res = await api.api.notifications.$get({ query: cursor ? { cursor } : {} });
     if (!res.ok) throw new Error('failed');
     return (await res.json()) as CursorPage<NotificationItem>;
@@ -36,7 +37,7 @@ export function NotificationsPage() {
       setActionError(NETWORK_ERROR_MESSAGE);
       return;
     }
-    await queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    await queryClient.invalidateQueries({ queryKey: keys.notifications.all });
   }
 
   return (

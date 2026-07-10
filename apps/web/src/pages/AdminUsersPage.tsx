@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +17,7 @@ export function AdminUsersPage() {
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
   const { data: users } = useQuery({
-    queryKey: ['admin-users'],
+    queryKey: keys.adminUsers,
     queryFn: async () => {
       const res = await api.api.admin.users.$get();
       if (!res.ok) throw new Error('failed');
@@ -32,7 +33,7 @@ export function AdminUsersPage() {
         throw new Error(await errorMessage(res, '更新に失敗しました'));
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin-users'] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.adminUsers }),
     onError: (e) => alert(e.message),
   });
 

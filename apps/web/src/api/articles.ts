@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from './client';
+import { keys } from './keys';
 
 export function useArticle(id: string) {
   return useQuery({
-    queryKey: ['article', id],
+    queryKey: keys.article(id),
     queryFn: async () => {
       const res = await api.api.articles[':id'].$get({ param: { id } });
       if (res.status === 404) return null;

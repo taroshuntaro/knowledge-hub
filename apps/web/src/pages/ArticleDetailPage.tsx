@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { useArticle } from '../api/articles';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
@@ -56,7 +57,7 @@ export function ArticleDetailPage() {
     await onOk();
   }
 
-  const invalidateArticle = () => queryClient.invalidateQueries({ queryKey: ['article', id] });
+  const invalidateArticle = () => queryClient.invalidateQueries({ queryKey: keys.article(id) });
 
   const togglePin = () =>
     runAction(
