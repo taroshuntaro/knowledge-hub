@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import type { CommentItemData, CommentNodeData } from '@knowledge-hub/shared';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
 import { Markdown } from '../lib/markdown';
@@ -10,19 +11,6 @@ import { Button } from '@/components/ui/button';
 import { Loading } from './Loading';
 import { EmptyState } from './EmptyState';
 import { MentionTextarea } from './MentionTextarea';
-
-type CommentNode = {
-  id: string;
-  articleId: string;
-  authorId: string;
-  authorName: string;
-  parentId: string | null;
-  bodyMd: string | null;
-  isDeleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-  replies: CommentNode[];
-};
 
 function CommentForm({
   onSubmit,
@@ -85,7 +73,9 @@ function CommentItem({
   articleId,
   isReply,
 }: {
-  comment: CommentNode;
+  // トップレベルは CommentNodeData（replies 付き）、返信は CommentItemData（replies なし・
+  // 1 階層のみ）。isReply の分岐で replies を参照するのはトップレベルのみなので union で受ける。
+  comment: CommentNodeData | CommentItemData;
   articleId: string;
   isReply: boolean;
 }) {
@@ -194,7 +184,7 @@ function CommentItem({
           <CommentForm submitLabel="返信する" onSubmit={postReply} onCancel={() => setReplying(false)} autoFocus />
         </div>
       )}
-      {!isReply && comment.replies.length > 0 && (
+      {!isReply && 'replies' in comment && comment.replies.length > 0 && (
         <div className="mt-2 flex flex-col gap-4 border-l pl-4">
           {comment.replies.map((reply) => (
             <CommentItem key={reply.id} comment={reply} articleId={articleId} isReply />
@@ -223,7 +213,7 @@ export function CommentSection({ articleId }: { articleId: string }) {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   });
 
-  const items = (query.data?.pages ?? []).flatMap((p) => p.items) as CommentNode[];
+  const items = (query.data?.pages ?? []).flatMap((p) => p.items);
 
   async function postComment(bodyMd: string) {
     setPostError(null);

@@ -179,6 +179,20 @@ describe('comment service', () => {
     expect(page2.nextCursor).toBeNull();
   });
 
+  it('createComment / updateComment は authorName を含む CommentItem 形で返す', async () => {
+    const article = await publishedArticle();
+    const author = await createTestUser(ctx.db, { displayName: 'コメント作者' });
+    const created = await createComment(ctx.db, article.id, asUser(author.id), { bodyMd: 'hello' });
+    expect(created.authorName).toBe('コメント作者');
+    expect(created.isDeleted).toBe(false);
+    expect(created).not.toHaveProperty('replies');
+    expect(created).not.toHaveProperty('deletedAt');
+
+    const updated = await updateComment(ctx.db, created.id, asUser(author.id), { bodyMd: 'edited' });
+    expect(updated.authorName).toBe('コメント作者');
+    expect(updated.bodyMd).toBe('edited');
+  });
+
   it('12. カーソルページング: 同一ミリ秒バケット内でマイクロ秒順と id 順が逆でも欠落・重複なし', async () => {
     const article = await publishedArticle();
     const commenter = await createTestUser(ctx.db);
@@ -231,5 +245,22 @@ describe('comment service', () => {
     // 欠落なし・重複なし: 見えた id 集合が両 id と厳密一致し、合計 2 件。
     expect(seenIds).toHaveLength(2);
     expect(new Set(seenIds)).toEqual(expectedIds);
+  });
+
+  it('replies は親コメント 1 件につき最大 100 件に制限される', async () => {
+    const article = await publishedArticle();
+    const commenter = await createTestUser(ctx.db);
+    const parent = await createComment(ctx.db, article.id, asUser(commenter.id), { bodyMd: 'parent' });
+    await ctx.db.insert(comments).values(
+      Array.from({ length: 101 }, (_, i) => ({
+        articleId: article.id,
+        authorId: commenter.id,
+        parentId: parent.id,
+        bodyMd: `reply-${i}`,
+      })),
+    );
+    const page = await listComments(ctx.db, article.id, { limit: 20 });
+    const node = page.items.find((n) => n.id === parent.id)!;
+    expect(node.replies).toHaveLength(100);
   });
 });
