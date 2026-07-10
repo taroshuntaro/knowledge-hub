@@ -22,7 +22,10 @@ export type CommentNode = {
   updatedAt: Date;
   replies: CommentNode[];
 };
-function toNode(row: {
+/** mutation の戻り値・list の各ノードで共通の 1 件分（replies を持たない）。 */
+export type CommentItem = Omit<CommentNode, 'replies'>;
+
+function toItem(row: {
   id: string;
   articleId: string;
   authorId: string;
@@ -32,7 +35,7 @@ function toNode(row: {
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
-}): CommentNode {
+}): CommentItem {
   const isDeleted = row.deletedAt !== null;
   return {
     id: row.id,
@@ -44,8 +47,10 @@ function toNode(row: {
     isDeleted,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    replies: [],
   };
+}
+function toNode(row: Parameters<typeof toItem>[0]): CommentNode {
+  return { ...toItem(row), replies: [] };
 }
 
 const COMMENT_COLUMNS = {
@@ -60,12 +65,22 @@ const COMMENT_COLUMNS = {
   updatedAt: comments.updatedAt,
 };
 
+/** mutation 後に list と同じ形（author JOIN 済み・可視性規則適用）で 1 件返す */
+async function loadItem(db: Db, id: string): Promise<CommentItem> {
+  const [row] = await db
+    .select(COMMENT_COLUMNS)
+    .from(comments)
+    .innerJoin(users, eq(comments.authorId, users.id))
+    .where(eq(comments.id, id));
+  return toItem(row);
+}
+
 export async function createComment(
   db: Db,
   articleId: string,
   author: SessionUser,
   input: { bodyMd: string; parentId?: string },
-): Promise<CommentRecord> {
+): Promise<CommentItem> {
   const article = await assertPublishedArticle(db, articleId);
 
   let parent: CommentRecord | null = null;
@@ -94,7 +109,7 @@ export async function createComment(
     }),
   );
 
-  return row;
+  return loadItem(db, row.id);
 }
 
 export async function listComments(
@@ -185,7 +200,7 @@ export async function updateComment(
   id: string,
   editor: SessionUser,
   input: { bodyMd: string },
-): Promise<CommentRecord> {
+): Promise<CommentItem> {
   const current = await loadOwnComment(db, id);
   // 論理削除（モデレート削除）済みコメントは編集不可。編集で mention 通知を
   // 再送してモデレーションを回避する経路を塞ぐ。
@@ -201,7 +216,7 @@ export async function updateComment(
     .where(eq(comments.id, id))
     .returning();
   await runNotify('comment-mentions-edit', () => notifyCommentMentionsOnEdit(db, row));
-  return row;
+  return loadItem(db, row.id);
 }
 
 export async function deleteComment(db: Db, id: string, editor: SessionUser): Promise<void> {

@@ -179,6 +179,20 @@ describe('comment service', () => {
     expect(page2.nextCursor).toBeNull();
   });
 
+  it('createComment / updateComment は authorName を含む CommentItem 形で返す', async () => {
+    const article = await publishedArticle();
+    const author = await createTestUser(ctx.db, { displayName: 'コメント作者' });
+    const created = await createComment(ctx.db, article.id, asUser(author.id), { bodyMd: 'hello' });
+    expect(created.authorName).toBe('コメント作者');
+    expect(created.isDeleted).toBe(false);
+    expect(created).not.toHaveProperty('replies');
+    expect(created).not.toHaveProperty('deletedAt');
+
+    const updated = await updateComment(ctx.db, created.id, asUser(author.id), { bodyMd: 'edited' });
+    expect(updated.authorName).toBe('コメント作者');
+    expect(updated.bodyMd).toBe('edited');
+  });
+
   it('12. カーソルページング: 同一ミリ秒バケット内でマイクロ秒順と id 順が逆でも欠落・重複なし', async () => {
     const article = await publishedArticle();
     const commenter = await createTestUser(ctx.db);

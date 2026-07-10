@@ -41,3 +41,17 @@ export type ArticleCardData = {
   publishedAt: string | null;
   updatedAt: string;
 };
+
+/** コメント 1 件の wire 形状（日付は ISO 文字列）。list のツリーは CommentNodeData。 */
+export type CommentItemData = {
+  id: string;
+  articleId: string;
+  authorId: string;
+  authorName: string;
+  parentId: string | null;
+  bodyMd: string | null;
+  isDeleted: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+export type CommentNodeData = CommentItemData & { replies: CommentItemData[] };
