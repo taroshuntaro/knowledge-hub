@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { uploads } from '../db/schema';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
@@ -43,12 +44,43 @@ describe('user service', () => {
 
   it('avatarUrl を設定できる', async () => {
     const u = await createTestUser(ctx.db);
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: u.id, storageKey: 'k', mimeType: 'image/png', size: 1 })
+      .returning();
     const updated = await updateProfile(ctx.db, u.id, {
       displayName: u.displayName,
       bio: u.bio ?? '',
-      avatarUrl: '/api/uploads/11111111-1111-1111-1111-111111111111',
+      avatarUrl: `/api/uploads/${upload.id}`,
     });
-    expect(updated.avatarUrl).toBe('/api/uploads/11111111-1111-1111-1111-111111111111');
+    expect(updated.avatarUrl).toBe(`/api/uploads/${upload.id}`);
+  });
+
+  it('avatarUrl が他人のアップロードを指す場合は VALIDATION', async () => {
+    const u = await createTestUser(ctx.db);
+    const other = await createTestUser(ctx.db);
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: other.id, storageKey: 'k', mimeType: 'image/png', size: 1 })
+      .returning();
+    await expect(
+      updateProfile(ctx.db, u.id, {
+        displayName: u.displayName,
+        bio: u.bio ?? '',
+        avatarUrl: `/api/uploads/${upload.id}`,
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('avatarUrl が存在しない upload を指す場合は VALIDATION', async () => {
+    const u = await createTestUser(ctx.db);
+    await expect(
+      updateProfile(ctx.db, u.id, {
+        displayName: u.displayName,
+        bio: u.bio ?? '',
+        avatarUrl: `/api/uploads/${randomUUID()}`,
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
   });
 
   it('avatarUrl を null にすると削除される', async () => {

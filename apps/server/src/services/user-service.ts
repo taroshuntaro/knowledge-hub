@@ -1,16 +1,31 @@
 import { and, eq } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { users } from '../db/schema';
+import { uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { hashPassword, verifyPassword } from './password';
 import { deleteUserSessions, toSessionUser } from './session-service';
+
+const AVATAR_URL_PREFIX = '/api/uploads/';
 
 export async function updateProfile(
   db: Db,
   userId: string,
   input: { displayName: string; bio: string; avatarUrl?: string | null },
 ): Promise<SessionUser> {
+  // updateProfileSchema が形式（/api/uploads/<uuid> アンカー付き）を保証済み。
+  // ここでは「実在し、本人がアップロードしたものか」を検証する（他人の upload UUID を
+  // アバターに据えると、upload GET の可視性がアバター経由で緩む・出所不明の画像を
+  // 自分のプロフィールに紐づけられる、を防ぐ）。
+  if (input.avatarUrl) {
+    const uploadId = input.avatarUrl.slice(AVATAR_URL_PREFIX.length);
+    const owned = await db.query.uploads.findFirst({
+      where: and(eq(uploads.id, uploadId), eq(uploads.uploaderId, userId)),
+      columns: { id: true },
+    });
+    if (!owned) throw new AppError('VALIDATION', 'アバター画像が不正です', 400);
+  }
+
   const [row] = await db
     .update(users)
     .set({

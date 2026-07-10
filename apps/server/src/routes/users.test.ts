@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { uploads } from '../db/schema';
 import { createTestArticle, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 
@@ -26,6 +27,47 @@ describe('user routes', () => {
     });
     expect(res.status).toBe(200);
     expect((await res.json()).displayName).toBe('花子');
+  });
+
+  it('PATCH /api/users/me は他人のアップロード UUID を avatarUrl に指定すると 400', async () => {
+    const me = await createTestUser(ctx.db, { email: 'owner@example.com' });
+    const otherUser = await createTestUser(ctx.db, { email: 'other@example.com' });
+    const loginRes = await ctx.app.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: me.email, password: TEST_PASSWORD }),
+      headers: { 'content-type': 'application/json' },
+    });
+    const cookie = (loginRes.headers.get('set-cookie') ?? '').split(';')[0];
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: otherUser.id, storageKey: 'k', mimeType: 'image/png', size: 1 })
+      .returning();
+    const res = await ctx.app.request('/api/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ displayName: 'x', bio: '', avatarUrl: `/api/uploads/${upload.id}` }),
+      headers: { 'content-type': 'application/json', cookie },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('PATCH /api/users/me は本人のアップロード UUID の avatarUrl を受理する', async () => {
+    const me = await createTestUser(ctx.db, { email: 'owner2@example.com' });
+    const loginRes = await ctx.app.request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: me.email, password: TEST_PASSWORD }),
+      headers: { 'content-type': 'application/json' },
+    });
+    const cookie = (loginRes.headers.get('set-cookie') ?? '').split(';')[0];
+    const [upload] = await ctx.db
+      .insert(uploads)
+      .values({ uploaderId: me.id, storageKey: 'k2', mimeType: 'image/png', size: 1 })
+      .returning();
+    const res = await ctx.app.request('/api/users/me', {
+      method: 'PATCH',
+      body: JSON.stringify({ displayName: 'x', bio: '', avatarUrl: `/api/uploads/${upload.id}` }),
+      headers: { 'content-type': 'application/json', cookie },
+    });
+    expect(res.status).toBe(200);
   });
 
   it('パスワード変更後、旧 Cookie は無効で新 Cookie が発行される', async () => {
