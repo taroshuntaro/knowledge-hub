@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lt, or, sql, type SQL } from 'drizzle-orm';
 import { articles, notifications, users } from '../db/schema';
 import { logger } from '../logger';
 import type { Db } from '../types';
@@ -47,17 +47,26 @@ export async function notifyCommentCreated(
   );
 }
 
-export async function notifyCommentMentionsOnEdit(
+/**
+ * 本文メンションのうち、notifiedScope 内で通知済み（種別・既読問わず）の相手を除いて
+ * mention 通知を insert する共通処理。comment 編集と記事公開/更新で共有。
+ */
+async function notifyFreshMentions(
   db: Db,
-  comment: { id: string; articleId: string; authorId: string; bodyMd: string },
+  input: {
+    bodyMd: string;
+    actorId: string;
+    articleId: string;
+    commentId: string | null;
+    notifiedScope: SQL;
+  },
 ): Promise<void> {
-  const recipients = await resolveMentionRecipients(db, comment.bodyMd, comment.authorId);
+  const recipients = await resolveMentionRecipients(db, input.bodyMd, input.actorId);
   if (recipients.length === 0) return;
-  // このコメントで既に通知（種別問わず・既読含む）済みの相手には再通知しない
   const existing = await db
     .select({ recipientId: notifications.recipientId })
     .from(notifications)
-    .where(and(eq(notifications.commentId, comment.id), inArray(notifications.recipientId, recipients)));
+    .where(and(input.notifiedScope, inArray(notifications.recipientId, recipients)));
   const notified = new Set(existing.map((r) => r.recipientId));
   const fresh = recipients.filter((id) => !notified.has(id));
   if (fresh.length === 0) return;
@@ -65,11 +74,25 @@ export async function notifyCommentMentionsOnEdit(
     fresh.map((recipientId) => ({
       recipientId,
       type: 'mention' as const,
-      actorId: comment.authorId,
-      articleId: comment.articleId,
-      commentId: comment.id,
+      actorId: input.actorId,
+      articleId: input.articleId,
+      ...(input.commentId ? { commentId: input.commentId } : {}),
     })),
   );
+}
+
+export async function notifyCommentMentionsOnEdit(
+  db: Db,
+  comment: { id: string; articleId: string; authorId: string; bodyMd: string },
+): Promise<void> {
+  // このコメントで既に通知（種別問わず・既読含む）済みの相手には再通知しない
+  await notifyFreshMentions(db, {
+    bodyMd: comment.bodyMd,
+    actorId: comment.authorId,
+    articleId: comment.articleId,
+    commentId: comment.id,
+    notifiedScope: eq(notifications.commentId, comment.id),
+  });
 }
 
 export async function notifyReactionAdded(
@@ -100,31 +123,18 @@ export async function notifyArticleMentions(
   db: Db,
   article: { id: string; authorId: string; bodyMd: string },
 ): Promise<void> {
-  const recipients = await resolveMentionRecipients(db, article.bodyMd, article.authorId);
-  if (recipients.length === 0) return;
   // 同一記事で既に本文メンション通知（既読含む）済みの相手には再通知しない
-  const existing = await db
-    .select({ recipientId: notifications.recipientId })
-    .from(notifications)
-    .where(
-      and(
-        eq(notifications.articleId, article.id),
-        eq(notifications.type, 'mention'),
-        isNull(notifications.commentId),
-        inArray(notifications.recipientId, recipients),
-      ),
-    );
-  const notified = new Set(existing.map((r) => r.recipientId));
-  const fresh = recipients.filter((id) => !notified.has(id));
-  if (fresh.length === 0) return;
-  await db.insert(notifications).values(
-    fresh.map((recipientId) => ({
-      recipientId,
-      type: 'mention' as const,
-      actorId: article.authorId,
-      articleId: article.id,
-    })),
-  );
+  await notifyFreshMentions(db, {
+    bodyMd: article.bodyMd,
+    actorId: article.authorId,
+    articleId: article.id,
+    commentId: null,
+    notifiedScope: and(
+      eq(notifications.articleId, article.id),
+      eq(notifications.type, 'mention'),
+      isNull(notifications.commentId),
+    )!,
+  });
 }
 
 export type NotificationItem = {

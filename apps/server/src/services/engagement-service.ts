@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull, lt, or, sql } from 'drizzle-orm';
 import { REACTION_EMOJIS, type ArticleEngagement } from '@knowledge-hub/shared';
 import { articles, bookmarks, categories, comments, reactions, users } from '../db/schema';
-import { fetchListMetadata } from './article-service';
+import { fetchListMetadata, ARTICLE_CARD_COLUMNS } from './article-service';
 import type { Db } from '../types';
 import { assertPublishedArticle, publishedArticleWhere } from './article-visibility';
 import { decodeCursor, encodeCursor, type Page } from './cursor';
@@ -98,19 +98,8 @@ export async function getEngagement(db: Db, userId: string, articleId: string): 
 }
 
 const BOOKMARK_COLUMNS = {
-  id: articles.id,
-  title: articles.title,
-  excerpt: sql<string>`left(${articles.searchText}, 160)`,
-  authorId: articles.authorId,
-  authorName: users.displayName,
-  categoryId: articles.categoryId,
-  pinnedAt: articles.pinnedAt,
-  publishedAt: articles.publishedAt,
-  updatedAt: articles.updatedAt,
+  ...ARTICLE_CARD_COLUMNS,
   bookmarkedAt: bookmarks.createdAt,
-  heroImageUploadId: articles.heroImageUploadId,
-  categoryName: categories.name,
-  authorAvatarUrl: users.avatarUrl,
   // カーソルのタイブレークは bookmarks.id で行うため、articles.id とは別に保持する
   // （BOOKMARK_COLUMNS.id は API 形状用に articles.id を指しており、bookmarks.id と
   // 混同するとタイブレークが無関係な article id と比較される不具合になる）。

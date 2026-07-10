@@ -286,7 +286,9 @@ type RawListRow = {
   authorAvatarUrl: string | null;
 };
 
-const LIST_COLUMNS = {
+// 記事カード（一覧 8 画面共通）の基底 select 列。bookmarks/search は
+// spread + 差分宣言で再利用する（engagement-service / search-service 参照）。
+export const ARTICLE_CARD_COLUMNS = {
   id: articles.id,
   title: articles.title,
   excerpt: sql<string>`left(${articles.searchText}, 160)`,
@@ -389,7 +391,7 @@ async function pagePublished(
       )
     : base;
   const rows = await db
-    .select(LIST_COLUMNS)
+    .select(ARTICLE_CARD_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
@@ -411,7 +413,7 @@ export function listFeed(db: Db, page: { cursor?: string; limit: number }) {
 
 export async function listPickup(db: Db): Promise<ArticleListItem[]> {
   const rows = await db
-    .select(LIST_COLUMNS)
+    .select(ARTICLE_CARD_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
@@ -469,7 +471,7 @@ export async function listMine(
       )
     : filter;
   const rows = await db
-    .select(LIST_COLUMNS)
+    .select(ARTICLE_CARD_COLUMNS)
     .from(articles)
     .innerJoin(users, eq(articles.authorId, users.id))
     .leftJoin(categories, eq(articles.categoryId, categories.id))
