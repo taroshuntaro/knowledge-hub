@@ -5,7 +5,7 @@ import {
   articles, articleTags, categories, tags, users,
 } from '../db/schema';
 import type { Db } from '../types';
-import { fetchListMetadata } from './article-service';
+import { fetchListMetadata, ARTICLE_CARD_COLUMNS } from './article-service';
 import { publishedArticleWhere } from './article-visibility';
 import { categoryAndDescendantIds } from './category-service';
 import { decodeCursor, encodeCursor } from './cursor';
@@ -48,6 +48,9 @@ export interface SearchService {
 function escapeLike(s: string): string {
   return s.replace(/[\\%_]/g, (ch) => `\\${ch}`);
 }
+
+// search は excerpt の代わりに snippet を返し、pinnedAt を持たない（既存 API 形状）
+const { excerpt: _excerpt, pinnedAt: _pinnedAt, ...SEARCH_CARD_COLUMNS } = ARTICLE_CARD_COLUMNS;
 
 export function createBigmSearchService(): SearchService {
   return {
@@ -97,19 +100,7 @@ export function createBigmSearchService(): SearchService {
         end`;
 
       const rows = await db
-        .select({
-          id: articles.id,
-          title: articles.title,
-          snippet,
-          authorId: articles.authorId,
-          authorName: users.displayName,
-          categoryId: articles.categoryId,
-          publishedAt: articles.publishedAt,
-          updatedAt: articles.updatedAt,
-          heroImageUploadId: articles.heroImageUploadId,
-          categoryName: categories.name,
-          authorAvatarUrl: users.avatarUrl,
-        })
+        .select({ ...SEARCH_CARD_COLUMNS, snippet })
         .from(articles)
         .innerJoin(users, eq(articles.authorId, users.id))
         .leftJoin(categories, eq(articles.categoryId, categories.id))
