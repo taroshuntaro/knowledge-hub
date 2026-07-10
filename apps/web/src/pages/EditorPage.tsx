@@ -191,7 +191,7 @@ export function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, bodyMd, categoryId, heroImageUploadId, tags]);
 
-  async function publish() {
+  async function publish(): Promise<boolean> {
     // id の有無に関わらず必ず保存をフラッシュしてから publish する。
     // （id ありをスキップすると、デバウンス発火前の直近編集が公開版に含まれず、
     //   navigate によるアンマウントで保存もされず失われる）
@@ -202,22 +202,23 @@ export function EditorPage() {
       target = await enqueueSave();
     } catch {
       setError('保存に失敗しました');
-      return;
+      return false;
     }
-    if (!target) return;
+    if (!target) return false;
     let res: Awaited<ReturnType<typeof api.api.articles[':id']['publish']['$post']>>;
     try {
       res = await api.api.articles[':id'].publish.$post({ param: { id: target } });
     } catch {
       setError(NETWORK_ERROR_MESSAGE);
-      return;
+      return false;
     }
     if (!res.ok) {
       setError(await errorMessage(res, '公開に失敗しました'));
-      return;
+      return false;
     }
     await queryClient.invalidateQueries({ queryKey: keys.feed });
     navigate(`/articles/${target}`);
+    return true;
   }
 
   // ソースモード（CodeMirror）での画像 D&D / ペースト。
@@ -334,7 +335,7 @@ export function EditorPage() {
           </div>
         </div>
       )}
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      {error && !publishOpen && <p role="alert" className="text-sm text-destructive">{error}</p>}
       {status && <p role="status" className="text-sm text-muted-foreground">{status}</p>}
       </section>
 
@@ -360,10 +361,13 @@ export function EditorPage() {
               <TagInput id="publish-tags" value={tags} onChange={setTags} />
             </div>
             <div className="mt-auto grid gap-2">
+              {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
               <Button
                 type="button"
                 disabled={!categoryId || !title.trim()}
-                onClick={async () => { setPublishOpen(false); await publish(); }}
+                onClick={async () => {
+                  if (await publish()) setPublishOpen(false);
+                }}
               >
                 {publishLabel}
               </Button>

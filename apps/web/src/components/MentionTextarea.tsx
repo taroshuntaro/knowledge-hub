@@ -136,18 +136,13 @@ export function MentionTextarea({
               key={c.id}
               role="option"
               aria-selected={i === active}
+              className={`w-full cursor-pointer rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? 'bg-accent text-accent-foreground' : ''}`}
               onMouseDown={(e) => {
                 e.preventDefault();
                 insertMention(c);
               }}
             >
-              <button
-                type="button"
-                tabIndex={-1}
-                className={`w-full rounded-sm px-2 py-1.5 text-left text-sm ${i === active ? 'bg-accent text-accent-foreground' : ''}`}
-              >
-                {c.displayName}
-              </button>
+              {c.displayName}
             </li>
           ))}
         </ul>

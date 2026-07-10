@@ -174,6 +174,10 @@ describe('ArticleDetailPage', () => {
     expect(screen.getByText('a')).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute('src', '/api/uploads/up1');
     expect(screen.getByText('2026年7月5日')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: article.authorName })).toHaveAttribute(
+      'href',
+      `/users/${article.authorId}`,
+    );
   });
 
   it('ゴミ箱へは destructive ボタン（テキストリンクでない）', async () => {

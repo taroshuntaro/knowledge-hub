@@ -14,7 +14,7 @@ export function HomePage() {
     queryFn: async () => {
       const res = await api.api.articles.pickup.$get();
       if (!res.ok) throw new Error('failed');
-      return (await res.json()) as ArticleItem[];
+      return res.json();
     },
   });
   const feed = useCursorList<ArticleItem>(keys.feed, async (cursor) => {
