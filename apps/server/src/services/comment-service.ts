@@ -142,13 +142,27 @@ export async function listComments(
       : null;
 
   const topIds = topRows.map((r) => r.id);
+  // 返信は 1 階層のみで実運用では少数だが、防御上限として親ごとに最大 100 件に制限する
+  // （超過分は切り捨て。無制限だと 1 親に大量返信を付けられた場合にレスポンスが際限なく肥大する）。
+  const REPLIES_PER_PARENT_LIMIT = 100;
+  const ranked = db
+    .select({
+      ...COMMENT_COLUMNS,
+      rn: sql<number>`row_number() over (
+        partition by ${comments.parentId}
+        order by ${comments.createdAt} asc, ${comments.id} asc
+      )`.as('rn'),
+    })
+    .from(comments)
+    .innerJoin(users, eq(comments.authorId, users.id))
+    .where(inArray(comments.parentId, topIds))
+    .as('ranked');
   const replyRows = topIds.length
     ? await db
-        .select(COMMENT_COLUMNS)
-        .from(comments)
-        .innerJoin(users, eq(comments.authorId, users.id))
-        .where(inArray(comments.parentId, topIds))
-        .orderBy(asc(comments.createdAt), asc(comments.id))
+        .select()
+        .from(ranked)
+        .where(sql`${ranked.rn} <= ${REPLIES_PER_PARENT_LIMIT}`)
+        .orderBy(asc(ranked.createdAt), asc(ranked.id))
     : [];
 
   const items = topRows.map((row) => {

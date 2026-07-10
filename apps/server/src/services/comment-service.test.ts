@@ -232,4 +232,21 @@ describe('comment service', () => {
     expect(seenIds).toHaveLength(2);
     expect(new Set(seenIds)).toEqual(expectedIds);
   });
+
+  it('replies は親コメント 1 件につき最大 100 件に制限される', async () => {
+    const article = await publishedArticle();
+    const commenter = await createTestUser(ctx.db);
+    const parent = await createComment(ctx.db, article.id, asUser(commenter.id), { bodyMd: 'parent' });
+    await ctx.db.insert(comments).values(
+      Array.from({ length: 101 }, (_, i) => ({
+        articleId: article.id,
+        authorId: commenter.id,
+        parentId: parent.id,
+        bodyMd: `reply-${i}`,
+      })),
+    );
+    const page = await listComments(ctx.db, article.id, { limit: 20 });
+    const node = page.items.find((n) => n.id === parent.id)!;
+    expect(node.replies).toHaveLength(100);
+  });
 });
