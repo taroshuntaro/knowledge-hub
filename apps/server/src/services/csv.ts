@@ -2,9 +2,10 @@
  * RFC 4180 準拠の最小 CSV パーサ。外部依存を増やさないための自前実装。
  * BOM 除去・ダブルクォート（"" エスケープ、クォート内カンマ/改行）・CRLF/LF 対応。
  * 空行（全フィールドが空白のみの 1 フィールド行）は取り除く。
+ * 1 フィールドのみの空白行はデータと区別できず取り除かれるため、1 列 CSV には使わないこと。
  */
 export function parseCsv(text: string): string[][] {
-  const src = text.replace(/^﻿/, '');
+  const src = text.replace(/^\ufeff/, '');
   const rows: string[][] = [];
   let row: string[] = [];
   let field = '';

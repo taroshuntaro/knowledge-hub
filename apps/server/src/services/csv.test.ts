@@ -15,7 +15,7 @@ describe('parseCsv', () => {
   });
 
   it('BOM・末尾改行・空行を無視する', () => {
-    expect(parseCsv('﻿a,b\n\n1,2\n')).toEqual([['a', 'b'], ['1', '2']]);
+    expect(parseCsv('\ufeffa,b\n\n1,2\n')).toEqual([['a', 'b'], ['1', '2']]);
   });
 
   it('空文字列は空配列', () => {
