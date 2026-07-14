@@ -73,6 +73,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <Item to="/" icon={Home} label="フィード" onNavigate={onNavigate} />
         <Item to="/search" icon={Search} label="検索" onNavigate={onNavigate} />
         <Item to="/me/bookmarks" icon={Bookmark} label="ブックマーク" onNavigate={onNavigate} />
+        <Item to="/members" icon={Users} label="メンバー" onNavigate={onNavigate} />
 
         <Group>カテゴリ</Group>
         {(categories ?? []).map((c) => (

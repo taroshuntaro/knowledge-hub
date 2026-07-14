@@ -16,6 +16,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { PasswordResetConfirmPage } from './pages/PasswordResetConfirmPage';
 import { PasswordResetRequestPage } from './pages/PasswordResetRequestPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ProfilesPage } from './pages/ProfilesPage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TagPage } from './pages/TagPage';
@@ -58,6 +59,7 @@ const router = createBrowserRouter([
       { path: '/tags/:name', element: <TagPage /> },
       { path: '/users/:id', element: <ProfilePage /> },
       { path: '/search', element: <SearchPage /> },
+      { path: '/members', element: <ProfilesPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
       { path: '/me/bookmarks', element: <BookmarksPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
