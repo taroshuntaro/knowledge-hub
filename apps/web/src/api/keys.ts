@@ -22,6 +22,9 @@ export const keys = {
   categories: ['categories'] as const,
   user: (id: string) => ['user', id] as const,
   adminUsers: ['admin-users'] as const,
+  profiles: ['profiles'] as const,
+  adminDepartments: ['admin-departments'] as const,
+  adminPositions: ['admin-positions'] as const,
   mentionCandidates: ['mention-candidates'] as const,
   search: (q: string, categoryId: string | null, tagName: string, authorId: string | null) =>
     ['search', q, categoryId, tagName, authorId] as const,
