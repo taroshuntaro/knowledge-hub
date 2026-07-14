@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { createMasterSchema, inviteSchema, updateMasterSchema, updateUserByAdminSchema } from '@knowledge-hub/shared';
 import { AppError } from '../errors';
 import { requireCan } from '../middleware/admin';
@@ -26,22 +27,29 @@ export const adminRoutes = new Hono<AppEnv>()
     const updated = await updateUserByAdmin(c.get('db'), c.req.param('id'), c.req.valid('json'));
     return c.json(updated);
   })
-  .post('/users/import', async (c) => {
-    const body = await c.req.parseBody();
-    const file = body.file;
-    if (!(file instanceof File)) {
-      throw new AppError('VALIDATION', 'CSV ファイルを file フィールドで指定してください', 400);
-    }
-    const result = await importUserOrg(c.get('db'), await file.text());
-    if (!result.ok) {
-      return c.json(
-        { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
-        400,
-      );
-    }
-    const { ok: _ok, ...summary } = result;
-    return c.json(summary);
-  })
+  .post(
+    '/users/import',
+    bodyLimit({
+      maxSize: 5 * 1024 * 1024,
+      onError: (c) => c.json({ code: 'VALIDATION', message: 'ファイルサイズが大きすぎます（上限5MB）' }, 413),
+    }),
+    async (c) => {
+      const body = await c.req.parseBody();
+      const file = body.file;
+      if (!(file instanceof File)) {
+        throw new AppError('VALIDATION', 'CSV ファイルを file フィールドで指定してください', 400);
+      }
+      const result = await importUserOrg(c.get('db'), await file.text());
+      if (!result.ok) {
+        return c.json(
+          { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
+          400,
+        );
+      }
+      const { ok: _ok, ...summary } = result;
+      return c.json(summary);
+    },
+  )
   .get('/departments', async (c) => c.json(await listDepartments(c.get('db'))))
   .post('/departments', validate('json', createMasterSchema), async (c) =>
     c.json(await createDepartment(c.get('db'), c.req.valid('json').name), 201))
