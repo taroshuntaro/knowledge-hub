@@ -59,7 +59,10 @@ export function AdminUsersPage() {
     setImportMsg(null);
     setImportErrors([]);
     const file = fileRef.current?.files?.[0];
-    if (!file) return;
+    if (!file) {
+      setImportMsg('CSV ファイルを選択してください');
+      return;
+    }
     try {
       const res = await api.api.admin.users.import.$post({ form: { file } });
       const body = await res.json();
