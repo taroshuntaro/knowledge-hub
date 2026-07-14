@@ -8,6 +8,20 @@ export const authProviderEnum = pgEnum('auth_provider', ['oidc', 'password']);
 export const articleStatusEnum = pgEnum('article_status', ['draft', 'published']);
 export const notificationTypeEnum = pgEnum('notification_type', ['comment', 'reply', 'reaction', 'mention']);
 
+export const departments = pgTable('departments', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const positions = pgTable('positions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  name: text('name').notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   email: text('email').notNull().unique(),
@@ -18,6 +32,9 @@ export const users = pgTable('users', {
   authProvider: authProviderEnum('auth_provider').notNull(),
   passwordHash: text('password_hash'),
   isActive: boolean('is_active').notNull().default(true),
+  departmentId: uuid('department_id').references(() => departments.id, { onDelete: 'set null' }),
+  positionId: uuid('position_id').references(() => positions.id, { onDelete: 'set null' }),
+  hireYear: integer('hire_year'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

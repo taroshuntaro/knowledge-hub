@@ -67,6 +67,6 @@ export function createTestApp(opts?: { config?: Partial<Config>; oidcAuth?: Oidc
 
 export async function resetDb(db: Db) {
   await db.execute(
-    sql`truncate table article_tags, article_revisions, articles, tags, categories, uploads, users, sessions, invitations, password_reset_tokens cascade`,
+    sql`truncate table article_tags, article_revisions, articles, tags, categories, uploads, users, sessions, invitations, password_reset_tokens, departments, positions cascade`,
   );
 }
