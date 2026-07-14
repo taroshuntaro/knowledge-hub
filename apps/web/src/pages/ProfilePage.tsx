@@ -40,6 +40,13 @@ export function ProfilePage() {
         <Avatar src={profile.avatarUrl} name={profile.displayName} className="size-16 text-xl font-semibold" />
         <div>
           <h2 className="text-xl font-bold tracking-tight">{profile.displayName}</h2>
+          {(profile.department || profile.position || profile.hireYear !== null) && (
+            <p className="text-sm text-muted-foreground">
+              {[profile.department?.name, profile.position?.name].filter(Boolean).join(' / ')}
+              {profile.hireYear !== null &&
+                `${profile.department || profile.position ? ' ・ ' : ''}${profile.hireYear} 年入社`}
+            </p>
+          )}
           {profile.bio && <p className="whitespace-pre-wrap text-sm text-muted-foreground">{profile.bio}</p>}
         </div>
       </div>

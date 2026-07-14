@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { uploads, users } from '../db/schema';
+import { departments, positions, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { hashPassword, verifyPassword } from './password';
@@ -43,16 +43,39 @@ export type PublicProfile = {
   displayName: string;
   bio: string | null;
   avatarUrl: string | null;
+  department: { id: string; name: string } | null;
+  position: { id: string; name: string } | null;
+  hireYear: number | null;
 };
 
 export async function getPublicProfile(db: Db, id: string): Promise<PublicProfile> {
   // UUID 形式の検証はルート層（requireUuidParam）に一元化した。
-  const row = await db.query.users.findFirst({
-    where: eq(users.id, id),
-    columns: { id: true, displayName: true, bio: true, avatarUrl: true },
-  });
+  const [row] = await db
+    .select({
+      id: users.id,
+      displayName: users.displayName,
+      bio: users.bio,
+      avatarUrl: users.avatarUrl,
+      hireYear: users.hireYear,
+      departmentId: departments.id,
+      departmentName: departments.name,
+      positionId: positions.id,
+      positionName: positions.name,
+    })
+    .from(users)
+    .leftJoin(departments, eq(users.departmentId, departments.id))
+    .leftJoin(positions, eq(users.positionId, positions.id))
+    .where(eq(users.id, id));
   if (!row) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
-  return row;
+  return {
+    id: row.id,
+    displayName: row.displayName,
+    bio: row.bio,
+    avatarUrl: row.avatarUrl,
+    hireYear: row.hireYear,
+    department: row.departmentId ? { id: row.departmentId, name: row.departmentName! } : null,
+    position: row.positionId ? { id: row.positionId, name: row.positionName! } : null,
+  };
 }
 
 export async function changePassword(
@@ -84,11 +107,20 @@ export type AdminUserView = {
   isActive: boolean;
   createdAt: Date;
   avatarUrl: string | null;
+  departmentId: string | null;
+  positionId: string | null;
+  hireYear: number | null;
 };
 
 function toAdminView(row: typeof users.$inferSelect): AdminUserView {
-  const { id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl } = row;
-  return { id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl };
+  const {
+    id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl,
+    departmentId, positionId, hireYear,
+  } = row;
+  return {
+    id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl,
+    departmentId, positionId, hireYear,
+  };
 }
 
 export async function listUsers(db: Db): Promise<AdminUserView[]> {
@@ -99,13 +131,33 @@ export async function listUsers(db: Db): Promise<AdminUserView[]> {
 export async function updateUserByAdmin(
   db: Db,
   targetId: string,
-  patch: { role?: 'member' | 'admin'; isActive?: boolean },
+  patch: {
+    role?: 'member' | 'admin';
+    isActive?: boolean;
+    departmentId?: string | null;
+    positionId?: string | null;
+    hireYear?: number | null;
+  },
 ): Promise<AdminUserView> {
   // 降格判定と更新を1トランザクションにまとめ、アクティブ管理者行を FOR UPDATE で
   // ロックすることで、複数の管理者を同時に降格して0人になる TOCTOU レースを防ぐ。
   const row = await db.transaction(async (tx) => {
     const target = await tx.query.users.findFirst({ where: eq(users.id, targetId) });
     if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
+
+    // FK 違反を 500 にせず、割当先の実在をアプリ層で 400 にする
+    if (patch.departmentId) {
+      const dep = await tx.query.departments.findFirst({
+        where: eq(departments.id, patch.departmentId), columns: { id: true },
+      });
+      if (!dep) throw new AppError('VALIDATION', '所属が存在しません', 400);
+    }
+    if (patch.positionId) {
+      const pos = await tx.query.positions.findFirst({
+        where: eq(positions.id, patch.positionId), columns: { id: true },
+      });
+      if (!pos) throw new AppError('VALIDATION', '役職が存在しません', 400);
+    }
 
     const demoting =
       target.role === 'admin' && (patch.role === 'member' || patch.isActive === false);

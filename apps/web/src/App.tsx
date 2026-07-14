@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
+import { AdminMastersPage } from './pages/AdminMastersPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -16,6 +17,7 @@ import { NotificationsPage } from './pages/NotificationsPage';
 import { PasswordResetConfirmPage } from './pages/PasswordResetConfirmPage';
 import { PasswordResetRequestPage } from './pages/PasswordResetRequestPage';
 import { ProfilePage } from './pages/ProfilePage';
+import { ProfilesPage } from './pages/ProfilesPage';
 import { SearchPage } from './pages/SearchPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { TagPage } from './pages/TagPage';
@@ -58,10 +60,12 @@ const router = createBrowserRouter([
       { path: '/tags/:name', element: <TagPage /> },
       { path: '/users/:id', element: <ProfilePage /> },
       { path: '/search', element: <SearchPage /> },
+      { path: '/members', element: <ProfilesPage /> },
       { path: '/me/articles', element: <MyArticlesPage /> },
       { path: '/me/bookmarks', element: <BookmarksPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/admin/categories', element: <RequireRole role="admin"><AdminCategoriesPage /></RequireRole> },
+      { path: '/admin/masters', element: <RequireRole role="admin"><AdminMastersPage /></RequireRole> },
     ],
   },
 ]);

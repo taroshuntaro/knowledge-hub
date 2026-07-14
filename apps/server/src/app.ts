@@ -12,6 +12,7 @@ import { articleCommentRoutes, commentRoutes } from './routes/comments';
 import { articleEngagementRoutes, meRoutes } from './routes/engagement';
 import { healthRoutes } from './routes/health';
 import { notificationRoutes } from './routes/notifications';
+import { profileRoutes } from './routes/profiles';
 import { searchRoutes } from './routes/search';
 import { tagRoutes } from './routes/tags';
 import { uploadRoutes } from './routes/uploads';
@@ -48,6 +49,7 @@ export function buildApp(
     .route('/api/auth', authRoutes)
     .route('/api/auth/oidc', authOidcRoutes)
     .route('/api/users', userRoutes)
+    .route('/api/profiles', profileRoutes)
     .route('/api/admin', adminRoutes)
     .route('/api/categories', categoryRoutes)
     .route('/api/tags', tagRoutes)

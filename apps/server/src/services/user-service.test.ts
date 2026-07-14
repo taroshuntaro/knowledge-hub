@@ -4,7 +4,8 @@ import { uploads } from '../db/schema';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
-import { changePassword, getPublicProfile, updateProfile } from './user-service';
+import { changePassword, getPublicProfile, listUsers, updateProfile, updateUserByAdmin } from './user-service';
+import { createDepartment, createPosition } from './master-service';
 
 describe('user service', () => {
   const ctx = createTestApp();
@@ -119,6 +120,9 @@ describe('user service', () => {
         displayName: '公開太郎',
         bio: '自己紹介',
         avatarUrl: '/api/uploads/11111111-1111-1111-1111-111111111111',
+        department: null,
+        position: null,
+        hireYear: null,
       });
       expect(profile).not.toHaveProperty('email');
       expect(profile).not.toHaveProperty('role');
@@ -132,5 +136,40 @@ describe('user service', () => {
     });
     // 不正な UUID 形式の弾き方はルート層（requireUuidParam）の責務に一元化したため、
     // その検証は routes/users.test.ts の GET /api/users/:id で行う。
+  });
+
+  it('admin 更新で所属・役職・入社年を設定/クリアでき、一覧・公開プロフィールに出る', async () => {
+    const dep = await createDepartment(ctx.db, '開発部');
+    const pos = await createPosition(ctx.db, '部長');
+    const user = await createTestUser(ctx.db);
+
+    const updated = await updateUserByAdmin(ctx.db, user.id, {
+      departmentId: dep.id, positionId: pos.id, hireYear: 2020,
+    });
+    expect(updated).toMatchObject({ departmentId: dep.id, positionId: pos.id, hireYear: 2020 });
+
+    const profile = await getPublicProfile(ctx.db, user.id);
+    expect(profile.department).toEqual({ id: dep.id, name: '開発部' });
+    expect(profile.position).toEqual({ id: pos.id, name: '部長' });
+    expect(profile.hireYear).toBe(2020);
+
+    const list = await listUsers(ctx.db);
+    expect(list.find((u) => u.id === user.id)).toMatchObject({ departmentId: dep.id, hireYear: 2020 });
+
+    const cleared = await updateUserByAdmin(ctx.db, user.id, {
+      departmentId: null, positionId: null, hireYear: null,
+    });
+    expect(cleared).toMatchObject({ departmentId: null, positionId: null, hireYear: null });
+  });
+
+  it('存在しない所属/役職の割当は VALIDATION', async () => {
+    const user = await createTestUser(ctx.db);
+    const missing = '00000000-0000-0000-0000-000000000000';
+    await expect(
+      updateUserByAdmin(ctx.db, user.id, { departmentId: missing }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+    await expect(
+      updateUserByAdmin(ctx.db, user.id, { positionId: missing }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
   });
 });
