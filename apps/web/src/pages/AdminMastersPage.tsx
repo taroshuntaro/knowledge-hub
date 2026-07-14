@@ -29,14 +29,26 @@ function MasterSection({ kind, title }: { kind: MasterKind; title: string }) {
     }
   }
 
-  // 隣と sortOrder を入れ替えて並び順を 1 つ動かす
-  function onMove(index: number, dir: -1 | 1) {
+  // 隣と sortOrder を入れ替えて並び順を 1 つ動かす。2 回の PATCH は原子的でないため、
+  // 2 回目が失敗したら 1 回目を元に戻す（戻しも失敗した場合は invalidate の refetch が
+  // サーバーの実状態に同期する）。
+  async function onMove(index: number, dir: -1 | 1) {
     const list = items ?? [];
     const a = list[index];
     const b = list[index + dir];
     if (!a || !b) return;
-    update.mutate({ id: a.id, sortOrder: b.sortOrder }, { onError: (e) => setMessage(e.message) });
-    update.mutate({ id: b.id, sortOrder: a.sortOrder }, { onError: (e) => setMessage(e.message) });
+    setMessage(null);
+    try {
+      await update.mutateAsync({ id: a.id, sortOrder: b.sortOrder });
+      try {
+        await update.mutateAsync({ id: b.id, sortOrder: a.sortOrder });
+      } catch (err) {
+        await update.mutateAsync({ id: a.id, sortOrder: a.sortOrder }).catch(() => {});
+        throw err;
+      }
+    } catch (err) {
+      setMessage((err as Error).message);
+    }
   }
 
   function onDelete(id: string, itemName: string) {
@@ -65,9 +77,9 @@ function MasterSection({ kind, title }: { kind: MasterKind; title: string }) {
             <li key={item.id} className="flex items-center gap-2 py-2">
               <span className="flex-1">{item.name}</span>
               <Button type="button" variant="ghost" size="sm" aria-label={`${item.name} を上へ`}
-                disabled={i === 0} onClick={() => onMove(i, -1)}>↑</Button>
+                disabled={i === 0 || update.isPending} onClick={() => onMove(i, -1)}>↑</Button>
               <Button type="button" variant="ghost" size="sm" aria-label={`${item.name} を下へ`}
-                disabled={i === (items ?? []).length - 1} onClick={() => onMove(i, 1)}>↓</Button>
+                disabled={i === (items ?? []).length - 1 || update.isPending} onClick={() => onMove(i, 1)}>↓</Button>
               <Button type="button" variant="outline" size="sm" onClick={() => onRename(item.id, item.name)}>改名</Button>
               <Button type="button" variant="outline" size="sm"
                 className="border-destructive text-destructive hover:text-destructive"

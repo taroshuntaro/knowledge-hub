@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 const postDepartment = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+const patchDepartment = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
 vi.mock('../api/client', () => ({
   api: {
     api: {
@@ -17,7 +18,7 @@ vi.mock('../api/client', () => ({
             ],
           }),
           $post: (...args: unknown[]) => postDepartment(...args),
-          ':id': { $patch: vi.fn(), $delete: vi.fn() },
+          ':id': { $patch: (...args: unknown[]) => patchDepartment(...args), $delete: vi.fn() },
         },
         positions: {
           $get: vi.fn().mockResolvedValue({
@@ -48,5 +49,26 @@ describe('AdminMastersPage', () => {
     await userEvent.type(within(section).getByLabelText('名称'), '人事部');
     await userEvent.click(within(section).getByRole('button', { name: '追加' }));
     expect(postDepartment).toHaveBeenCalledWith({ json: { name: '人事部' } });
+  });
+
+  it('並び替えの2回目のPATCHが失敗したら1回目を元に戻す', async () => {
+    patchDepartment
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ message: '更新に失敗しました' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) });
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <AdminMastersPage />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('開発部')).toBeInTheDocument();
+
+    const section = screen.getByRole('region', { name: '所属' });
+    await userEvent.click(within(section).getByRole('button', { name: '開発部 を下へ' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('更新に失敗しました');
+    expect(patchDepartment).toHaveBeenCalledTimes(3);
+    expect(patchDepartment).toHaveBeenNthCalledWith(3, { param: { id: 'd1' }, json: { sortOrder: 0 } });
   });
 });
