@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Bookmark, FolderTree, Home, PenLine, Search, Settings, Users, LogOut, ChevronRight,
+  Bookmark, Briefcase, FolderTree, Home, PenLine, Search, Settings, Users, LogOut, ChevronRight,
 } from 'lucide-react';
 import { api } from '../api/client';
 import { useMe } from '../auth/useMe';
@@ -103,6 +103,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <Group>管理</Group>
             <Item to="/admin/categories" icon={FolderTree} label="カテゴリ管理" onNavigate={onNavigate} />
             <Item to="/admin" icon={Users} label="ユーザー" onNavigate={onNavigate} />
+            <Item to="/admin/masters" icon={Briefcase} label="所属・役職" onNavigate={onNavigate} />
           </>
         )}
       </nav>

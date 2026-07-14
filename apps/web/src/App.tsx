@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import { AdminCategoriesPage } from './pages/AdminCategoriesPage';
+import { AdminMastersPage } from './pages/AdminMastersPage';
 import { AdminUsersPage } from './pages/AdminUsersPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoriesPage } from './pages/CategoriesPage';
@@ -64,6 +65,7 @@ const router = createBrowserRouter([
       { path: '/me/bookmarks', element: <BookmarksPage /> },
       { path: '/notifications', element: <NotificationsPage /> },
       { path: '/admin/categories', element: <RequireRole role="admin"><AdminCategoriesPage /></RequireRole> },
+      { path: '/admin/masters', element: <RequireRole role="admin"><AdminMastersPage /></RequireRole> },
     ],
   },
 ]);
