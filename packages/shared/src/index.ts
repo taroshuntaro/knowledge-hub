@@ -4,3 +4,4 @@ export * from './schemas/auth';
 export * from './schemas/article';
 export * from './constants';
 export * from './schemas/comment';
+export * from './schemas/profile';

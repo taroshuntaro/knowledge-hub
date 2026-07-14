@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { hireYearSchema } from './profile';
 
 export const passwordSchema = z
   .string()
@@ -34,7 +35,10 @@ export const updateUserByAdminSchema = z
   .object({
     role: z.enum(['member', 'admin']).optional(),
     isActive: z.boolean().optional(),
+    departmentId: z.string().uuid().nullable().optional(),
+    positionId: z.string().uuid().nullable().optional(),
+    hireYear: hireYearSchema.nullable().optional(),
   })
-  .refine((v) => v.role !== undefined || v.isActive !== undefined, {
+  .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: '変更内容を指定してください',
   });
