@@ -44,7 +44,7 @@ describe('ProfilePage', () => {
     getUser.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: 'u1', displayName: '太郎', bio: '自己紹介です', avatarUrl: null }),
+      json: async () => ({ id: 'u1', displayName: '太郎', bio: '自己紹介です', avatarUrl: null, department: null, position: null, hireYear: null }),
     });
     getUserArticles.mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [], nextCursor: null }) });
 
@@ -58,7 +58,7 @@ describe('ProfilePage', () => {
     getUser.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: 'u1', displayName: '花子', bio: '', avatarUrl: null }),
+      json: async () => ({ id: 'u1', displayName: '花子', bio: '', avatarUrl: null, department: null, position: null, hireYear: null }),
     });
     getUserArticles.mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [], nextCursor: null }) });
 
@@ -72,7 +72,7 @@ describe('ProfilePage', () => {
     getUser.mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ id: 'u1', displayName: '太郎', bio: '', avatarUrl: null }),
+      json: async () => ({ id: 'u1', displayName: '太郎', bio: '', avatarUrl: null, department: null, position: null, hireYear: null }),
     });
     getUserArticles.mockResolvedValue({
       ok: true,
@@ -91,5 +91,18 @@ describe('ProfilePage', () => {
     renderPage();
 
     expect(await screen.findByRole('link', { name: '記事タイトル' })).toHaveAttribute('href', '/articles/a1');
+  });
+
+  it('所属・役職・入社年を表示する', async () => {
+    getUser.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'u1', displayName: '太郎', bio: '自己紹介です', avatarUrl: null, department: { id: 'd1', name: '開発部' }, position: { id: 'p1', name: '部長' }, hireYear: 2018 }),
+    });
+    getUserArticles.mockResolvedValue({ ok: true, status: 200, json: async () => ({ items: [], nextCursor: null }) });
+
+    renderPage();
+
+    expect(await screen.findByText('開発部 / 部長 ・ 2018 年入社')).toBeInTheDocument();
   });
 });
