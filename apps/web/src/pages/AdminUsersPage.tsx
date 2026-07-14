@@ -46,7 +46,10 @@ export function AdminUsersPage() {
         throw new Error(await errorMessage(res, '更新に失敗しました'));
       }
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.adminUsers }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: keys.profiles });
+    },
     onError: (e) => alert(e.message),
   });
 
@@ -76,6 +79,7 @@ export function AdminUsersPage() {
         queryClient.invalidateQueries({ queryKey: keys.adminUsers });
         queryClient.invalidateQueries({ queryKey: keys.adminDepartments });
         queryClient.invalidateQueries({ queryKey: keys.adminPositions });
+        queryClient.invalidateQueries({ queryKey: keys.profiles });
       } else if ('details' in body && Array.isArray(body.details)) {
         setImportMsg('message' in body ? String(body.message) : 'CSV にエラーがあります');
         setImportErrors(body.details as { line: number; email?: string; message: string }[]);
@@ -194,6 +198,7 @@ export function AdminUsersPage() {
               </TableCell>
               <TableCell>
                 <Input
+                  key={`${u.id}-${u.hireYear}`}
                   aria-label={`${u.displayName} の入社年`}
                   type="number" className="w-24" defaultValue={u.hireYear ?? ''}
                   onBlur={(e) => {
