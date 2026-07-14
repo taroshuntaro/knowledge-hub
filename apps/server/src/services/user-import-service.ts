@@ -3,6 +3,7 @@ import { HIRE_YEAR_MIN, hireYearMax } from '@knowledge-hub/shared';
 import { departments, positions, users } from '../db/schema';
 import type { Db } from '../types';
 import { parseCsv } from './csv';
+import { normalizeEmail } from './email';
 
 export type ImportError = { line: number; email?: string; message: string };
 export type ImportResult =
@@ -47,11 +48,12 @@ export async function importUserOrg(db: Db, csvText: string): Promise<ImportResu
       errors.push({ line, message: `列数が不正です（${HEADER.length} 列必要）` });
       continue;
     }
-    const [email, department, position, hireYearRaw] = cells.map((v) => v.trim());
-    if (!email) {
+    const [emailRaw, department, position, hireYearRaw] = cells.map((v) => v.trim());
+    if (!emailRaw) {
       errors.push({ line, message: 'email が空です' });
       continue;
     }
+    const email = normalizeEmail(emailRaw);
     if (seenEmails.has(email)) {
       errors.push({ line, email, message: '同じ email の行が重複しています' });
       continue;
@@ -60,7 +62,7 @@ export async function importUserOrg(db: Db, csvText: string): Promise<ImportResu
     let hireYear: number | null = null;
     if (hireYearRaw !== '') {
       const y = Number(hireYearRaw);
-      if (!Number.isInteger(y) || y < HIRE_YEAR_MIN || y > hireYearMax()) {
+      if (!/^\d{4}$/.test(hireYearRaw) || !Number.isInteger(y) || y < HIRE_YEAR_MIN || y > hireYearMax()) {
         errors.push({
           line, email,
           message: `hire_year は ${HIRE_YEAR_MIN}〜${hireYearMax()} の整数か空欄にしてください`,

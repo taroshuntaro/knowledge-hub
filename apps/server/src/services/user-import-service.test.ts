@@ -55,6 +55,23 @@ describe('user import service', () => {
     expect(await listDepartments(ctx.db)).toHaveLength(0);
   });
 
+  it('email を正規化（trim + 小文字化）して照合する', async () => {
+    await createTestUser(ctx.db, { email: 'mixed@example.com' });
+
+    const csv = [
+      'email,department,position,hire_year',
+      'MIXED@Example.com,開発部,,2018',
+    ].join('\n');
+    const result = await importUserOrg(ctx.db, csv);
+    expect(result).toEqual({
+      ok: true, updated: 1, createdDepartments: ['開発部'], createdPositions: [],
+    });
+
+    const [row] = await ctx.db.select().from(users).where(eq(users.email, 'mixed@example.com'));
+    expect(row.hireYear).toBe(2018);
+    expect(row.departmentId).not.toBeNull();
+  });
+
   it('ヘッダー不正・列数不一致・空 CSV を弾く', async () => {
     const bad = await importUserOrg(ctx.db, 'email,dept\nx@example.com,a');
     expect(bad.ok).toBe(false);
