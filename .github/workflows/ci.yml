@@ -18,6 +18,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm run verify
 
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
+        with:
+          scan-args: |-
+            --lockfile=pnpm-lock.yaml
+
   e2e:
     runs-on: ubuntu-latest
     steps:

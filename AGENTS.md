@@ -21,7 +21,7 @@ pnpm --filter @knowledge-hub/server dev         # API (:3000)
 pnpm --filter @knowledge-hub/web dev            # Web (:5173, /api は :3000 へ proxy)
 ```
 
-- **検証ゲート:** `pnpm run verify`（typecheck → test → contrast → web build → `pnpm audit`）。**変更を出す前に必ず green にする。**
+- **検証ゲート:** `pnpm run verify`（typecheck → test → contrast → web build）。**変更を出す前に必ず green にする。** 依存脆弱性の走査は CI の `security` ジョブ（osv-scanner が `pnpm-lock.yaml` を OSV DB と照合）が担う。`pnpm audit` は npm の旧 audit エンドポイント廃止で機能しないため使わない。
 - **テスト単体:** `pnpm test` / パッケージ個別は `pnpm --filter @knowledge-hub/<pkg> test`。
 - **E2E:** `pnpm run e2e:up` → `pnpm run e2e` → `pnpm run e2e:down`（compose プロジェクト `khub-e2e`、別ポートで dev と同居可）。
 - **マイグレーション:** スキーマは `apps/server/src/db/schema.ts` が正。変更後 `pnpm --filter @knowledge-hub/server db:generate` で差分 SQL を生成し、`db:migrate` で適用する（**手書きしない**）。Testcontainers テストは起動時に自動でマイグレーションを当てる。
