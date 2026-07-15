@@ -9,9 +9,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
@@ -21,7 +21,7 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: google/osv-scanner-action/osv-scanner-action@v2.3.8
         with:
           scan-args: |-
@@ -30,9 +30,9 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: pnpm
@@ -40,7 +40,7 @@ jobs:
       - run: pnpm --filter @knowledge-hub/e2e exec playwright install chromium --with-deps
       - run: pnpm run e2e:up
       - run: pnpm run e2e
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v6
         if: failure()
         with:
           name: playwright-report
