@@ -12,24 +12,29 @@ describe('resolveOidcUser', () => {
   beforeEach(() => resetDb(ctx.db));
   afterAll(() => ctx.pool.end());
 
-  it('新規 email は member / oidc / passwordHash null で JIT 作成される', async () => {
-    const u = await resolveOidcUser(
-      ctx.db,
-      { email: 'New.User@Example.com', emailVerified: true, name: 'New User' },
-      [],
-    );
-    expect(u).toMatchObject({
-      email: 'new.user@example.com',
-      displayName: 'New User',
-      role: 'member',
-      authProvider: 'oidc',
-      passwordHash: null,
-    });
+  it('行がない email は OIDC_NOT_PROVISIONED で拒否される（JIT 廃止）', async () => {
+    await expect(
+      resolveOidcUser(ctx.db, { email: 'stranger@example.com', emailVerified: true }, []),
+    ).rejects.toMatchObject({ code: 'OIDC_NOT_PROVISIONED' });
   });
 
-  it('name claim がなければ email ローカル部が displayName になる', async () => {
-    const u = await resolveOidcUser(ctx.db, { email: 'taro@example.com' }, []);
-    expect(u.displayName).toBe('taro');
+  it('pending 行は初回 SSO でクレームされ oidc に確定する（事前作成時の displayName を維持）', async () => {
+    await createTestUser(ctx.db, {
+      email: 'pre@example.com',
+      displayName: '事前 太郎',
+      authProvider: 'pending',
+      passwordHash: null,
+    });
+
+    const u = await resolveOidcUser(
+      ctx.db,
+      { email: 'pre@example.com', emailVerified: true, name: 'IdP Name' },
+      [],
+    );
+
+    expect(u.authProvider).toBe('oidc');
+    expect(u.passwordHash).toBeNull();
+    expect(u.displayName).toBe('事前 太郎');
   });
 
   it('既存パスワードユーザーは email 検証済みなら自動リンクされ SSO 専用化される', async () => {
@@ -64,10 +69,15 @@ describe('resolveOidcUser', () => {
   });
 
   it('oidc 既存ユーザーはそのままログインできる', async () => {
-    const first = await resolveOidcUser(ctx.db, { email: 'repeat@example.com' }, []);
-    const second = await resolveOidcUser(ctx.db, { email: 'repeat@example.com' }, []);
+    const existing = await createTestUser(ctx.db, {
+      authProvider: 'oidc',
+      passwordHash: null,
+      email: 'repeat@example.com',
+    });
 
-    expect(second.id).toBe(first.id);
+    const u = await resolveOidcUser(ctx.db, { email: 'repeat@example.com' }, []);
+
+    expect(u.id).toBe(existing.id);
     const rows = await ctx.db.query.users.findMany();
     expect(rows).toHaveLength(1);
   });
@@ -98,6 +108,13 @@ describe('resolveOidcUser', () => {
   });
 
   it('email_verified 未提供(undefined)は許容される', async () => {
+    await createTestUser(ctx.db, {
+      email: 'noverify@example.com',
+      displayName: '未検証 太郎',
+      authProvider: 'pending',
+      passwordHash: null,
+    });
+
     await expect(
       resolveOidcUser(ctx.db, { email: 'noverify@example.com' }, []),
     ).resolves.toBeDefined();
@@ -112,18 +129,5 @@ describe('resolveOidcUser', () => {
     await expect(
       resolveOidcUser(ctx.db, { email: existing.email }, ['corp.example.com']),
     ).rejects.toMatchObject({ code: 'OIDC_DOMAIN' });
-  });
-
-  it('並行 JIT は 1 ユーザーに収束する（一意制約フォールバック）', async () => {
-    const results = await Promise.allSettled([
-      resolveOidcUser(ctx.db, { email: 'race@example.com' }, []),
-      resolveOidcUser(ctx.db, { email: 'race@example.com' }, []),
-    ]);
-
-    expect(results.every((r) => r.status === 'fulfilled')).toBe(true);
-    const ids = results.map(
-      (r) => (r as PromiseFulfilledResult<{ id: string }>).value.id,
-    );
-    expect(new Set(ids).size).toBe(1);
   });
 });

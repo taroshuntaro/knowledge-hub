@@ -8,12 +8,7 @@ import { normalizeEmail } from './email';
 
 export type OidcClaims = { email?: string; emailVerified?: boolean; name?: string };
 
-function isUniqueViolation(err: unknown): boolean {
-  const code = (err as { code?: string })?.code ?? (err as { cause?: { code?: string } })?.cause?.code;
-  return code === '23505';
-}
-
-async function upsertByEmail(db: Db, email: string, displayName: string, emailVerified: boolean) {
+async function upsertByEmail(db: Db, email: string, emailVerified: boolean) {
   return db.transaction(async (tx) => {
     const [existing] = await tx
       .select()
@@ -21,34 +16,44 @@ async function upsertByEmail(db: Db, email: string, displayName: string, emailVe
       .where(sql`lower(${users.email}) = ${email}`)
       .limit(1)
       .for('update');
-    if (existing) {
-      if (!existing.isActive) throw new AppError('OIDC_INACTIVE', 'このアカウントは無効化されています', 403);
-      if (existing.authProvider === 'password') {
-        // 既存パスワードアカウントへの自動リンクは email 検証済みのときのみ許可する。
-        // 未検証（claim 省略/false）の email で他人のパスワードアカウントを乗っ取る
-        // （passwordHash を null 化して SSO 専用化する）攻撃を防ぐ。
-        if (!emailVerified) {
-          throw new AppError(
-            'OIDC_LINK_UNVERIFIED',
-            'このメールアドレスはパスワード認証で登録済みです。SSO と連携するには IdP 側でメールアドレスの検証が必要です',
-            403,
-          );
-        }
-        // 自動リンク: 以降パスワードログイン・リセットは既存の provider チェックで拒否される（SSO 専用化）
-        const [linked] = await tx
-          .update(users)
-          .set({ authProvider: 'oidc', passwordHash: null })
-          .where(eq(users.id, existing.id))
-          .returning();
-        return linked;
-      }
-      return existing;
+    // JIT 廃止: 事前作成された行がなければログインさせない（事前許可制）
+    if (!existing) {
+      throw new AppError(
+        'OIDC_NOT_PROVISIONED',
+        'このメールアドレスは登録されていません。管理者にお問い合わせください',
+        403,
+      );
     }
-    const [created] = await tx
-      .insert(users)
-      .values({ email, displayName, role: 'member', authProvider: 'oidc', passwordHash: null })
-      .returning();
-    return created;
+    if (!existing.isActive) throw new AppError('OIDC_INACTIVE', 'このアカウントは無効化されています', 403);
+    if (existing.authProvider === 'pending') {
+      // 事前作成された行を初回 SSO ログインでクレーム: displayName は事前作成時のまま維持する
+      const [claimed] = await tx
+        .update(users)
+        .set({ authProvider: 'oidc', passwordHash: null })
+        .where(eq(users.id, existing.id))
+        .returning();
+      return claimed;
+    }
+    if (existing.authProvider === 'password') {
+      // 既存パスワードアカウントへの自動リンクは email 検証済みのときのみ許可する。
+      // 未検証（claim 省略/false）の email で他人のパスワードアカウントを乗っ取る
+      // （passwordHash を null 化して SSO 専用化する）攻撃を防ぐ。
+      if (!emailVerified) {
+        throw new AppError(
+          'OIDC_LINK_UNVERIFIED',
+          'このメールアドレスはパスワード認証で登録済みです。SSO と連携するには IdP 側でメールアドレスの検証が必要です',
+          403,
+        );
+      }
+      // 自動リンク: 以降パスワードログイン・リセットは既存の provider チェックで拒否される（SSO 専用化）
+      const [linked] = await tx
+        .update(users)
+        .set({ authProvider: 'oidc', passwordHash: null })
+        .where(eq(users.id, existing.id))
+        .returning();
+      return linked;
+    }
+    return existing;
   });
 }
 
@@ -67,15 +72,8 @@ export async function resolveOidcUser(
       throw new AppError('OIDC_DOMAIN', 'このメールドメインは許可されていません', 403);
     }
   }
-  const displayName = claims.name?.trim() || email.split('@')[0];
   const emailVerified = claims.emailVerified === true;
-  try {
-    return await upsertByEmail(db, email, displayName, emailVerified);
-  } catch (err) {
-    // 並行初回ログインの一意制約違反: トランザクションごと再試行（2 回目は必ず既存行に当たる）
-    if (isUniqueViolation(err)) return upsertByEmail(db, email, displayName, emailVerified);
-    throw err;
-  }
+  return upsertByEmail(db, email, emailVerified);
 }
 
 export type OidcTxn = { state: string; nonce: string; codeVerifier: string };
