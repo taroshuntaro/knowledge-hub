@@ -34,13 +34,14 @@ knowledge-hub のサーバー（Hono）が公開する HTTP エンドポイン�
 | GET | `/api/auth/me` | 🔒 ログイン | 現在ログイン中のユーザーを返す |
 | POST | `/api/auth/password-reset/request` | 🌐 公開（要 password 認証） | 再設定リンクをメール送信 |
 | POST | `/api/auth/password-reset/confirm/:token` | 🌐 公開（要 password 認証） | トークンで新パスワードを確定 |
+| POST | `/api/auth/claim` | 🌐 公開（要 password 認証） | 登録コード + pending 行でアカウントを確定しセッションを発行 |
 
 ## OIDC 認証 `/api/auth/oidc`
 
 | メソッド | パス | 認可 | 概要 |
 | --- | --- | --- | --- |
 | GET | `/api/auth/oidc/login` | 🌐 公開 | OIDC 認可リクエストを開始（IdP へリダイレクト） |
-| GET | `/api/auth/oidc/callback` | 🌐 公開 | IdP からのコールバックを受けセッションを発行 |
+| GET | `/api/auth/oidc/callback` | 🌐 公開 | IdP からのコールバックを受けセッションを発行（JIT プロビジョニングは廃止済み。事前作成された pending 行のみクレームでき、未登録 email は `OIDC_NOT_PROVISIONED` で拒否される） |
 
 ## ユーザー `/api/users`
 
@@ -62,9 +63,18 @@ knowledge-hub のサーバー（Hono）が公開する HTTP エンドポイン�
 
 | メソッド | パス | 認可 | 概要 |
 | --- | --- | --- | --- |
+| GET | `/api/admin/registration-code` | 🛡️ 管理者 | 有効な登録コードのメタ情報（作成日時・有効期限）を返す。平文コードは含まない |
+| POST | `/api/admin/registration-code` | 🛡️ 管理者 | 登録コードを新規発行（既存コードは自動失効）。**平文コードが返る唯一のエンドポイント** |
+| DELETE | `/api/admin/registration-code` | 🛡️ 管理者 | 有効な登録コードを失効させる |
 | GET | `/api/admin/users` | 🛡️ 管理者 | 全ユーザー一覧 |
+| POST | `/api/admin/users` | 🛡️ 管理者 | pending ユーザーを個別に事前作成（登録コードで claim されるまで pending） |
+| POST | `/api/admin/users/registrations/import` | 🛡️ 管理者 | CSV で pending ユーザーを一括事前作成 |
+| POST | `/api/admin/users/deactivate` | 🛡️ 管理者 | 指定ユーザーを一括無効化 |
+| POST | `/api/admin/users/deactivate/import` | 🛡️ 管理者 | CSV（email 列）で一括無効化 |
 | PATCH | `/api/admin/users/:id` | 🛡️ 管理者 | ユーザーのロール・状態・所属・役職・入社年を更新 |
 | POST | `/api/admin/users/import` | 🛡️ 管理者 | CSV で所属・役職・入社年を一括設定 |
+| DELETE | `/api/admin/users/:id` | 🛡️ 管理者 | pending（未クレーム）ユーザーを削除 |
+| POST | `/api/admin/users/:id/unclaim` | 🛡️ 管理者 | クレーム済みユーザーを pending（未クレーム）状態に戻す |
 | GET | `/api/admin/departments` | 🛡️ 管理者 | 所属マスタ一覧 |
 | POST | `/api/admin/departments` | 🛡️ 管理者 | 所属マスタを作成 |
 | PATCH | `/api/admin/departments/:id` | 🛡️ 管理者 | 所属マスタを更新（改名・並び順） |

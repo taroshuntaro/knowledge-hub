@@ -1,4 +1,5 @@
 import {
+  claimSchema,
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
@@ -14,6 +15,7 @@ import {
 import { requirePasswordAuth } from '../middleware/password-auth';
 import { validate } from '../middleware/validate';
 import { loginWithPassword } from '../services/auth-service';
+import { claimAccount } from '../services/claim-service';
 import {
   requestPasswordReset,
   resetPassword,
@@ -26,6 +28,8 @@ export const loginLimiter = new RateLimiter(10, 15 * 60 * 1000);
 // パスワードリセット要求はメール爆撃・リセットトークン量産の踏み台になりうるため
 // email 単位で絞る（存在有無に関わらず 429 を返すため列挙攻撃には寄与しない）。
 export const passwordResetLimiter = new RateLimiter(5, 15 * 60 * 1000);
+// claim も login と同じ理由（総当たり防止）で email 単位に絞る。
+export const claimLimiter = new RateLimiter(10, 15 * 60 * 1000);
 
 export const authRoutes = new Hono<AppEnv>()
   .get('/methods', (c) =>
@@ -79,4 +83,26 @@ export const authRoutes = new Hono<AppEnv>()
   .post('/password-reset/confirm/:token', requirePasswordAuth, validate('json', passwordResetConfirmSchema), async (c) => {
     await resetPassword(c.get('db'), c.req.param('token'), c.req.valid('json').password);
     return c.body(null, 204);
+  })
+  .post('/claim', requirePasswordAuth, validate('json', claimSchema), async (c) => {
+    const { email, code, password } = c.req.valid('json');
+    if (!claimLimiter.consume(email.toLowerCase())) {
+      throw new AppError(
+        'RATE_LIMITED',
+        '試行回数が上限に達しました。しばらくしてから再試行してください',
+        429,
+      );
+    }
+
+    const result = await claimAccount(c.get('db'), { email, code, password });
+    if (!result) {
+      throw new AppError(
+        'CLAIM_INVALID',
+        '登録コードまたはメールアドレスが正しくありません',
+        400,
+      );
+    }
+
+    setSessionCookie(c, result.sid, c.get('config'));
+    return c.json(result.user);
   });

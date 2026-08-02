@@ -60,9 +60,7 @@ describe('OIDC login flow', () => {
     await resetDb(ctx.db);
     const res = await ssoLogin({ email: 'stranger@example.com', email_verified: true });
     expect(res.status).toBe(302);
-    // OIDC_NOT_PROVISIONED は ERROR_QUERY 未登録のため oidc_failed にフォールバック（既存の
-    // OIDC_LINK_UNVERIFIED と同様、ルート層の error slug 追加は本タスクの対象外）
-    expect(res.headers.get('location')).toBe(`${testConfig().appUrl}/login?error=oidc_failed`);
+    expect(res.headers.get('location')).toBe(`${testConfig().appUrl}/login?error=not_provisioned`);
     expect(res.headers.get('set-cookie') ?? '').not.toContain('sid=');
 
     const rows = await ctx.db.query.users.findMany();
