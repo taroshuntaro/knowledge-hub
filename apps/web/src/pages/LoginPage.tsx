@@ -15,6 +15,7 @@ const OIDC_ERRORS: Record<string, string> = {
   oidc_inactive: 'このアカウントは無効化されています',
   oidc_email: 'メールアドレスを確認できませんでした',
   oidc_unavailable: 'SSO プロバイダに接続できません。しばらくしてから再試行してください',
+  not_provisioned: 'このメールアドレスは登録されていません。管理者にお問い合わせください',
 };
 
 export function LoginPage() {
@@ -73,6 +74,9 @@ export function LoginPage() {
               <Button type="submit">ログイン</Button>
               <Link to="/password-reset" className="text-center text-sm text-muted-foreground hover:text-foreground hover:underline">
                 パスワードをお忘れですか？
+              </Link>
+              <Link to="/claim" className="text-center text-sm text-muted-foreground hover:text-foreground hover:underline">
+                初めてご利用の方（登録コードをお持ちの方）
               </Link>
             </form>
           )}

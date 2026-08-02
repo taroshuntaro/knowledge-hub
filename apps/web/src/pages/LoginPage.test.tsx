@@ -89,4 +89,24 @@ describe('LoginPage', () => {
     renderPage(['/login?error=oidc_domain']);
     expect(await screen.findByRole('alert')).toHaveTextContent('このメールドメインは許可されていません');
   });
+
+  it('?error=not_provisioned で未登録メッセージを表示する', async () => {
+    renderPage(['/login?error=not_provisioned']);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'このメールアドレスは登録されていません。管理者にお問い合わせください',
+    );
+  });
+
+  it('password 有効なら /claim へのリンクを表示する', async () => {
+    renderPage();
+    const link = await screen.findByRole('link', { name: '初めてご利用の方（登録コードをお持ちの方）' });
+    expect(link).toHaveAttribute('href', '/claim');
+  });
+
+  it('password: false なら /claim へのリンクを表示しない', async () => {
+    methodsMock.mockResolvedValue({ ok: true, json: async () => ({ password: false, oidc: true }) });
+    renderPage();
+    await screen.findByRole('link', { name: 'SSO でログイン' });
+    expect(screen.queryByRole('link', { name: '初めてご利用の方（登録コードをお持ちの方）' })).toBeNull();
+  });
 });

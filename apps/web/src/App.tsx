@@ -9,6 +9,7 @@ import { AdminUsersPage } from './pages/AdminUsersPage';
 import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { CategoryPage } from './pages/CategoryPage';
+import { ClaimPage } from './pages/ClaimPage';
 import { HomePage } from './pages/HomePage';
 import { LoginPage } from './pages/LoginPage';
 import { MyArticlesPage } from './pages/MyArticlesPage';
@@ -38,6 +39,7 @@ function EditorRoute() {
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
+  { path: '/claim', element: <ClaimPage /> },
   { path: '/password-reset', element: <PasswordResetRequestPage /> },
   { path: '/password-reset/:token', element: <PasswordResetConfirmPage /> },
   {
