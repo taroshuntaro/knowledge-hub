@@ -128,7 +128,7 @@
 | POST /api/admin/registration-code | admin | 発行（旧コード自動失効・平文は応答 1 回のみ） |
 | DELETE /api/admin/registration-code | admin | 失効 |
 | POST /api/admin/users | admin | 個別事前作成 |
-| POST /api/admin/users/import | admin | 登録 CSV 一括作成 |
+| POST /api/admin/users/registrations/import | admin | 登録 CSV 一括作成（`/users/import` は既存の組織情報 CSV が使用済みのため別パス） |
 | POST /api/admin/users/deactivate | admin | userIds 指定の一括無効化 |
 | POST /api/admin/users/deactivate/import | admin | 無効化 CSV |
 | DELETE /api/admin/users/:id | admin | pending 行の削除 |
