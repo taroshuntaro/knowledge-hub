@@ -10,6 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar } from '@/components/Avatar';
+import { RegistrationCodePanel } from '@/components/admin/RegistrationCodePanel';
+import { AddUserForm } from '@/components/admin/AddUserForm';
+import { UserCsvImports } from '@/components/admin/UserCsvImports';
 import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
 
 const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text-sm';
@@ -50,6 +53,76 @@ export function AdminUsersPage() {
     },
     onError: (e) => alert(e.message),
   });
+
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  const deactivateSelected = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      const res = await api.api.admin.users.deactivate.$post({ json: { userIds } });
+      if (!res.ok) throw new Error(await errorMessage(res, '無効化に失敗しました'));
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: keys.profiles });
+      setSelectedIds([]);
+    },
+    onError: (e) => alert(e.message),
+  });
+
+  const deleteUser = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.api.admin.users[':id'].$delete({ param: { id } });
+      if (!res.ok) throw new Error(await errorMessage(res, '削除に失敗しました'));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: keys.adminUsers }),
+    onError: (e) => alert(e.message),
+  });
+
+  const unclaimUser = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.api.admin.users[':id'].unclaim.$post({ param: { id } });
+      if (!res.ok) throw new Error(await errorMessage(res, '未ログインへの変更に失敗しました'));
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: keys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: keys.profiles });
+    },
+    onError: (e) => alert(e.message),
+  });
+
+  function onDeactivateSelected() {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`選択した ${selectedIds.length} 人を無効化しますか？`)) return;
+    deactivateSelected.mutate(selectedIds);
+  }
+
+  function onDeletePending(u: { id: string; displayName: string }) {
+    if (confirm(`「${u.displayName}」を削除しますか？未ログインのユーザーのみ削除できます。`)) {
+      deleteUser.mutate(u.id);
+    }
+  }
+
+  function onUnclaim(u: { id: string; displayName: string }) {
+    if (
+      confirm(
+        `「${u.displayName}」を未ログインに戻しますか？\n` +
+          'このユーザーは再クレームまでログインできず、名簿に表示されなくなります（記事等のコンテンツは残ります）。',
+      )
+    ) {
+      unclaimUser.mutate(u.id);
+    }
+  }
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  }
+
+  const allSelected = (users ?? []).length > 0 && selectedIds.length === (users ?? []).length;
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? [] : (users ?? []).map((u) => u.id));
+  }
 
   const fileRef = useRef<HTMLInputElement>(null);
   const [importMsg, setImportMsg] = useState<string | null>(null);
@@ -92,6 +165,9 @@ export function AdminUsersPage() {
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold tracking-tight">ユーザー管理</h2>
+      <RegistrationCodePanel />
+      <AddUserForm />
+      <UserCsvImports />
       <Card className="mb-6">
         <CardHeader>
           <h3 className="leading-none font-semibold">所属・役職・入社年を CSV で一括設定</h3>
@@ -118,9 +194,32 @@ export function AdminUsersPage() {
           )}
         </CardContent>
       </Card>
+      <div className="mb-2 flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="border-destructive text-destructive hover:text-destructive"
+          disabled={selectedIds.length === 0 || deactivateSelected.isPending}
+          onClick={onDeactivateSelected}
+        >
+          選択したユーザーを無効化
+        </Button>
+        {selectedIds.length > 0 && (
+          <span className="text-sm text-muted-foreground">{selectedIds.length} 人選択中</span>
+        )}
+      </div>
       <Table>
         <TableHeader>
           <TableRow>
+            <TableHead>
+              <input
+                type="checkbox"
+                aria-label="全員を選択"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+              />
+            </TableHead>
             <TableHead>メール</TableHead>
             <TableHead>表示名</TableHead>
             <TableHead>ロール</TableHead>
@@ -134,6 +233,14 @@ export function AdminUsersPage() {
         <TableBody>
           {(users ?? []).map((u) => (
             <TableRow key={u.id} className="hover:bg-muted/50">
+              <TableCell>
+                <input
+                  type="checkbox"
+                  aria-label={`${u.displayName} を選択`}
+                  checked={selectedIds.includes(u.id)}
+                  onChange={() => toggleSelected(u.id)}
+                />
+              </TableCell>
               <TableCell>{u.email}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
@@ -145,7 +252,10 @@ export function AdminUsersPage() {
                 <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>{u.role === 'admin' ? '管理者' : 'メンバー'}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={u.isActive ? 'secondary' : 'outline'}>{u.isActive ? '有効' : '無効'}</Badge>
+                <div className="flex flex-wrap gap-1">
+                  <Badge variant={u.isActive ? 'secondary' : 'outline'}>{u.isActive ? '有効' : '無効'}</Badge>
+                  {u.authProvider === 'pending' && <Badge variant="outline">未ログイン</Badge>}
+                </div>
               </TableCell>
               <TableCell>
                 <select aria-label={`${u.displayName} の所属`} className={selectClass}
@@ -193,6 +303,29 @@ export function AdminUsersPage() {
                   >
                     {u.isActive ? '無効化' : '有効化'}
                   </Button>
+                  {u.authProvider === 'pending' ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={`${u.displayName} を削除`}
+                      className="border-destructive text-destructive hover:text-destructive"
+                      onClick={() => onDeletePending(u)}
+                    >
+                      削除
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      aria-label={`${u.displayName} を未ログインに戻す`}
+                      className="border-destructive text-destructive hover:text-destructive"
+                      onClick={() => onUnclaim(u)}
+                    >
+                      未ログインに戻す
+                    </Button>
+                  )}
                 </div>
               </TableCell>
             </TableRow>
