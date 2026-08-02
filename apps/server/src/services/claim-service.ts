@@ -17,8 +17,10 @@ export async function claimAccount(
   input: { email: string; code: string; password: string },
 ): Promise<{ sid: string; user: SessionUser } | null> {
   const email = normalizeEmail(input.email);
-  if (!(await verifyRegistrationCode(db, input.code))) return null;
+  // コード不正でも同一コストを払い、レイテンシによるコード有効性オラクルを防ぐ
+  // （scrypt を先に払ってから検証すると、全経路のレイテンシが揃う）。
   const passwordHash = await hashPassword(input.password);
+  if (!(await verifyRegistrationCode(db, input.code))) return null;
   return db.transaction(async (tx) => {
     const [claimed] = await tx
       .update(users)
