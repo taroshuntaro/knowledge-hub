@@ -57,6 +57,10 @@ export async function getSessionUser(db: Db, sid: string): Promise<SessionUser |
   }
 
   if (!result.user.isActive) return null;
+  // unclaim のコミットとセッション削除の間にリクエストが割り込むと、まだ削除されていない
+  // セッションが pending 化済みユーザーを指すことがある。toSessionUser は pending を
+  // 例外で拒否する防御的ガードなので、ここで先に null（未認証）として扱い 500 を避ける。
+  if (result.user.authProvider === 'pending') return null;
   return toSessionUser(result.user);
 }
 
