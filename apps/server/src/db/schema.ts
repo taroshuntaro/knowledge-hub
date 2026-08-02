@@ -4,7 +4,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 export const userRoleEnum = pgEnum('user_role', ['member', 'admin']);
-export const authProviderEnum = pgEnum('auth_provider', ['oidc', 'password']);
+export const authProviderEnum = pgEnum('auth_provider', ['oidc', 'password', 'pending']);
 export const articleStatusEnum = pgEnum('article_status', ['draft', 'published']);
 export const notificationTypeEnum = pgEnum('notification_type', ['comment', 'reply', 'reaction', 'mention']);
 
@@ -53,6 +53,14 @@ export const invitations = pgTable('invitations', {
   tokenHash: text('token_hash').notNull().unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const registrationCodes = pgTable('registration_codes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  codeHash: text('code_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  revokedAt: timestamp('revoked_at', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 });
 

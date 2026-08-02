@@ -11,6 +11,10 @@ export function hashToken(token: string): string {
 }
 
 export function toSessionUser(user: typeof users.$inferSelect): SessionUser {
+  if (user.authProvider === 'pending') {
+    // pending はあらゆるログイン経路で拒否されるため到達しない（防御的ガード + 型の絞り込み）
+    throw new Error('pending user cannot have a session');
+  }
   return {
     id: user.id,
     email: user.email,

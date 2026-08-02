@@ -11,6 +11,7 @@ import {
   getSessionUser,
   hashToken,
   SESSION_TTL_MS,
+  toSessionUser,
 } from './session-service';
 
 describe('session service', () => {
@@ -102,5 +103,14 @@ describe('session service', () => {
 
     expect(await getSessionUser(ctx.db, deletedSid)).toBeNull();
     expect(await getSessionUser(ctx.db, remainingSid)).toMatchObject({ id: user.id });
+  });
+
+  it('pending ユーザーを toSessionUser に渡すと throw する', async () => {
+    const user = await createTestUser(ctx.db, {
+      authProvider: 'pending',
+      passwordHash: null,
+    });
+
+    expect(() => toSessionUser(user)).toThrow('pending user cannot have a session');
   });
 });

@@ -103,7 +103,7 @@ export type AdminUserView = {
   email: string;
   displayName: string;
   role: 'member' | 'admin';
-  authProvider: 'oidc' | 'password';
+  authProvider: 'oidc' | 'password' | 'pending';
   isActive: boolean;
   createdAt: Date;
   avatarUrl: string | null;
