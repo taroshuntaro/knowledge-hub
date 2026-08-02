@@ -6,7 +6,8 @@ import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
 import {
-  changePassword, deactivateUsers, getPublicProfile, listUsers, updateProfile, updateUserByAdmin,
+  changePassword, deactivateUsers, deletePendingUser, getPublicProfile, listMentionCandidates,
+  listUsers, unclaimUser, updateProfile, updateUserByAdmin,
 } from './user-service';
 import { createDepartment, createPosition } from './master-service';
 
@@ -206,6 +207,67 @@ describe('user service', () => {
     await expect(
       updateUserByAdmin(ctx.db, pending2.id, { isActive: false }),
     ).resolves.toMatchObject({ isActive: false });
+  });
+
+  it('pending はメンション候補に出ず、プロフィールは 404', async () => {
+    const p = await createTestUser(ctx.db, {
+      displayName: 'ペンディング花子', authProvider: 'pending', passwordHash: null,
+    });
+    const candidates = await listMentionCandidates(ctx.db);
+    expect(candidates.map((u) => u.displayName)).not.toContain('ペンディング花子');
+    await expect(getPublicProfile(ctx.db, p.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  describe('deletePendingUser', () => {
+    it('pending ユーザーを削除できる', async () => {
+      const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+      await deletePendingUser(ctx.db, p.id);
+      const rows = await ctx.db.select().from(users).where(eq(users.id, p.id));
+      expect(rows).toHaveLength(0);
+    });
+
+    it('不在 id は NOT_FOUND', async () => {
+      await expect(
+        deletePendingUser(ctx.db, '00000000-0000-0000-0000-000000000000'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('クレーム済みユーザーは CONFLICT で削除できない', async () => {
+      const u = await createTestUser(ctx.db);
+      await expect(deletePendingUser(ctx.db, u.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows).toHaveLength(1);
+    });
+  });
+
+  describe('unclaimUser', () => {
+    it('クレーム済みユーザーを pending に戻しセッションを失効させる', async () => {
+      const u = await createTestUser(ctx.db, { email: 'u@example.com' });
+      const sid = await createSession(ctx.db, u.id);
+
+      const view = await unclaimUser(ctx.db, u.id);
+
+      expect(view.authProvider).toBe('pending');
+      expect(await getSessionUser(ctx.db, sid)).toBeNull();
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows[0].passwordHash).toBeNull();
+    });
+
+    it('不在 id は NOT_FOUND', async () => {
+      await expect(
+        unclaimUser(ctx.db, '00000000-0000-0000-0000-000000000000'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('既に pending の対象は CONFLICT', async () => {
+      const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+      await expect(unclaimUser(ctx.db, p.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
+    it('最後のログイン可能管理者は unclaim できず LAST_ADMIN', async () => {
+      const admin = await createTestUser(ctx.db, { role: 'admin' });
+      await expect(unclaimUser(ctx.db, admin.id)).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
   });
 
   describe('deactivateUsers', () => {

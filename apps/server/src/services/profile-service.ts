@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, ne } from 'drizzle-orm';
 import { departments, positions, users } from '../db/schema';
 import type { Db } from '../types';
 import { listDepartments, listPositions, type Master } from './master-service';
@@ -39,7 +39,7 @@ export async function listProfiles(db: Db): Promise<ProfilesResponse> {
       .from(users)
       .leftJoin(departments, eq(users.departmentId, departments.id))
       .leftJoin(positions, eq(users.positionId, positions.id))
-      .where(eq(users.isActive, true))
+      .where(and(eq(users.isActive, true), ne(users.authProvider, 'pending')))
       .orderBy(asc(users.displayName)),
     listDepartments(db),
     listPositions(db),

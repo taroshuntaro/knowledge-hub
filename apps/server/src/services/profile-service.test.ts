@@ -35,4 +35,12 @@ describe('profile service', () => {
       ['avatarUrl', 'bio', 'department', 'displayName', 'hireYear', 'id', 'position'].sort(),
     );
   });
+
+  it('pending ユーザーは名簿に出ない', async () => {
+    await createTestUser(ctx.db, {
+      displayName: 'ペンディング次郎', authProvider: 'pending', passwordHash: null,
+    });
+    const res = await listProfiles(ctx.db);
+    expect(res.users.map((u) => u.displayName)).not.toContain('ペンディング次郎');
+  });
 });

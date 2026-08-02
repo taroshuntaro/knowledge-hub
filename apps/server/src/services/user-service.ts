@@ -65,6 +65,8 @@ export type PublicProfile = {
 
 export async function getPublicProfile(db: Db, id: string): Promise<PublicProfile> {
   // UUID 形式の検証はルート層（requireUuidParam）に一元化した。
+  // pending（未クレーム）行は「存在しない」と同じ扱いにする。無効化ユーザーはこの
+  // 対象外（既存の別プロダクト判断で、無効化済みでもプロフィールは閲覧できる）。
   const [row] = await db
     .select({
       id: users.id,
@@ -80,7 +82,7 @@ export async function getPublicProfile(db: Db, id: string): Promise<PublicProfil
     .from(users)
     .leftJoin(departments, eq(users.departmentId, departments.id))
     .leftJoin(positions, eq(users.positionId, positions.id))
-    .where(eq(users.id, id));
+    .where(and(eq(users.id, id), ne(users.authProvider, 'pending')));
   if (!row) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
   return {
     id: row.id,
@@ -239,6 +241,56 @@ export async function listMentionCandidates(db: Db): Promise<MentionCandidate[]>
   return db
     .select({ id: users.id, displayName: users.displayName, avatarUrl: users.avatarUrl })
     .from(users)
-    .where(eq(users.isActive, true))
+    .where(and(eq(users.isActive, true), ne(users.authProvider, 'pending')))
     .orderBy(users.displayName);
+}
+
+/**
+ * pending（未クレーム）ユーザーを削除する。pending 行は登録コード発行のみでログイン手段・
+ * 記事・セッション・アップロード等の関連コンテンツを一切持ち得ないため、ハード削除して安全。
+ * クレーム済み（pending でない）ユーザーは CONFLICT で拒否し、無効化（deactivateUsers）に誘導する。
+ */
+export async function deletePendingUser(db: Db, id: string): Promise<void> {
+  const target = await db.query.users.findFirst({ where: eq(users.id, id) });
+  if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
+  if (target.authProvider !== 'pending') {
+    throw new AppError('CONFLICT', 'ログイン済みユーザーは削除できません。無効化を使ってください', 409);
+  }
+  await db.delete(users).where(and(eq(users.id, id), eq(users.authProvider, 'pending')));
+}
+
+/**
+ * クレーム済みユーザーを pending（未クレーム）状態に戻す。role/isActive/所属等はそのまま
+ * 維持し、ログイン手段（passwordHash）だけを剥奪してセッションを全て失効させる。
+ * 降格・無効化と同じ「最後のログイン可能管理者」ガードを適用する（tx + FOR UPDATE）。
+ */
+export async function unclaimUser(db: Db, id: string): Promise<AdminUserView> {
+  const row = await db.transaction(async (tx) => {
+    const target = await tx.query.users.findFirst({ where: eq(users.id, id) });
+    if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
+    if (target.authProvider === 'pending') {
+      throw new AppError('CONFLICT', '未ログインのユーザーです', 409);
+    }
+
+    if (isLoginableAdmin(target)) {
+      const activeAdmins = await tx
+        .select({ id: users.id })
+        .from(users)
+        .where(loginableAdminWhere())
+        .for('update');
+      if (activeAdmins.length <= 1) {
+        throw new AppError('LAST_ADMIN', '最後の管理者は未ログインに戻せません', 409);
+      }
+    }
+
+    const [updated] = await tx
+      .update(users)
+      .set({ authProvider: 'pending', passwordHash: null })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  });
+
+  await deleteUserSessions(db, id);
+  return toAdminView(row);
 }
