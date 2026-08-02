@@ -55,6 +55,10 @@ export function AdminUsersPage() {
   });
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  // users から消えた（削除済み等の）id を選択状態から取り除いた派生値。
+  // useEffect でプルーニングすると useQuery の refetch タイミングとの同期漏れが起きうるため、
+  // レンダーのたびに derive するだけにして常に live なリストと一致させる。
+  const liveSelectedIds = selectedIds.filter((id) => (users ?? []).some((u) => u.id === id));
 
   const deactivateSelected = useMutation({
     mutationFn: async (userIds: string[]) => {
@@ -93,9 +97,9 @@ export function AdminUsersPage() {
   });
 
   function onDeactivateSelected() {
-    if (selectedIds.length === 0) return;
-    if (!confirm(`選択した ${selectedIds.length} 人を無効化しますか？`)) return;
-    deactivateSelected.mutate(selectedIds);
+    if (liveSelectedIds.length === 0) return;
+    if (!confirm(`選択した ${liveSelectedIds.length} 人を無効化しますか？`)) return;
+    deactivateSelected.mutate(liveSelectedIds);
   }
 
   function onDeletePending(u: { id: string; displayName: string }) {
@@ -119,7 +123,7 @@ export function AdminUsersPage() {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
-  const allSelected = (users ?? []).length > 0 && selectedIds.length === (users ?? []).length;
+  const allSelected = (users ?? []).length > 0 && liveSelectedIds.length === (users ?? []).length;
   function toggleSelectAll() {
     setSelectedIds(allSelected ? [] : (users ?? []).map((u) => u.id));
   }
@@ -200,13 +204,13 @@ export function AdminUsersPage() {
           variant="outline"
           size="sm"
           className="border-destructive text-destructive hover:text-destructive"
-          disabled={selectedIds.length === 0 || deactivateSelected.isPending}
+          disabled={liveSelectedIds.length === 0 || deactivateSelected.isPending}
           onClick={onDeactivateSelected}
         >
           選択したユーザーを無効化
         </Button>
-        {selectedIds.length > 0 && (
-          <span className="text-sm text-muted-foreground">{selectedIds.length} 人選択中</span>
+        {liveSelectedIds.length > 0 && (
+          <span className="text-sm text-muted-foreground">{liveSelectedIds.length} 人選択中</span>
         )}
       </div>
       <Table>
@@ -237,7 +241,7 @@ export function AdminUsersPage() {
                 <input
                   type="checkbox"
                   aria-label={`${u.displayName} を選択`}
-                  checked={selectedIds.includes(u.id)}
+                  checked={liveSelectedIds.includes(u.id)}
                   onChange={() => toggleSelected(u.id)}
                 />
               </TableCell>

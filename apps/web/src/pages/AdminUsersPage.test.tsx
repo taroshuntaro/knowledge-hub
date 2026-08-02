@@ -148,6 +148,43 @@ describe('AdminUsersPage', () => {
     expect(postDeactivate).toHaveBeenCalledWith({ json: { userIds: ['1', '3'] } });
   });
 
+  it('選択後に行を削除すると、一括無効化の送信対象から stale な id が除かれる', async () => {
+    deleteUser.mockResolvedValue({ ok: true });
+    postDeactivate.mockResolvedValue({ ok: true, json: async () => ({ deactivated: 1 }) });
+    // 初回ロードは baseUsers、削除後の refetch では未ログイン花子（id: 3）が消えたリストを返す。
+    getUsers.mockResolvedValueOnce({ ok: true, json: async () => baseUsers });
+    getUsers.mockResolvedValueOnce({ ok: true, json: async () => baseUsers.filter((u) => u.id !== '3') });
+
+    renderPage();
+    await screen.findByText('a@example.com');
+
+    await userEvent.click(screen.getByLabelText('管理者 を選択'));
+    await userEvent.click(screen.getByLabelText('未ログイン花子 を選択'));
+
+    await userEvent.click(screen.getByRole('button', { name: '未ログイン花子 を削除' }));
+    await vi.waitFor(() => expect(screen.queryByText('未ログイン花子')).not.toBeInTheDocument());
+
+    await userEvent.click(screen.getByRole('button', { name: '選択したユーザーを無効化' }));
+    expect(postDeactivate).toHaveBeenCalledWith({ json: { userIds: ['1'] } });
+  });
+
+  it('一括無効化に成功すると選択がクリアされ一覧が refetch される', async () => {
+    postDeactivate.mockResolvedValue({ ok: true, json: async () => ({ deactivated: 2 }) });
+    renderPage();
+    await screen.findByText('a@example.com');
+    const callsBefore = getUsers.mock.calls.length;
+
+    await userEvent.click(screen.getByLabelText('管理者 を選択'));
+    await userEvent.click(screen.getByLabelText('未ログイン花子 を選択'));
+    expect(screen.getByText('2 人選択中')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: '選択したユーザーを無効化' }));
+
+    await vi.waitFor(() => expect(getUsers.mock.calls.length).toBeGreaterThan(callsBefore));
+    expect(screen.queryByText(/人選択中/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('管理者 を選択')).not.toBeChecked();
+  });
+
   it('pending 行には未ログインバッジと削除ボタン、クレーム済み行には未ログインに戻すボタンが出る', async () => {
     deleteUser.mockResolvedValue({ ok: true });
     postUnclaim.mockResolvedValue({ ok: true, json: async () => ({ ...baseUsers[0] }) });
