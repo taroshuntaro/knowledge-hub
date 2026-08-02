@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
 import { departments, positions, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
@@ -7,6 +7,13 @@ import { hashPassword, verifyPassword } from './password';
 import { deleteUserSessions, toSessionUser } from './session-service';
 
 const AVATAR_URL_PREFIX = '/api/uploads/';
+
+// 「ログイン可能な管理者」の定義を1箇所に集約する。role=admin かつ isActive だけでは
+// pending（登録コード未 claim でパスワードもログイン手段も持たない）を admin としてカウント
+// してしまい、最後の実ログイン可能管理者を降格・無効化できてしまう事故になる。
+// 降格ガード（updateUserByAdmin）・一括無効化（deactivateUsers）の両方でこれを使う。
+const loginableAdminWhere = () =>
+  and(eq(users.role, 'admin'), eq(users.isActive, true), ne(users.authProvider, 'pending'));
 
 export async function updateProfile(
   db: Db,
@@ -165,7 +172,7 @@ export async function updateUserByAdmin(
       const activeAdmins = await tx
         .select({ id: users.id })
         .from(users)
-        .where(and(eq(users.role, 'admin'), eq(users.isActive, true)))
+        .where(loginableAdminWhere())
         .for('update');
       if (activeAdmins.length <= 1) {
         throw new AppError('LAST_ADMIN', '最後の管理者は降格・無効化できません', 409);
@@ -178,6 +185,43 @@ export async function updateUserByAdmin(
 
   if (patch.isActive === false) await deleteUserSessions(db, targetId);
   return toAdminView(row);
+}
+
+/**
+ * 複数ユーザーを一括無効化する（管理画面 / CSV 一括無効化の共通実装）。
+ * - 不在 id が1件でもあれば NOT_FOUND で全体を失敗させる（部分適用しない）。
+ * - 既に無効なユーザーは no-op（カウントしない・冪等）。
+ * - 対象に現在ログイン可能な管理者が含まれ、かつ実行後にログイン可能な管理者が0人に
+ *   なるなら LAST_ADMIN で全体を拒否する（管理者を含まないバッチは対象外。対象行を
+ *   FOR UPDATE でロックし、複数バッチの同時実行で0人になる TOCTOU を防ぐ）。
+ * - 成功時は無効化した全員のセッションを削除する（トランザクション確定後に実施）。
+ */
+export async function deactivateUsers(db: Db, userIds: string[]): Promise<{ deactivated: number }> {
+  const ids = [...new Set(userIds)];
+  const targets = await db.transaction(async (tx) => {
+    const found = await tx.select().from(users).where(inArray(users.id, ids)).for('update');
+    if (found.length !== ids.length) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
+
+    const admins = await tx.select({ id: users.id }).from(users).where(loginableAdminWhere()).for('update');
+    const targetSet = new Set(ids);
+    const removingAdmin = admins.some((a) => targetSet.has(a.id));
+    const remaining = admins.filter((a) => !targetSet.has(a.id)).length;
+    // バッチが1人も管理者を含まないなら、管理者数はこの操作で変化しないためガード不要
+    // （テスト環境など初期状態で管理者が0人のケースで、無関係な一般ユーザーの無効化まで
+    // 誤って LAST_ADMIN にしてしまう false positive を避ける）。
+    if (removingAdmin && remaining === 0) {
+      throw new AppError('LAST_ADMIN', '最後の管理者は無効化できません', 409);
+    }
+
+    const toDeactivate = found.filter((u) => u.isActive).map((u) => u.id);
+    if (toDeactivate.length > 0) {
+      await tx.update(users).set({ isActive: false }).where(inArray(users.id, toDeactivate));
+    }
+    return toDeactivate;
+  });
+
+  await Promise.all(targets.map((id) => deleteUserSessions(db, id)));
+  return { deactivated: targets.length };
 }
 
 export type MentionCandidate = { id: string; displayName: string; avatarUrl: string | null };

@@ -1,10 +1,13 @@
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { uploads } from '../db/schema';
+import { users, uploads } from '../db/schema';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
-import { changePassword, getPublicProfile, listUsers, updateProfile, updateUserByAdmin } from './user-service';
+import {
+  changePassword, deactivateUsers, getPublicProfile, listUsers, updateProfile, updateUserByAdmin,
+} from './user-service';
 import { createDepartment, createPosition } from './master-service';
 
 describe('user service', () => {
@@ -171,5 +174,66 @@ describe('user service', () => {
     await expect(
       updateUserByAdmin(ctx.db, user.id, { positionId: missing }),
     ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('pending の管理者はアクティブ管理者に数えない（降格・無効化ガード）', async () => {
+    const real = await createTestUser(ctx.db, { role: 'admin' });
+    await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, real.id, { role: 'member' }),
+    ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    await expect(
+      updateUserByAdmin(ctx.db, real.id, { isActive: false }),
+    ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+  });
+
+  describe('deactivateUsers', () => {
+    it('複数ユーザーを無効化しセッションを失効させる', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com' });
+      const b = await createTestUser(ctx.db, { email: 'b@example.com' });
+      const sid = await createSession(ctx.db, a.id);
+
+      const result = await deactivateUsers(ctx.db, [a.id, b.id]);
+
+      expect(result.deactivated).toBe(2);
+      expect(await getSessionUser(ctx.db, sid)).toBeNull();
+      const rows = await ctx.db.select().from(users).where(eq(users.id, a.id));
+      expect(rows[0].isActive).toBe(false);
+    });
+
+    it('既に無効なユーザーは no-op（冪等）', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com', isActive: false });
+      const result = await deactivateUsers(ctx.db, [a.id]);
+      expect(result.deactivated).toBe(0);
+    });
+
+    it('バッチでログイン可能な管理者が 0 になるなら LAST_ADMIN', async () => {
+      const admin1 = await createTestUser(ctx.db, { email: 'a1@example.com', role: 'admin' });
+      const admin2 = await createTestUser(ctx.db, { email: 'a2@example.com', role: 'admin' });
+      await expect(
+        deactivateUsers(ctx.db, [admin1.id, admin2.id]),
+      ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('pending の管理者はアクティブ管理者に数えない', async () => {
+      const real = await createTestUser(ctx.db, { email: 'real@example.com', role: 'admin' });
+      await createTestUser(ctx.db, {
+        email: 'pend@example.com', role: 'admin', authProvider: 'pending', passwordHash: null,
+      });
+      await expect(
+        deactivateUsers(ctx.db, [real.id]),
+      ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('不在 id は NOT_FOUND で全体失敗', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com' });
+      await expect(
+        deactivateUsers(ctx.db, [a.id, '00000000-0000-0000-0000-000000000000']),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, a.id));
+      expect(rows[0].isActive).toBe(true);
+    });
   });
 });
