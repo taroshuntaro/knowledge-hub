@@ -189,6 +189,25 @@ describe('user service', () => {
     ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
   });
 
+  it('pending の admin 自身を降格・無効化する場合はログイン可能管理者を減らさないので許可される', async () => {
+    // ログイン可能管理者は 1 人（real）のみ。pending の admin 行を降格/無効化しても
+    // loginableAdminWhere の対象外のままなので、ログイン可能管理者数は変化しない。
+    await createTestUser(ctx.db, { role: 'admin' }); // real: 唯一のログイン可能管理者
+    const pending = await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, pending.id, { role: 'member' }),
+    ).resolves.toMatchObject({ role: 'member' });
+
+    const pending2 = await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, pending2.id, { isActive: false }),
+    ).resolves.toMatchObject({ isActive: false });
+  });
+
   describe('deactivateUsers', () => {
     it('複数ユーザーを無効化しセッションを失効させる', async () => {
       const a = await createTestUser(ctx.db, { email: 'a@example.com' });

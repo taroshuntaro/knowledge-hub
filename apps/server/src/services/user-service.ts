@@ -15,6 +15,14 @@ const AVATAR_URL_PREFIX = '/api/uploads/';
 const loginableAdminWhere = () =>
   and(eq(users.role, 'admin'), eq(users.isActive, true), ne(users.authProvider, 'pending'));
 
+// loginableAdminWhere の JS 版（1 行に対する判定用）。SQL 述語と意味を揃えること。
+// target 行自身が「今まさにログイン可能な管理者か」を見るのに使う。role='admin' だけを
+// 見ると、pending の admin 行（ログイン手段を持たない）を降格・無効化しようとしただけで
+// 誤って LAST_ADMIN になってしまう（そのユーザーはそもそもログイン可能管理者数に
+// 含まれていないため、降格してもログイン可能管理者数は減らない）。
+const isLoginableAdmin = (u: { role: string; isActive: boolean; authProvider: string }) =>
+  u.role === 'admin' && u.isActive && u.authProvider !== 'pending';
+
 export async function updateProfile(
   db: Db,
   userId: string,
@@ -167,7 +175,7 @@ export async function updateUserByAdmin(
     }
 
     const demoting =
-      target.role === 'admin' && (patch.role === 'member' || patch.isActive === false);
+      isLoginableAdmin(target) && (patch.role === 'member' || patch.isActive === false);
     if (demoting) {
       const activeAdmins = await tx
         .select({ id: users.id })
