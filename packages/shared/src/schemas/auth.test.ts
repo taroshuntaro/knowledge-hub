@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { acceptInvitationSchema, loginSchema, updateProfileSchema } from './auth';
+import { acceptInvitationSchema, adminCreateUserSchema, claimSchema, deactivateUsersSchema, issueRegistrationCodeSchema, loginSchema, updateProfileSchema } from './auth';
 
 describe('auth schemas', () => {
   it('loginSchema は正しい入力を受理する', () => {
@@ -59,5 +59,25 @@ describe('auth schemas', () => {
       avatarUrl: null,
     });
     expect(r.success).toBe(true);
+  });
+});
+
+describe('account lifecycle schemas', () => {
+  it('claimSchema は email+code+password(12+) を受理する', () => {
+    expect(claimSchema.safeParse({ email: 'a@example.com', code: 'ABCD-EFGH-JKMN-PQRS', password: 'a'.repeat(12) }).success).toBe(true);
+  });
+  it('claimSchema は 11 文字パスワードを拒否する', () => {
+    expect(claimSchema.safeParse({ email: 'a@example.com', code: 'X', password: 'a'.repeat(11) }).success).toBe(false);
+  });
+  it('issueRegistrationCodeSchema は 7/30/90 のみ受理する', () => {
+    expect(issueRegistrationCodeSchema.safeParse({ expiresInDays: 30 }).success).toBe(true);
+    expect(issueRegistrationCodeSchema.safeParse({ expiresInDays: 14 }).success).toBe(false);
+  });
+  it('adminCreateUserSchema は email+displayName 必須', () => {
+    expect(adminCreateUserSchema.safeParse({ email: 'a@example.com', displayName: '太郎' }).success).toBe(true);
+    expect(adminCreateUserSchema.safeParse({ email: 'a@example.com' }).success).toBe(false);
+  });
+  it('deactivateUsersSchema は空配列を拒否する', () => {
+    expect(deactivateUsersSchema.safeParse({ userIds: [] }).success).toBe(false);
   });
 });
