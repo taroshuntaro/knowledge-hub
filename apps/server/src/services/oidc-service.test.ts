@@ -95,6 +95,22 @@ describe('resolveOidcUser', () => {
     ).rejects.toMatchObject({ code: 'OIDC_INACTIVE' });
   });
 
+  it('無効化された pending ユーザーも OIDC_INACTIVE で拒否される（クレームさせない）', async () => {
+    const inactivePending = await createTestUser(ctx.db, {
+      authProvider: 'pending',
+      passwordHash: null,
+      isActive: false,
+      email: 'inactive-pending@example.com',
+    });
+
+    await expect(
+      resolveOidcUser(ctx.db, { email: inactivePending.email, emailVerified: true }, []),
+    ).rejects.toMatchObject({ code: 'OIDC_INACTIVE' });
+
+    const row = await ctx.db.query.users.findFirst({ where: eq(users.id, inactivePending.id) });
+    expect(row?.authProvider).toBe('pending');
+  });
+
   it('email claim なしは OIDC_EMAIL で拒否される', async () => {
     await expect(resolveOidcUser(ctx.db, {}, [])).rejects.toMatchObject({
       code: 'OIDC_EMAIL',
