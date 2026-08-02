@@ -20,7 +20,6 @@ vi.mock('../api/client', () => ({
               { id: '2', email: 'b@example.com', displayName: '太郎', role: 'member', authProvider: 'password', isActive: false, createdAt: '2026-07-04T00:00:00Z', avatarUrl: null, departmentId: null, positionId: null, hireYear: null },
             ],
           }),
-          invitations: { $post: vi.fn() },
           import: { $post: (...args: unknown[]) => postImport(...args) },
           ':id': { $patch: (...args: unknown[]) => patchUser(...args) },
         },

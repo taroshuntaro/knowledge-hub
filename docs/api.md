@@ -32,7 +32,6 @@ knowledge-hub のサーバー（Hono）が公開する HTTP エンドポイン�
 | POST | `/api/auth/login` | 🌐 公開（要 password 認証） | パスワードでログインしセッションを発行 |
 | POST | `/api/auth/logout` | 🌐 公開 | セッションを破棄しログアウト |
 | GET | `/api/auth/me` | 🔒 ログイン | 現在ログイン中のユーザーを返す |
-| POST | `/api/auth/invitations/:token/accept` | 🌐 公開 | 招待トークンを受諾しアカウント作成 + ログイン |
 | POST | `/api/auth/password-reset/request` | 🌐 公開（要 password 認証） | 再設定リンクをメール送信 |
 | POST | `/api/auth/password-reset/confirm/:token` | 🌐 公開（要 password 認証） | トークンで新パスワードを確定 |
 
@@ -64,7 +63,6 @@ knowledge-hub のサーバー（Hono）が公開する HTTP エンドポイン�
 | メソッド | パス | 認可 | 概要 |
 | --- | --- | --- | --- |
 | GET | `/api/admin/users` | 🛡️ 管理者 | 全ユーザー一覧 |
-| POST | `/api/admin/users/invitations` | 🛡️ 管理者 | 招待を作成しメール送信 |
 | PATCH | `/api/admin/users/:id` | 🛡️ 管理者 | ユーザーのロール・状態・所属・役職・入社年を更新 |
 | POST | `/api/admin/users/import` | 🛡️ 管理者 | CSV で所属・役職・入社年を一括設定 |
 | GET | `/api/admin/departments` | 🛡️ 管理者 | 所属マスタ一覧 |

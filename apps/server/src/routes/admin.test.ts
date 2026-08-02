@@ -32,17 +32,6 @@ describe('admin routes', () => {
     expect(list[0]).toHaveProperty('avatarUrl');
   });
 
-  it('admin は招待を送れる', async () => {
-    const cookie = await login('a@example.com');
-    const res = await ctx.app.request('/api/admin/users/invitations', {
-      method: 'POST',
-      body: JSON.stringify({ email: 'new@example.com' }),
-      headers: { 'content-type': 'application/json', cookie },
-    });
-    expect(res.status).toBe(204);
-    expect(ctx.mailer.sent.at(-1)?.to).toBe('new@example.com');
-  });
-
   it('無効化するとそのユーザーのセッションが切れる', async () => {
     const adminCookie = await login('a@example.com');
     const targetCookie = await login('b@example.com', 'member');

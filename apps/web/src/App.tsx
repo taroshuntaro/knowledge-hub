@@ -10,7 +10,6 @@ import { BookmarksPage } from './pages/BookmarksPage';
 import { CategoriesPage } from './pages/CategoriesPage';
 import { CategoryPage } from './pages/CategoryPage';
 import { HomePage } from './pages/HomePage';
-import { InvitePage } from './pages/InvitePage';
 import { LoginPage } from './pages/LoginPage';
 import { MyArticlesPage } from './pages/MyArticlesPage';
 import { NotificationsPage } from './pages/NotificationsPage';
@@ -39,7 +38,6 @@ function EditorRoute() {
 
 const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
-  { path: '/invite/:token', element: <InvitePage /> },
   { path: '/password-reset', element: <PasswordResetRequestPage /> },
   { path: '/password-reset/:token', element: <PasswordResetConfirmPage /> },
   {

@@ -1,5 +1,4 @@
 import {
-  acceptInvitationSchema,
   loginSchema,
   passwordResetConfirmSchema,
   passwordResetRequestSchema,
@@ -15,7 +14,6 @@ import {
 import { requirePasswordAuth } from '../middleware/password-auth';
 import { validate } from '../middleware/validate';
 import { loginWithPassword } from '../services/auth-service';
-import { acceptInvitation } from '../services/invitation-service';
 import {
   requestPasswordReset,
   resetPassword,
@@ -66,19 +64,6 @@ export const authRoutes = new Hono<AppEnv>()
     return c.body(null, 204);
   })
   .get('/me', requireAuth, (c) => c.json(c.get('user')))
-  .post(
-    '/invitations/:token/accept',
-    validate('json', acceptInvitationSchema),
-    async (c) => {
-      const { sid, user } = await acceptInvitation(
-        c.get('db'),
-        c.req.param('token'),
-        c.req.valid('json'),
-      );
-      setSessionCookie(c, sid, c.get('config'));
-      return c.json(user);
-    },
-  )
   .post('/password-reset/request', requirePasswordAuth, validate('json', passwordResetRequestSchema), async (c) => {
     const { email } = c.req.valid('json');
     if (!passwordResetLimiter.consume(email.toLowerCase())) {

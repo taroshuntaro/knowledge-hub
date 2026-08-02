@@ -16,8 +16,6 @@ const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
   const { data: users } = useQuery({
     queryKey: keys.adminUsers,
@@ -91,40 +89,9 @@ export function AdminUsersPage() {
     }
   }
 
-  async function onInvite(e: FormEvent) {
-    e.preventDefault();
-    setInviteMsg(null);
-    try {
-      const res = await api.api.admin.users.invitations.$post({ json: { email: inviteEmail } });
-      if (res.ok) {
-        setInviteMsg(`${inviteEmail} に招待を送りました`);
-        setInviteEmail('');
-      } else {
-        setInviteMsg(await errorMessage(res, '招待に失敗しました'));
-      }
-    } catch {
-      setInviteMsg(NETWORK_ERROR_MESSAGE);
-    }
-  }
-
   return (
     <section>
       <h2 className="mb-4 text-xl font-bold tracking-tight">ユーザー管理</h2>
-      <Card className="mb-6">
-        <CardHeader>
-          <h3 className="leading-none font-semibold">ユーザーを招待</h3>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={onInvite} className="flex flex-col gap-4">
-            <div className="grid gap-1.5">
-              <Label htmlFor="invite-email">招待するメールアドレス</Label>
-              <Input id="invite-email" type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} required />
-            </div>
-            {inviteMsg && <p role="status" className="text-sm text-muted-foreground">{inviteMsg}</p>}
-            <Button type="submit">招待を送る</Button>
-          </form>
-        </CardContent>
-      </Card>
       <Card className="mb-6">
         <CardHeader>
           <h3 className="leading-none font-semibold">所属・役職・入社年を CSV で一括設定</h3>
