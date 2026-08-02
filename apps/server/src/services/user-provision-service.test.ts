@@ -34,6 +34,18 @@ describe('user provision service', () => {
         email: 'a@example.com', displayName: 'A', positionId: '00000000-0000-0000-0000-000000000000',
       })).rejects.toMatchObject({ code: 'VALIDATION' });
     });
+
+    it('同一 email を同時作成しても片方は EMAIL_TAKEN（TOCTOU で 500 に漏れない）', async () => {
+      const results = await Promise.allSettled([
+        createPendingUser(ctx.db, { email: 'race@example.com', displayName: 'A' }),
+        createPendingUser(ctx.db, { email: 'race@example.com', displayName: 'B' }),
+      ]);
+      const fulfilled = results.filter((r) => r.status === 'fulfilled');
+      const rejected = results.filter((r) => r.status === 'rejected');
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ code: 'EMAIL_TAKEN' });
+    });
   });
 
   describe('importUserRegistrations', () => {

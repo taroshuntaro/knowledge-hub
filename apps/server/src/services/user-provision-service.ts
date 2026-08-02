@@ -33,6 +33,13 @@ type ParsedRow = {
   hireYear: number | null;
 };
 
+// master-service.ts の isUniqueViolation と同形。code は err.code か err.cause.code のどちらか
+// （pg ドライバのラップの仕方に依存）に載るため両方見る。
+function isUniqueViolation(e: unknown): boolean {
+  const code = (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
+  return code === '23505';
+}
+
 /**
  * 管理者が個別にユーザーを事前作成する（登録コードで claim されるまで pending）。
  * role は常に member 固定。email 重複は EMAIL_TAKEN、departmentId/positionId の不在は
@@ -41,6 +48,8 @@ type ParsedRow = {
 export async function createPendingUser(db: Db, input: ProvisionInput): Promise<AdminUserView> {
   const email = normalizeEmail(input.email);
 
+  // 事前チェックは高速パス（大半のリクエストで DB 制約違反の例外コストを避ける）。
+  // 並行リクエストの TOCTOU は下の insert の catch で確実に EMAIL_TAKEN に変換する。
   const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
   if (existing) throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
 
@@ -57,19 +66,24 @@ export async function createPendingUser(db: Db, input: ProvisionInput): Promise<
     if (!pos) throw new AppError('VALIDATION', '役職が存在しません', 400);
   }
 
-  const [row] = await db
-    .insert(users)
-    .values({
-      email,
-      displayName: input.displayName,
-      authProvider: 'pending',
-      passwordHash: null,
-      departmentId: input.departmentId ?? null,
-      positionId: input.positionId ?? null,
-      hireYear: input.hireYear ?? null,
-    })
-    .returning();
-  return toAdminView(row);
+  try {
+    const [row] = await db
+      .insert(users)
+      .values({
+        email,
+        displayName: input.displayName,
+        authProvider: 'pending',
+        passwordHash: null,
+        departmentId: input.departmentId ?? null,
+        positionId: input.positionId ?? null,
+        hireYear: input.hireYear ?? null,
+      })
+      .returning();
+    return toAdminView(row);
+  } catch (e) {
+    if (isUniqueViolation(e)) throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
+    throw e;
+  }
 }
 
 /**
