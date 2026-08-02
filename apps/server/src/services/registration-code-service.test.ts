@@ -1,3 +1,4 @@
+import { and, gt, isNull } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { registrationCodes } from '../db/schema';
 import { createTestApp, resetDb } from '../test/helpers';
@@ -40,5 +41,17 @@ describe('registration-code-service', () => {
   it('不一致コードは false', async () => {
     await issueRegistrationCode(ctx.db, 30);
     expect(await verifyRegistrationCode(ctx.db, 'AAAA-AAAA-AAAA-AAAA')).toBe(false);
+  });
+
+  it('並行発行しても有効なコードは常に 1 つ（advisory lock で直列化）', async () => {
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () => issueRegistrationCode(ctx.db, 30)),
+    );
+    expect(results).toHaveLength(5);
+    const active = await ctx.db
+      .select({ id: registrationCodes.id })
+      .from(registrationCodes)
+      .where(and(isNull(registrationCodes.revokedAt), gt(registrationCodes.expiresAt, new Date())));
+    expect(active).toHaveLength(1);
   });
 });

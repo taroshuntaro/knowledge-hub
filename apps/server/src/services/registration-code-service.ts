@@ -1,11 +1,15 @@
 import { randomBytes } from 'node:crypto';
-import { and, eq, gt, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { registrationCodes } from '../db/schema';
 import type { Db } from '../types';
 import { hashToken } from './session-service';
 
 // 紛らわしい文字（I/L/O/0/1）を除いた 31 文字。16 文字 ≈ 79bit で総当たり不能。
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+// pg_advisory_xact_lock 用の固定キー。registration_codes の発行を直列化し、
+// 並行発行で「有効なコードは常に 1 つ」の不変条件が破れるのを防ぐ（トランザクション終了時に自動解放）。
+const REGISTRATION_CODE_LOCK_KEY = 823001;
 
 function generateCode(): string {
   const chars = Array.from(randomBytes(16), (b) => CODE_ALPHABET[b % CODE_ALPHABET.length]);
@@ -19,6 +23,7 @@ export async function issueRegistrationCode(db: Db, expiresInDays: number) {
   const code = generateCode();
   const expiresAt = new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000);
   await db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(${REGISTRATION_CODE_LOCK_KEY})`);
     await tx.update(registrationCodes).set({ revokedAt: new Date() }).where(isNull(registrationCodes.revokedAt));
     await tx.insert(registrationCodes).values({ codeHash: hashToken(code), expiresAt });
   });
