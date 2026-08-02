@@ -112,7 +112,7 @@ export type AdminUserView = {
   hireYear: number | null;
 };
 
-function toAdminView(row: typeof users.$inferSelect): AdminUserView {
+export function toAdminView(row: typeof users.$inferSelect): AdminUserView {
   const {
     id, email, displayName, role, authProvider, isActive, createdAt, avatarUrl,
     departmentId, positionId, hireYear,

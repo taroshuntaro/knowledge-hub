@@ -124,9 +124,9 @@ export async function importUserOrg(db: Db, csvText: string): Promise<ImportResu
   });
 }
 
-type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
+export type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
-async function ensureDepartments(tx: Tx, names: string[]): Promise<string[]> {
+export async function ensureDepartments(tx: Tx, names: string[]): Promise<string[]> {
   if (names.length === 0) return [];
   const existing = new Set(
     (await tx.select({ name: departments.name }).from(departments)).map((d) => d.name),
@@ -140,7 +140,7 @@ async function ensureDepartments(tx: Tx, names: string[]): Promise<string[]> {
   return missing;
 }
 
-async function ensurePositions(tx: Tx, names: string[]): Promise<string[]> {
+export async function ensurePositions(tx: Tx, names: string[]): Promise<string[]> {
   if (names.length === 0) return [];
   const existing = new Set(
     (await tx.select({ name: positions.name }).from(positions)).map((p) => p.name),
