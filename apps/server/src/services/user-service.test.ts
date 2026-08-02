@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { users, uploads } from '../db/schema';
-import { createTestUser, TEST_PASSWORD } from '../test/factories';
+import { createTestArticle, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
 import {
@@ -234,6 +234,16 @@ describe('user service', () => {
 
     it('クレーム済みユーザーは CONFLICT で削除できない', async () => {
       const u = await createTestUser(ctx.db);
+      await expect(deletePendingUser(ctx.db, u.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows).toHaveLength(1);
+    });
+
+    it('unclaim 後もコンテンツ（記事）を持つ pending 行は CONFLICT で削除できない', async () => {
+      const u = await createTestUser(ctx.db);
+      await createTestArticle(ctx.db, { authorId: u.id });
+      await unclaimUser(ctx.db, u.id);
+
       await expect(deletePendingUser(ctx.db, u.id)).rejects.toMatchObject({ code: 'CONFLICT' });
       const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
       expect(rows).toHaveLength(1);

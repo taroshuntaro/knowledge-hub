@@ -23,6 +23,15 @@ const loginableAdminWhere = () =>
 const isLoginableAdmin = (u: { role: string; isActive: boolean; authProvider: string }) =>
   u.role === 'admin' && u.isActive && u.authProvider !== 'pending';
 
+// master-service.ts / user-provision-service.ts の isUniqueViolation と同形。code は
+// err.code か err.cause.code のどちらかに出る（pg ドライバのラップの都合）。
+// FK 違反（他テーブルからの参照が残っている）を検出し、生の 500 ではなく
+// AppError(CONFLICT) に変換するために使う。
+function isForeignKeyViolation(e: unknown): boolean {
+  const code = (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
+  return code === '23503';
+}
+
 export async function updateProfile(
   db: Db,
   userId: string,
@@ -246,8 +255,11 @@ export async function listMentionCandidates(db: Db): Promise<MentionCandidate[]>
 }
 
 /**
- * pending（未クレーム）ユーザーを削除する。pending 行は登録コード発行のみでログイン手段・
- * 記事・セッション・アップロード等の関連コンテンツを一切持ち得ないため、ハード削除して安全。
+ * pending（未クレーム）ユーザーを削除する。登録コード発行だけで一度もログインしていない
+ * pending 行は通常コンテンツを持たないため安全にハード削除できるが、unclaimUser 経由で
+ * クレーム済みユーザーを pending に戻したケースでは、記事・アップロード・コメント等の
+ * 著者/所有者参照（onDelete cascade なし）が残っていることがある。そのため事前チェックは
+ * 行わず、FK 制約違反（23503）を最終防衛線として検出し CONFLICT に変換する。
  * クレーム済み（pending でない）ユーザーは CONFLICT で拒否し、無効化（deactivateUsers）に誘導する。
  */
 export async function deletePendingUser(db: Db, id: string): Promise<void> {
@@ -256,7 +268,18 @@ export async function deletePendingUser(db: Db, id: string): Promise<void> {
   if (target.authProvider !== 'pending') {
     throw new AppError('CONFLICT', 'ログイン済みユーザーは削除できません。無効化を使ってください', 409);
   }
-  await db.delete(users).where(and(eq(users.id, id), eq(users.authProvider, 'pending')));
+  try {
+    await db.delete(users).where(and(eq(users.id, id), eq(users.authProvider, 'pending')));
+  } catch (e) {
+    if (isForeignKeyViolation(e)) {
+      throw new AppError(
+        'CONFLICT',
+        '記事などのコンテンツを持つユーザーは削除できません。無効化を使ってください',
+        409,
+      );
+    }
+    throw e;
+  }
 }
 
 /**
