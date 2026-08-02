@@ -112,7 +112,8 @@ export function AdminUsersPage() {
     if (
       confirm(
         `「${u.displayName}」を未ログインに戻しますか？\n` +
-          'このユーザーは再クレームまでログインできず、名簿に表示されなくなります（記事等のコンテンツは残ります）。',
+          'このユーザーは再クレームまでログインできず、名簿に表示されなくなります（記事等のコンテンツは残ります）。' +
+          '管理者は member に戻ります。',
       )
     ) {
       unclaimUser.mutate(u.id);
@@ -294,6 +295,8 @@ export function AdminUsersPage() {
                     type="button"
                     variant="outline"
                     size="sm"
+                    disabled={u.authProvider === 'pending'}
+                    title={u.authProvider === 'pending' ? '未ログインのユーザーは管理者にできません' : undefined}
                     onClick={() => patchUser.mutate({ id: u.id, role: u.role === 'admin' ? 'member' : 'admin' })}
                   >
                     {u.role === 'admin' ? 'メンバーにする' : '管理者にする'}

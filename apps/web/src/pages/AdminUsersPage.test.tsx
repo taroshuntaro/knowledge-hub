@@ -208,4 +208,23 @@ describe('AdminUsersPage', () => {
     await userEvent.click(screen.getByRole('button', { name: '管理者 を未ログインに戻す' }));
     expect(postUnclaim).toHaveBeenCalledWith({ param: { id: '1' } });
   });
+
+  it('未ログインに戻す確認メッセージに「管理者は member に戻ります」を含む', async () => {
+    postUnclaim.mockResolvedValue({ ok: true, json: async () => ({ ...baseUsers[0] }) });
+    renderPage();
+    await screen.findByText('a@example.com');
+
+    await userEvent.click(screen.getByRole('button', { name: '管理者 を未ログインに戻す' }));
+
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('管理者は member に戻ります。'));
+  });
+
+  it('pending 行の管理者昇格ボタンは無効化される', async () => {
+    renderPage();
+    await screen.findByText('a@example.com');
+
+    const pendingRow = screen.getByLabelText('未ログイン花子 を選択').closest('tr')!;
+    const promoteButton = within(pendingRow).getByRole('button', { name: '管理者にする' });
+    expect(promoteButton).toBeDisabled();
+  });
 });

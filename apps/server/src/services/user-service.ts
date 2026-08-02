@@ -171,6 +171,14 @@ export async function updateUserByAdmin(
     const target = await tx.query.users.findFirst({ where: eq(users.id, targetId) });
     if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
 
+    // 「pending 行は常に member」という不変条件（unclaimUser の admin 降格と対）。
+    // pending（未クレーム、ログイン手段なし）のまま admin を付与すると、共有された
+    // 登録コードを別人が誤ってクレームした際に admin セッションへエスカレーションする
+    // 経路が生まれるため、pending 行への admin 付与はここで拒否する。
+    if (patch.role === 'admin' && target.authProvider === 'pending') {
+      throw new AppError('VALIDATION', '未ログインのユーザーは管理者にできません', 400);
+    }
+
     // FK 違反を 500 にせず、割当先の実在をアプリ層で 400 にする
     if (patch.departmentId) {
       const dep = await tx.query.departments.findFirst({
@@ -283,8 +291,12 @@ export async function deletePendingUser(db: Db, id: string): Promise<void> {
 }
 
 /**
- * クレーム済みユーザーを pending（未クレーム）状態に戻す。role/isActive/所属等はそのまま
+ * クレーム済みユーザーを pending（未クレーム）状態に戻す。isActive/所属等はそのまま
  * 維持し、ログイン手段（passwordHash）だけを剥奪してセッションを全て失効させる。
+ * role が admin の場合は同時に member へ降格する（「pending 行は常に member」という
+ * 不変条件を保つため。共有された登録コードを別人が誤ってクレームしても、pending の
+ * まま admin 権限を持つ行が存在しないことで admin セッションへのエスカレーションを
+ * 構造的に排除する。再クレーム後に別の管理者が改めて admin へ昇格させる運用）。
  * 降格・無効化と同じ「最後のログイン可能管理者」ガードを適用する（tx + FOR UPDATE）。
  */
 export async function unclaimUser(db: Db, id: string): Promise<AdminUserView> {
@@ -308,7 +320,11 @@ export async function unclaimUser(db: Db, id: string): Promise<AdminUserView> {
 
     const [updated] = await tx
       .update(users)
-      .set({ authProvider: 'pending', passwordHash: null })
+      .set({
+        authProvider: 'pending',
+        passwordHash: null,
+        ...(target.role === 'admin' ? { role: 'member' as const } : {}),
+      })
       .where(eq(users.id, id))
       .returning();
     return updated;

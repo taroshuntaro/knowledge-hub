@@ -105,7 +105,7 @@
   - プロフィール `GET /api/users/:id` は 404。
 - **管理者のユーザー一覧**では「未ログイン」バッジで表示（authProvider 列で判定）。
 - **pending 行の削除**: `DELETE /api/admin/users/:id`。`authProvider='pending'` の行のみ許可（未ログインなので記事・コメント等の被参照が存在せず安全にハード削除できる）。クレーム済みユーザーは 409。誤登録の取り消し用。
-- **未ログインに戻す（クレーム取り消し）**: `POST /api/admin/users/:id/unclaim`。`authProvider='pending'` に戻し、`passwordHash=null`、セッション全削除。対象が既に pending の場合は 409（削除ガードと対称）。用途:
+- **未ログインに戻す（クレーム取り消し）**: `POST /api/admin/users/:id/unclaim`。`authProvider='pending'` に戻し、`passwordHash=null`、セッション全削除。role は admin の場合 member へ降格する（再クレーム後に別の管理者が再昇格する運用。「pending 行は常に member」という不変条件、2026-08-02 決定）。isActive / 所属（department・position・hireYear）は不変。対象が既に pending の場合は 409（削除ガードと対称）。用途:
   - 共通コードの弱点である「他人の email での誤クレーム / なりすまし」からの復旧。
   - **メールなし環境でのパスワードリセット代替**（本人が管理者に依頼 → unclaim → 有効なコードで再クレーム）。
   - 対象が最後のアクティブ管理者（§7 の統一定義）の場合は `LAST_ADMIN` で拒否（ログイン可能な管理者が 0 になるのを防ぐ）。
@@ -154,6 +154,7 @@
 - クレームは**条件付き UPDATE でアトミック**（並行二重クレーム防止）。
 - 登録 CSV は `role='member'` 固定（一括経路からの権限付与を不可能に）。
 - `PASSWORD_AUTH_ENABLED=false` では claim API・ページとも無効（OIDC 専用構成でコード経路が開かない）。
+- 「pending 行は常に member」（unclaim 降格 + pending への admin 付与拒否）により、共有コードの誤クレームが admin セッションを産む経路を構造的に排除(2026-08-02 決定)。
 
 ## 13. テスト戦略
 
@@ -166,7 +167,7 @@
   - 可視性: メンション候補・profiles・users/:id の pending 除外。
   - pending 削除ガード・unclaim（最後の管理者拒否含む）。
 - **Web**: クレームページ（成功/失敗表示）・管理画面の追加 UI（既存テストの流儀）。
-- **E2E**: **setup の member 作成を「招待 + Mailpit」から「管理者による事前作成 + 登録コードクレーム」に書き換え**（クレームフローの E2E を兼ねる。E2E のメール依存が消える）。無効化 → ログイン拒否の既存シナリオは維持。**sso.spec も要修正**: JIT 廃止により、Keycloak 側テストユーザー（sso-taro@example.com）の pending 行をアプリ側に事前作成してから SSO ログインする流れに変更（「行なしで SSO → 拒否」の負テストも追加候補）。
+- **E2E**: **setup の member 作成を「招待 + Mailpit」から「管理者による事前作成 + 登録コードクレーム」に書き換え**（クレームフローの E2E を兼ねる。E2E のメール依存が消える）。無効化 → ログイン拒否はサービス層・ルート層のテストでカバーする（E2E ではカバーしない）。**sso.spec も要修正**: JIT 廃止により、Keycloak 側テストユーザー（sso-taro@example.com）の pending 行をアプリ側に事前作成してから SSO ログインする流れに変更（「行なしで SSO → 拒否」の負テストも追加候補）。
 
 ## 14. スコープ外（今回はやらない）
 

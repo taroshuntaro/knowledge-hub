@@ -209,6 +209,21 @@ describe('user service', () => {
     ).resolves.toMatchObject({ isActive: false });
   });
 
+  it('pending ユーザーを admin に昇格させようとすると VALIDATION', async () => {
+    const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+    await expect(
+      updateUserByAdmin(ctx.db, p.id, { role: 'admin' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+    const rows = await ctx.db.select().from(users).where(eq(users.id, p.id));
+    expect(rows[0].role).toBe('member');
+  });
+
+  it('クレーム済みユーザーを admin に昇格させられる', async () => {
+    const member = await createTestUser(ctx.db);
+    const updated = await updateUserByAdmin(ctx.db, member.id, { role: 'admin' });
+    expect(updated.role).toBe('admin');
+  });
+
   it('pending はメンション候補に出ず、プロフィールは 404', async () => {
     const p = await createTestUser(ctx.db, {
       displayName: 'ペンディング花子', authProvider: 'pending', passwordHash: null,
@@ -277,6 +292,26 @@ describe('user service', () => {
     it('最後のログイン可能管理者は unclaim できず LAST_ADMIN', async () => {
       const admin = await createTestUser(ctx.db, { role: 'admin' });
       await expect(unclaimUser(ctx.db, admin.id)).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('admin を unclaim すると member へ降格する（pending 行は常に member）', async () => {
+      await createTestUser(ctx.db, { email: 'other-admin@example.com', role: 'admin' });
+      const admin = await createTestUser(ctx.db, { email: 'target-admin@example.com', role: 'admin' });
+
+      const view = await unclaimUser(ctx.db, admin.id);
+
+      expect(view.role).toBe('member');
+      expect(view.authProvider).toBe('pending');
+      const rows = await ctx.db.select().from(users).where(eq(users.id, admin.id));
+      expect(rows[0].role).toBe('member');
+    });
+
+    it('member を unclaim しても role は変わらない', async () => {
+      const member = await createTestUser(ctx.db);
+      const view = await unclaimUser(ctx.db, member.id);
+      expect(view.role).toBe('member');
+      const rows = await ctx.db.select().from(users).where(eq(users.id, member.id));
+      expect(rows[0].role).toBe('member');
     });
   });
 
