@@ -10,11 +10,6 @@ export const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
-export const inviteSchema = z.object({ email: z.string().email() });
-export const acceptInvitationSchema = z.object({
-  displayName: z.string().min(1).max(50),
-  password: passwordSchema,
-});
 export const passwordResetRequestSchema = z.object({ email: z.string().email() });
 export const passwordResetConfirmSchema = z.object({ password: passwordSchema });
 export const changePasswordSchema = z.object({
@@ -42,3 +37,25 @@ export const updateUserByAdminSchema = z
   .refine((v) => Object.values(v).some((x) => x !== undefined), {
     message: '変更内容を指定してください',
   });
+
+export const claimSchema = z.object({
+  email: z.string().email(),
+  code: z.string().min(1).max(40),
+  password: passwordSchema,
+});
+
+export const issueRegistrationCodeSchema = z.object({
+  expiresInDays: z.union([z.literal(7), z.literal(30), z.literal(90)]),
+});
+
+export const adminCreateUserSchema = z.object({
+  email: z.string().email(),
+  displayName: z.string().min(1).max(50),
+  departmentId: z.string().uuid().nullable().optional(),
+  positionId: z.string().uuid().nullable().optional(),
+  hireYear: hireYearSchema.nullable().optional(),
+});
+
+export const deactivateUsersSchema = z.object({
+  userIds: z.array(z.string().uuid()).min(1).max(1000),
+});

@@ -33,8 +33,14 @@ describe('OIDC login flow', () => {
     return ctx.app.request(`/api/auth/oidc/callback${new URL(cbUrl).search}`, { headers: { cookie } });
   }
 
-  it('フルフロー: JIT 作成 → セッション Cookie → APP_URL へ 302', async () => {
+  it('フルフロー: pending 行のクレーム → セッション Cookie → APP_URL へ 302', async () => {
     await resetDb(ctx.db);
+    await createTestUser(ctx.db, {
+      email: 'sso@example.com',
+      displayName: '事前 SSO太郎',
+      authProvider: 'pending',
+      passwordHash: null,
+    });
     const res = await ssoLogin({ email: 'sso@example.com', email_verified: true, name: 'SSO Taro' });
     expect(res.status).toBe(302);
     expect(res.headers.get('location')).toBe(testConfig().appUrl);
@@ -42,7 +48,23 @@ describe('OIDC login flow', () => {
 
     const rows = await ctx.db.query.users.findMany();
     expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ email: 'sso@example.com', role: 'member', authProvider: 'oidc' });
+    expect(rows[0]).toMatchObject({
+      email: 'sso@example.com',
+      role: 'member',
+      authProvider: 'oidc',
+      displayName: '事前 SSO太郎',
+    });
+  });
+
+  it('事前作成されていない email は拒否されセッションを作らない（JIT 廃止）', async () => {
+    await resetDb(ctx.db);
+    const res = await ssoLogin({ email: 'stranger@example.com', email_verified: true });
+    expect(res.status).toBe(302);
+    expect(res.headers.get('location')).toBe(`${testConfig().appUrl}/login?error=not_provisioned`);
+    expect(res.headers.get('set-cookie') ?? '').not.toContain('sid=');
+
+    const rows = await ctx.db.query.users.findMany();
+    expect(rows).toHaveLength(0);
   });
 
   it('ドメイン不許可は /login?error=oidc_domain へ 302 しセッションを作らない', async () => {

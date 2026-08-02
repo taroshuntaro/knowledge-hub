@@ -15,6 +15,7 @@ const ERROR_QUERY: Partial<Record<ErrorCode, string>> = {
   OIDC_DOMAIN: 'oidc_domain',
   OIDC_INACTIVE: 'oidc_inactive',
   OIDC_UNAVAILABLE: 'oidc_unavailable',
+  OIDC_NOT_PROVISIONED: 'not_provisioned',
 };
 
 function redirectUri(config: Config): string {

@@ -1,10 +1,14 @@
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { uploads } from '../db/schema';
-import { createTestUser, TEST_PASSWORD } from '../test/factories';
+import { users, uploads } from '../db/schema';
+import { createTestArticle, createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { createSession, getSessionUser } from './session-service';
-import { changePassword, getPublicProfile, listUsers, updateProfile, updateUserByAdmin } from './user-service';
+import {
+  changePassword, deactivateUsers, deletePendingUser, getPublicProfile, listMentionCandidates,
+  listUsers, unclaimUser, updateProfile, updateUserByAdmin,
+} from './user-service';
 import { createDepartment, createPosition } from './master-service';
 
 describe('user service', () => {
@@ -171,5 +175,191 @@ describe('user service', () => {
     await expect(
       updateUserByAdmin(ctx.db, user.id, { positionId: missing }),
     ).rejects.toMatchObject({ code: 'VALIDATION' });
+  });
+
+  it('pending の管理者はアクティブ管理者に数えない（降格・無効化ガード）', async () => {
+    const real = await createTestUser(ctx.db, { role: 'admin' });
+    await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, real.id, { role: 'member' }),
+    ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    await expect(
+      updateUserByAdmin(ctx.db, real.id, { isActive: false }),
+    ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+  });
+
+  it('pending の admin 自身を降格・無効化する場合はログイン可能管理者を減らさないので許可される', async () => {
+    // ログイン可能管理者は 1 人（real）のみ。pending の admin 行を降格/無効化しても
+    // loginableAdminWhere の対象外のままなので、ログイン可能管理者数は変化しない。
+    await createTestUser(ctx.db, { role: 'admin' }); // real: 唯一のログイン可能管理者
+    const pending = await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, pending.id, { role: 'member' }),
+    ).resolves.toMatchObject({ role: 'member' });
+
+    const pending2 = await createTestUser(ctx.db, {
+      role: 'admin', authProvider: 'pending', passwordHash: null,
+    });
+    await expect(
+      updateUserByAdmin(ctx.db, pending2.id, { isActive: false }),
+    ).resolves.toMatchObject({ isActive: false });
+  });
+
+  it('pending ユーザーを admin に昇格させようとすると VALIDATION', async () => {
+    const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+    await expect(
+      updateUserByAdmin(ctx.db, p.id, { role: 'admin' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION' });
+    const rows = await ctx.db.select().from(users).where(eq(users.id, p.id));
+    expect(rows[0].role).toBe('member');
+  });
+
+  it('クレーム済みユーザーを admin に昇格させられる', async () => {
+    const member = await createTestUser(ctx.db);
+    const updated = await updateUserByAdmin(ctx.db, member.id, { role: 'admin' });
+    expect(updated.role).toBe('admin');
+  });
+
+  it('pending はメンション候補に出ず、プロフィールは 404', async () => {
+    const p = await createTestUser(ctx.db, {
+      displayName: 'ペンディング花子', authProvider: 'pending', passwordHash: null,
+    });
+    const candidates = await listMentionCandidates(ctx.db);
+    expect(candidates.map((u) => u.displayName)).not.toContain('ペンディング花子');
+    await expect(getPublicProfile(ctx.db, p.id)).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  describe('deletePendingUser', () => {
+    it('pending ユーザーを削除できる', async () => {
+      const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+      await deletePendingUser(ctx.db, p.id);
+      const rows = await ctx.db.select().from(users).where(eq(users.id, p.id));
+      expect(rows).toHaveLength(0);
+    });
+
+    it('不在 id は NOT_FOUND', async () => {
+      await expect(
+        deletePendingUser(ctx.db, '00000000-0000-0000-0000-000000000000'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('クレーム済みユーザーは CONFLICT で削除できない', async () => {
+      const u = await createTestUser(ctx.db);
+      await expect(deletePendingUser(ctx.db, u.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows).toHaveLength(1);
+    });
+
+    it('unclaim 後もコンテンツ（記事）を持つ pending 行は CONFLICT で削除できない', async () => {
+      const u = await createTestUser(ctx.db);
+      await createTestArticle(ctx.db, { authorId: u.id });
+      await unclaimUser(ctx.db, u.id);
+
+      await expect(deletePendingUser(ctx.db, u.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows).toHaveLength(1);
+    });
+  });
+
+  describe('unclaimUser', () => {
+    it('クレーム済みユーザーを pending に戻しセッションを失効させる', async () => {
+      const u = await createTestUser(ctx.db, { email: 'u@example.com' });
+      const sid = await createSession(ctx.db, u.id);
+
+      const view = await unclaimUser(ctx.db, u.id);
+
+      expect(view.authProvider).toBe('pending');
+      expect(await getSessionUser(ctx.db, sid)).toBeNull();
+      const rows = await ctx.db.select().from(users).where(eq(users.id, u.id));
+      expect(rows[0].passwordHash).toBeNull();
+    });
+
+    it('不在 id は NOT_FOUND', async () => {
+      await expect(
+        unclaimUser(ctx.db, '00000000-0000-0000-0000-000000000000'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('既に pending の対象は CONFLICT', async () => {
+      const p = await createTestUser(ctx.db, { authProvider: 'pending', passwordHash: null });
+      await expect(unclaimUser(ctx.db, p.id)).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
+    it('最後のログイン可能管理者は unclaim できず LAST_ADMIN', async () => {
+      const admin = await createTestUser(ctx.db, { role: 'admin' });
+      await expect(unclaimUser(ctx.db, admin.id)).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('admin を unclaim すると member へ降格する（pending 行は常に member）', async () => {
+      await createTestUser(ctx.db, { email: 'other-admin@example.com', role: 'admin' });
+      const admin = await createTestUser(ctx.db, { email: 'target-admin@example.com', role: 'admin' });
+
+      const view = await unclaimUser(ctx.db, admin.id);
+
+      expect(view.role).toBe('member');
+      expect(view.authProvider).toBe('pending');
+      const rows = await ctx.db.select().from(users).where(eq(users.id, admin.id));
+      expect(rows[0].role).toBe('member');
+    });
+
+    it('member を unclaim しても role は変わらない', async () => {
+      const member = await createTestUser(ctx.db);
+      const view = await unclaimUser(ctx.db, member.id);
+      expect(view.role).toBe('member');
+      const rows = await ctx.db.select().from(users).where(eq(users.id, member.id));
+      expect(rows[0].role).toBe('member');
+    });
+  });
+
+  describe('deactivateUsers', () => {
+    it('複数ユーザーを無効化しセッションを失効させる', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com' });
+      const b = await createTestUser(ctx.db, { email: 'b@example.com' });
+      const sid = await createSession(ctx.db, a.id);
+
+      const result = await deactivateUsers(ctx.db, [a.id, b.id]);
+
+      expect(result.deactivated).toBe(2);
+      expect(await getSessionUser(ctx.db, sid)).toBeNull();
+      const rows = await ctx.db.select().from(users).where(eq(users.id, a.id));
+      expect(rows[0].isActive).toBe(false);
+    });
+
+    it('既に無効なユーザーは no-op（冪等）', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com', isActive: false });
+      const result = await deactivateUsers(ctx.db, [a.id]);
+      expect(result.deactivated).toBe(0);
+    });
+
+    it('バッチでログイン可能な管理者が 0 になるなら LAST_ADMIN', async () => {
+      const admin1 = await createTestUser(ctx.db, { email: 'a1@example.com', role: 'admin' });
+      const admin2 = await createTestUser(ctx.db, { email: 'a2@example.com', role: 'admin' });
+      await expect(
+        deactivateUsers(ctx.db, [admin1.id, admin2.id]),
+      ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('pending の管理者はアクティブ管理者に数えない', async () => {
+      const real = await createTestUser(ctx.db, { email: 'real@example.com', role: 'admin' });
+      await createTestUser(ctx.db, {
+        email: 'pend@example.com', role: 'admin', authProvider: 'pending', passwordHash: null,
+      });
+      await expect(
+        deactivateUsers(ctx.db, [real.id]),
+      ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
+    });
+
+    it('不在 id は NOT_FOUND で全体失敗', async () => {
+      const a = await createTestUser(ctx.db, { email: 'a@example.com' });
+      await expect(
+        deactivateUsers(ctx.db, [a.id, '00000000-0000-0000-0000-000000000000']),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+      const rows = await ctx.db.select().from(users).where(eq(users.id, a.id));
+      expect(rows[0].isActive).toBe(true);
+    });
   });
 });

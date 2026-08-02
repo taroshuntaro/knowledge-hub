@@ -1,23 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import type { SessionUser } from '@knowledge-hub/shared';
-import { notifications, users } from '../db/schema';
+import { notifications } from '../db/schema';
 import { createTestArticle, createTestCategory, createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import { publishArticle, updateArticle } from './article-service';
 import { createComment, updateComment } from './comment-service';
 import { addBookmark, addReaction, removeBookmark, removeReaction } from './engagement-service';
-
-function asSession(u: typeof users.$inferSelect): SessionUser {
-  return {
-    id: u.id,
-    email: u.email,
-    displayName: u.displayName,
-    role: u.role,
-    avatarUrl: u.avatarUrl,
-    bio: u.bio,
-    authProvider: u.authProvider,
-  };
-}
+import { toSessionUser as asSession } from './session-service';
 
 describe('通知の seam 配線', () => {
   const ctx = createTestApp();

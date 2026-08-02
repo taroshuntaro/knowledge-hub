@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { sessions } from '../db/schema';
+import { sessions, users } from '../db/schema';
 import { createTestUser } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
 import {
@@ -11,6 +11,7 @@ import {
   getSessionUser,
   hashToken,
   SESSION_TTL_MS,
+  toSessionUser,
 } from './session-service';
 
 describe('session service', () => {
@@ -102,5 +103,26 @@ describe('session service', () => {
 
     expect(await getSessionUser(ctx.db, deletedSid)).toBeNull();
     expect(await getSessionUser(ctx.db, remainingSid)).toMatchObject({ id: user.id });
+  });
+
+  it('セッション確立後にユーザーが pending になったら getSessionUser は null を返す（unclaim コミット〜セッション削除の間の窓を塞ぐ）', async () => {
+    const user = await createTestUser(ctx.db);
+    const sid = await createSession(ctx.db, user.id);
+
+    await ctx.db
+      .update(users)
+      .set({ authProvider: 'pending', passwordHash: null })
+      .where(eq(users.id, user.id));
+
+    expect(await getSessionUser(ctx.db, sid)).toBeNull();
+  });
+
+  it('pending ユーザーを toSessionUser に渡すと throw する', async () => {
+    const user = await createTestUser(ctx.db, {
+      authProvider: 'pending',
+      passwordHash: null,
+    });
+
+    expect(() => toSessionUser(user)).toThrow('pending user cannot have a session');
   });
 });

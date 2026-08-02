@@ -1,8 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import type { OidcAuth } from '../services/oidc-service';
+import { issueRegistrationCode } from '../services/registration-code-service';
 import { createTestUser, TEST_PASSWORD } from '../test/factories';
 import { createTestApp, resetDb } from '../test/helpers';
-import { loginLimiter } from './auth';
+import { claimLimiter, loginLimiter } from './auth';
 
 const dummyOidcAuth: OidcAuth = {
   authorizationUrl: async () => ({ url: 'http://idp.example.com/authorize', txn: { state: 's', nonce: 'n', codeVerifier: 'c' } }),
@@ -23,6 +24,7 @@ describe('auth routes', () => {
   beforeEach(async () => {
     await resetDb(ctx.db);
     loginLimiter.reset();
+    claimLimiter.reset();
   });
 
   afterAll(() => ctx.pool.end());
@@ -104,21 +106,6 @@ describe('auth routes', () => {
     expect(res.status).toBe(403);
   });
 
-  it('招待受諾エンドポイントでユーザー登録できる', async () => {
-    const { createInvitation } = await import('../services/invitation-service');
-    const { testConfig } = await import('../test/helpers');
-    ctx.mailer.sent.length = 0;
-    await createInvitation(ctx.db, ctx.mailer, testConfig(), 'new@example.com');
-    const token = ctx.mailer.sent[0].text.match(/\/invite\/([A-Za-z0-9_-]+)/)![1];
-    const res = await ctx.app.request(`/api/auth/invitations/${token}/accept`, json({
-      displayName: '新人',
-      password: 'long-enough-password',
-    }));
-    expect(res.status).toBe(200);
-    expect((await res.json()).email).toBe('new@example.com');
-    expect(res.headers.get('set-cookie')).toContain('sid=');
-  });
-
   it('GET /api/auth/methods は認証なしで有効な認証手段を返す', async () => {
     const res = await ctx.app.request('/api/auth/methods');
     expect(res.status).toBe(200);
@@ -164,5 +151,59 @@ describe('auth routes', () => {
     const cookie = (login.headers.get('set-cookie') ?? '').split(';')[0];
     const me = await ctx.app.request('/api/auth/me', { headers: { cookie } });
     expect((await me.json()).authProvider).toBe('password');
+  });
+
+  it('claim は登録コード + pending 行で成功しセッション Cookie を返す', async () => {
+    const { code } = await issueRegistrationCode(ctx.db, 30);
+    await createTestUser(ctx.db, {
+      email: 'new@example.com',
+      displayName: '新井',
+      authProvider: 'pending',
+      passwordHash: null,
+    });
+    const res = await ctx.app.request(
+      '/api/auth/claim',
+      json({ email: 'new@example.com', code, password: 'p'.repeat(12) }),
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toMatchObject({ email: 'new@example.com', authProvider: 'password' });
+    const cookie = res.headers.get('set-cookie') ?? '';
+    expect(cookie).toContain('sid=');
+  });
+
+  it('claim 失敗は CLAIM_INVALID 400', async () => {
+    const res = await ctx.app.request(
+      '/api/auth/claim',
+      json({ email: 'nobody@example.com', code: 'AAAA-AAAA-AAAA-AAAA', password: 'p'.repeat(12) }),
+    );
+    expect(res.status).toBe(400);
+    expect((await res.json()).code).toBe('CLAIM_INVALID');
+  });
+
+  it('11 回目の claim 試行は 429', async () => {
+    for (let i = 0; i < 10; i++) {
+      await ctx.app.request(
+        '/api/auth/claim',
+        json({ email: 'rl@example.com', code: 'AAAA-AAAA-AAAA-AAAA', password: 'p'.repeat(12) }),
+      );
+    }
+    const res = await ctx.app.request(
+      '/api/auth/claim',
+      json({ email: 'rl@example.com', code: 'AAAA-AAAA-AAAA-AAAA', password: 'p'.repeat(12) }),
+    );
+    expect(res.status).toBe(429);
+    expect((await res.json()).code).toBe('RATE_LIMITED');
+  });
+
+  it('パスワード認証無効なら claim は 403 PASSWORD_AUTH_DISABLED', async () => {
+    const withoutPassword = createTestApp({ config: { passwordAuthEnabled: false } });
+    const res = await withoutPassword.app.request(
+      '/api/auth/claim',
+      json({ email: 'a@example.com', code: 'AAAA-AAAA-AAAA-AAAA', password: 'p'.repeat(12) }),
+    );
+    expect(res.status).toBe(403);
+    expect((await res.json()).code).toBe('PASSWORD_AUTH_DISABLED');
+    await withoutPassword.pool.end();
   });
 });
