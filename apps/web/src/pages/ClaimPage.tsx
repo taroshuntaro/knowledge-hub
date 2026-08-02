@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { api } from '../api/client';
+import { keys } from '../api/keys';
 import { AuthShell } from '@/components/AuthShell';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,6 +14,7 @@ export function ClaimPage() {
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const navigate = useNavigate();
 
   async function onSubmit(e: FormEvent) {
@@ -27,6 +30,7 @@ export function ClaimPage() {
       setError(NETWORK_ERROR_MESSAGE);
       return;
     }
+    await queryClient.invalidateQueries({ queryKey: keys.me });
     navigate('/');
   }
 

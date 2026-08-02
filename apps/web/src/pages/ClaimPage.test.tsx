@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
@@ -22,11 +23,16 @@ vi.mock('react-router', async () => {
 import { ClaimPage } from './ClaimPage';
 
 function renderPage() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
   render(
-    <MemoryRouter initialEntries={['/claim']}>
-      <ClaimPage />
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/claim']}>
+        <ClaimPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+  return { invalidateSpy };
 }
 
 describe('ClaimPage', () => {
@@ -47,6 +53,18 @@ describe('ClaimPage', () => {
       json: { email: 'a@example.com', code: 'ABC123', password: 'my-password-123' },
     });
     expect(navigateMock).toHaveBeenCalledWith('/');
+  });
+
+  it('成功時に me クエリキャッシュを invalidate する', async () => {
+    postMock.mockResolvedValue({ ok: true, json: async () => ({}) });
+    const { invalidateSpy } = renderPage();
+    await userEvent.type(screen.getByLabelText('メールアドレス'), 'a@example.com');
+    await userEvent.type(screen.getByLabelText('登録コード'), 'ABC123');
+    await userEvent.type(screen.getByLabelText('パスワード（12文字以上）'), 'my-password-123');
+    await userEvent.click(screen.getByRole('button', { name: '登録する' }));
+
+    expect(navigateMock).toHaveBeenCalledWith('/');
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['me'] });
   });
 
   it('失敗時はサーバーのメッセージを role=alert で表示する', async () => {
