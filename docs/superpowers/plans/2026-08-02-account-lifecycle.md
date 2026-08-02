@@ -832,7 +832,9 @@ LoginPage: 既存の methods 取得（`/api/auth/methods`）で `password` が�
 - [ ] **Step 4: `pnpm --filter @knowledge-hub/web test` PASS + `pnpm --filter @knowledge-hub/web check:contrast`（新規色ペアを足した場合のみ追加）+ `docs/screens.md` 追従**
 - [ ] **Step 5: Commit** `feat: add admin provisioning and bulk deactivation UI`
 
----### Task 13: E2E 書き換え（setup / sso / クレームフロー）
+---
+
+### Task 13: E2E 書き換え（setup / sso / クレームフロー）
 
 **Files:**
 - Modify: `tests/e2e/setup/auth.setup.ts`（招待 + Mailpit → 事前作成 + クレーム）
