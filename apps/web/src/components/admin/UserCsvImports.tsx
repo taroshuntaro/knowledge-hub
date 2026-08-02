@@ -110,6 +110,7 @@ export function UserCsvImports() {
     const body = await res.json();
     if (res.ok && 'deactivated' in body) {
       queryClient.invalidateQueries({ queryKey: keys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: keys.profiles });
       return { ok: true, message: `${body.deactivated} 人を無効化しました。` };
     }
     const { message, details } = extractError(body, 'インポートに失敗しました');

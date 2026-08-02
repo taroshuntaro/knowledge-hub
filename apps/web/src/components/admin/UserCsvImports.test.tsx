@@ -22,11 +22,14 @@ vi.mock('../../api/client', () => ({
 import { UserCsvImports } from './UserCsvImports';
 
 function renderPage() {
-  return render(
-    <QueryClientProvider client={new QueryClient()}>
+  const queryClient = new QueryClient();
+  const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+  render(
+    <QueryClientProvider client={queryClient}>
       <UserCsvImports />
     </QueryClientProvider>,
   );
+  return { invalidateSpy };
 }
 
 describe('UserCsvImports', () => {
@@ -63,5 +66,17 @@ describe('UserCsvImports', () => {
     await userEvent.click(screen.getByRole('button', { name: '無効化 CSV をインポート' }));
     expect(await screen.findByText(/2 行目/)).toBeInTheDocument();
     expect(screen.getByText(/このメールアドレスのユーザーがいません/)).toBeInTheDocument();
+  });
+
+  it('無効化 CSV の成功で profiles キャッシュも invalidate する', async () => {
+    postDeactivateImport.mockResolvedValue({ ok: true, json: async () => ({ deactivated: 2 }) });
+    const { invalidateSpy } = renderPage();
+    const file = new File(['email\nx@example.com\n'], 'deact.csv', { type: 'text/csv' });
+    await userEvent.upload(screen.getByLabelText('無効化 CSV ファイル'), file);
+    await userEvent.click(screen.getByRole('button', { name: '無効化 CSV をインポート' }));
+
+    expect(await screen.findByText(/2 人を無効化/)).toBeInTheDocument();
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['admin-users'] });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['profiles'] });
   });
 });
