@@ -1,0 +1,6 @@
+# osv-scanner の抑止設定（CI security ジョブが参照）。
+# 抑止は「該当コードパスを使っていない」ことを理由に限定し、必ず理由と日付を書く。
+
+[[IgnoredVulns]]
+id = "GHSA-qwww-vcr4-c8h2"
+reason = "react-router の RSC モード（サーバーアクション）限定の CSRF バイパス。本アプリは createBrowserRouter の library mode 純 SPA で RSC/サーバーアクションを使用しない。修正版が v8 メジャーのみのため、v8 移行時にこの抑止を削除する (2026-08-04)"
