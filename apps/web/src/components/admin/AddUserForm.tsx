@@ -7,9 +7,8 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { selectClass } from '@/components/ui/select';
 import { errorMessage, NETWORK_ERROR_MESSAGE } from '../../lib/api-error';
-
-const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text-sm';
 
 /**
  * ユーザーを未ログイン（pending）状態で個別に事前作成するフォーム。

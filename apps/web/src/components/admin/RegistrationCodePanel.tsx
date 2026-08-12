@@ -6,10 +6,9 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { selectClass } from '@/components/ui/select';
 import { errorMessage, NETWORK_ERROR_MESSAGE } from '../../lib/api-error';
 import { formatDate } from '../../lib/date';
-
-const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text-sm';
 
 /**
  * 登録コードの発行・失効パネル。平文コードは発行レスポンスにしか含まれないため、
