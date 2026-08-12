@@ -313,6 +313,25 @@ describe('user service', () => {
       const rows = await ctx.db.select().from(users).where(eq(users.id, member.id));
       expect(rows[0].role).toBe('member');
     });
+
+    it('並行する admin 昇格と unclaim が交錯しても pending の admin 行は生じない', async () => {
+      // target 読み取りの FOR UPDATE がないと「クレーム済みを見て昇格 → 直後に unclaim が
+      // stale な member role を見て降格スキップ」の交錯で pending+admin 行が生まれうる。
+      // どちらが先に確定しても最終状態が不変条件を満たすことを複数回検証する。
+      await createTestUser(ctx.db, { role: 'admin' }); // LAST_ADMIN 回避用の別 admin
+      for (let i = 0; i < 5; i++) {
+        const target = await createTestUser(ctx.db);
+        const results = await Promise.allSettled([
+          updateUserByAdmin(ctx.db, target.id, { role: 'admin' }),
+          unclaimUser(ctx.db, target.id),
+        ]);
+        // unclaim は必ず成功する（昇格は先行 unclaim に負けた場合のみ VALIDATION で拒否）
+        expect(results[1].status).toBe('fulfilled');
+        const [row] = await ctx.db.select().from(users).where(eq(users.id, target.id));
+        expect(row.authProvider).toBe('pending');
+        expect(row.role).toBe('member');
+      }
+    });
   });
 
   describe('deactivateUsers', () => {
