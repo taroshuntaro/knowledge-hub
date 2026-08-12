@@ -1,21 +1,20 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import { keys } from '../api/keys';
 import { useMasters } from '../api/admin-masters';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { selectClass } from '@/components/ui/select';
 import { Avatar } from '@/components/Avatar';
 import { RegistrationCodePanel } from '@/components/admin/RegistrationCodePanel';
 import { AddUserForm } from '@/components/admin/AddUserForm';
-import { UserCsvImports } from '@/components/admin/UserCsvImports';
-import { errorMessage, NETWORK_ERROR_MESSAGE } from '../lib/api-error';
-
-const selectClass = 'h-8 rounded-md border border-input bg-transparent px-2 text-sm';
+import {
+  CsvImportCard, UserCsvImports, createdMastersSuffix, type ImportResult,
+} from '@/components/admin/UserCsvImports';
+import { errorMessage, importErrorBody } from '../lib/api-error';
 
 export function AdminUsersPage() {
   const queryClient = useQueryClient();
@@ -57,8 +56,13 @@ export function AdminUsersPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   // users から消えた（削除済み等の）id を選択状態から取り除いた派生値。
   // useEffect でプルーニングすると useQuery の refetch タイミングとの同期漏れが起きうるため、
-  // レンダーのたびに derive するだけにして常に live なリストと一致させる。
-  const liveSelectedIds = selectedIds.filter((id) => (users ?? []).some((u) => u.id === id));
+  // derive するだけにして常に live なリストと一致させる（Set 化は行数×選択数の線形化のため）。
+  const userIds = useMemo(() => new Set((users ?? []).map((u) => u.id)), [users]);
+  const liveSelectedIds = useMemo(
+    () => selectedIds.filter((id) => userIds.has(id)),
+    [selectedIds, userIds],
+  );
+  const selectedSet = useMemo(() => new Set(liveSelectedIds), [liveSelectedIds]);
 
   const deactivateSelected = useMutation({
     mutationFn: async (userIds: string[]) => {
@@ -129,42 +133,18 @@ export function AdminUsersPage() {
     setSelectedIds(allSelected ? [] : (users ?? []).map((u) => u.id));
   }
 
-  const fileRef = useRef<HTMLInputElement>(null);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-  const [importErrors, setImportErrors] = useState<{ line: number; email?: string; message: string }[]>([]);
-
-  async function onImport(e: FormEvent) {
-    e.preventDefault();
-    setImportMsg(null);
-    setImportErrors([]);
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setImportMsg('CSV ファイルを選択してください');
-      return;
+  async function submitOrgImport(file: File): Promise<ImportResult> {
+    const res = await api.api.admin.users.import.$post({ form: { file } });
+    const body = await res.json();
+    if (res.ok && 'updated' in body) {
+      queryClient.invalidateQueries({ queryKey: keys.adminUsers });
+      queryClient.invalidateQueries({ queryKey: keys.adminDepartments });
+      queryClient.invalidateQueries({ queryKey: keys.adminPositions });
+      queryClient.invalidateQueries({ queryKey: keys.profiles });
+      return { ok: true, message: `${body.updated} 人を更新しました。${createdMastersSuffix(body)}` };
     }
-    try {
-      const res = await api.api.admin.users.import.$post({ form: { file } });
-      const body = await res.json();
-      if (res.ok && 'updated' in body) {
-        const created = [...(body.createdDepartments ?? []), ...(body.createdPositions ?? [])];
-        setImportMsg(
-          `${body.updated} 人を更新しました。` +
-          (created.length > 0 ? `新規マスタ: ${created.join('、')}` : ''),
-        );
-        if (fileRef.current) fileRef.current.value = '';
-        queryClient.invalidateQueries({ queryKey: keys.adminUsers });
-        queryClient.invalidateQueries({ queryKey: keys.adminDepartments });
-        queryClient.invalidateQueries({ queryKey: keys.adminPositions });
-        queryClient.invalidateQueries({ queryKey: keys.profiles });
-      } else if ('details' in body && Array.isArray(body.details)) {
-        setImportMsg('message' in body ? String(body.message) : 'CSV にエラーがあります');
-        setImportErrors(body.details as { line: number; email?: string; message: string }[]);
-      } else {
-        setImportMsg('message' in body ? String(body.message) : 'インポートに失敗しました');
-      }
-    } catch {
-      setImportMsg(NETWORK_ERROR_MESSAGE);
-    }
+    const { message, details } = importErrorBody(body, 'インポートに失敗しました');
+    return { ok: false, message, details };
   }
 
   return (
@@ -173,32 +153,14 @@ export function AdminUsersPage() {
       <RegistrationCodePanel />
       <AddUserForm />
       <UserCsvImports />
-      <Card className="mb-6">
-        <CardHeader>
-          <h3 className="leading-none font-semibold">所属・役職・入社年を CSV で一括設定</h3>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-3 text-sm text-muted-foreground">
-            ヘッダー行 email,department,position,hire_year の UTF-8 CSV。空欄は未設定に戻ります。
-            未知の所属・役職は自動登録。エラーが 1 行でもあると何も適用されません。
-          </p>
-          <form onSubmit={onImport} className="flex items-end gap-2">
-            <div className="grid gap-1.5">
-              <Label htmlFor="import-file">CSV ファイル</Label>
-              <Input id="import-file" type="file" accept=".csv,text/csv" ref={fileRef} />
-            </div>
-            <Button type="submit">インポート</Button>
-          </form>
-          {importMsg && <p role="status" className="mt-3 text-sm text-muted-foreground">{importMsg}</p>}
-          {importErrors.length > 0 && (
-            <ul className="mt-2 list-disc pl-5 text-sm text-destructive">
-              {importErrors.map((e, i) => (
-                <li key={i}>{e.line} 行目{e.email ? `（${e.email}）` : ''}: {e.message}</li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <CsvImportCard
+        id="import-file"
+        title="所属・役職・入社年を CSV で一括設定"
+        description="ヘッダー行 email,department,position,hire_year の UTF-8 CSV。空欄は未設定に戻ります。未知の所属・役職は自動登録。エラーが 1 行でもあると何も適用されません。"
+        fileLabel="CSV ファイル"
+        buttonLabel="インポート"
+        submit={submitOrgImport}
+      />
       <div className="mb-2 flex items-center gap-2">
         <Button
           type="button"
@@ -242,7 +204,7 @@ export function AdminUsersPage() {
                 <input
                   type="checkbox"
                   aria-label={`${u.displayName} を選択`}
-                  checked={liveSelectedIds.includes(u.id)}
+                  checked={selectedSet.has(u.id)}
                   onChange={() => toggleSelected(u.id)}
                 />
               </TableCell>

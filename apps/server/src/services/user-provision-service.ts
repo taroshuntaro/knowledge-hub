@@ -1,14 +1,13 @@
 import { eq, inArray } from 'drizzle-orm';
-import { HIRE_YEAR_MIN, hireYearMax } from '@knowledge-hub/shared';
 import { departments, positions, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { normalizeEmail } from './email';
-import { parseCsv } from './csv';
+import { parseEmailCsv, type ImportError } from './csv';
+import { isUniqueViolation } from './pg-error';
 import type { AdminUserView } from './user-service';
 import { toAdminView } from './user-service';
-import type { ImportError } from './user-import-service';
-import { ensureDepartments, ensurePositions } from './user-import-service';
+import { ensureDepartments, ensurePositions, parseHireYearCell } from './user-import-service';
 
 export type ProvisionInput = {
   email: string;
@@ -33,13 +32,6 @@ type ParsedRow = {
   hireYear: number | null;
 };
 
-// master-service.ts の isUniqueViolation と同形。code は err.code か err.cause.code のどちらか
-// （pg ドライバのラップの仕方に依存）に載るため両方見る。
-function isUniqueViolation(e: unknown): boolean {
-  const code = (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
-  return code === '23505';
-}
-
 /**
  * 管理者が個別にユーザーを事前作成する（登録コードで claim されるまで pending）。
  * role は常に member 固定。email 重複は EMAIL_TAKEN、departmentId/positionId の不在は
@@ -48,23 +40,20 @@ function isUniqueViolation(e: unknown): boolean {
 export async function createPendingUser(db: Db, input: ProvisionInput): Promise<AdminUserView> {
   const email = normalizeEmail(input.email);
 
-  // 事前チェックは高速パス（大半のリクエストで DB 制約違反の例外コストを避ける）。
-  // 並行リクエストの TOCTOU は下の insert の catch で確実に EMAIL_TAKEN に変換する。
-  const existing = await db.query.users.findFirst({ where: eq(users.email, email) });
-  if (existing) throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
-
-  if (input.departmentId) {
-    const dep = await db.query.departments.findFirst({
-      where: eq(departments.id, input.departmentId), columns: { id: true },
-    });
-    if (!dep) throw new AppError('VALIDATION', '所属が存在しません', 400);
-  }
-  if (input.positionId) {
-    const pos = await db.query.positions.findFirst({
-      where: eq(positions.id, input.positionId), columns: { id: true },
-    });
-    if (!pos) throw new AppError('VALIDATION', '役職が存在しません', 400);
-  }
+  const [dep, pos] = await Promise.all([
+    input.departmentId
+      ? db.query.departments.findFirst({
+          where: eq(departments.id, input.departmentId), columns: { id: true },
+        })
+      : undefined,
+    input.positionId
+      ? db.query.positions.findFirst({
+          where: eq(positions.id, input.positionId), columns: { id: true },
+        })
+      : undefined,
+  ]);
+  if (input.departmentId && !dep) throw new AppError('VALIDATION', '所属が存在しません', 400);
+  if (input.positionId && !pos) throw new AppError('VALIDATION', '役職が存在しません', 400);
 
   try {
     const [row] = await db
@@ -81,6 +70,7 @@ export async function createPendingUser(db: Db, input: ProvisionInput): Promise<
       .returning();
     return toAdminView(row);
   } catch (e) {
+    // email 重複は事前チェックせず、一意制約違反で検出する（TOCTOU なしで確実）。
     if (isUniqueViolation(e)) throw new AppError('EMAIL_TAKEN', 'このメールアドレスは既に登録されています', 409);
     throw e;
   }
@@ -93,60 +83,18 @@ export async function createPendingUser(db: Db, input: ProvisionInput): Promise<
  * - all-or-nothing: 1 件でもエラーなら何も作らない。適用は単一トランザクション。
  */
 export async function importUserRegistrations(db: Db, csvText: string): Promise<RegistrationImportResult> {
-  const table = parseCsv(csvText);
-  if (table.length === 0) {
-    return { ok: false, errors: [{ line: 1, message: 'CSV が空です' }] };
-  }
-  if (table[0].map((h) => h.trim()).join(',') !== HEADER.join(',')) {
-    return {
-      ok: false,
-      errors: [{ line: 1, message: `ヘッダー行は ${HEADER.join(',')} にしてください` }],
-    };
-  }
-
-  const errors: ImportError[] = [];
-  const rows: ParsedRow[] = [];
-  const seenEmails = new Set<string>();
-  for (let i = 1; i < table.length; i++) {
-    const line = i + 1;
-    const cells = table[i];
-    if (cells.length !== HEADER.length) {
-      errors.push({ line, message: `列数が不正です（${HEADER.length} 列必要）` });
-      continue;
-    }
-    const [emailRaw, displayNameRaw, department, position, hireYearRaw] = cells.map((v) => v.trim());
-    if (!emailRaw) {
-      errors.push({ line, message: 'email が空です' });
-      continue;
-    }
-    const email = normalizeEmail(emailRaw);
-    if (seenEmails.has(email)) {
-      errors.push({ line, email, message: '同じ email の行が重複しています' });
-      continue;
-    }
-    seenEmails.add(email);
+  const parsed = parseEmailCsv<ParsedRow>(csvText, HEADER, ({ line, email, cells, error }) => {
+    const [displayNameRaw, department, position, hireYearRaw] = cells;
     if (!displayNameRaw) {
-      errors.push({ line, email, message: 'display_name が空です' });
-      continue;
+      error('display_name が空です');
+      return null;
     }
-    let hireYear: number | null = null;
-    if (hireYearRaw !== '') {
-      const y = Number(hireYearRaw);
-      if (!/^\d{4}$/.test(hireYearRaw) || !Number.isInteger(y) || y < HIRE_YEAR_MIN || y > hireYearMax()) {
-        errors.push({
-          line, email,
-          message: `hire_year は ${HIRE_YEAR_MIN}〜${hireYearMax()} の整数か空欄にしてください`,
-        });
-        continue;
-      }
-      hireYear = y;
-    }
-    rows.push({ line, email, displayName: displayNameRaw, department, position, hireYear });
-  }
-
-  if (rows.length === 0 && errors.length === 0) {
-    return { ok: false, errors: [{ line: 1, message: 'データ行がありません' }] };
-  }
+    const hireYear = parseHireYearCell(hireYearRaw, error);
+    if (hireYear === undefined) return null;
+    return { line, email, displayName: displayNameRaw, department, position, hireYear };
+  });
+  if (!parsed.ok) return { ok: false, errors: parsed.errors };
+  const { rows, errors } = parsed;
 
   return db.transaction(async (tx) => {
     const existing = rows.length > 0

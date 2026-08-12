@@ -25,6 +25,7 @@ import {
 import {
   deactivateUsers, deletePendingUser, listUsers, unclaimUser, updateUserByAdmin,
 } from '../services/user-service';
+import type { ImportError } from '../services/csv';
 import { importUserDeactivations } from '../services/user-deactivation-import';
 import { importUserOrg } from '../services/user-import-service';
 import { createPendingUser, importUserRegistrations } from '../services/user-provision-service';
@@ -45,6 +46,22 @@ async function readCsvFile(c: Context<AppEnv>): Promise<string> {
   return file.text();
 }
 
+// CSV インポート 3 ルート共通のレスポンス整形。行エラーは 400 CSV_IMPORT_FAILED、
+// 成功時は ok を除いたサマリをそのまま返す。
+function csvImportJson<S extends Record<string, unknown>>(
+  c: Context<AppEnv>,
+  result: ({ ok: true } & S) | { ok: false; errors: ImportError[] },
+) {
+  if (!result.ok) {
+    return c.json(
+      { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
+      400,
+    );
+  }
+  const { ok: _ok, ...summary } = result;
+  return c.json(summary);
+}
+
 export const adminRoutes = new Hono<AppEnv>()
   .use(requireAuth, requireCan('user:manage'))
   .get('/registration-code', async (c) => c.json(await getActiveCodeMeta(c.get('db'))))
@@ -57,46 +74,19 @@ export const adminRoutes = new Hono<AppEnv>()
   .get('/users', async (c) => c.json(await listUsers(c.get('db'))))
   .post('/users', validate('json', adminCreateUserSchema), async (c) =>
     c.json(await createPendingUser(c.get('db'), c.req.valid('json')), 201))
-  .post('/users/registrations/import', csvBodyLimit, async (c) => {
-    const result = await importUserRegistrations(c.get('db'), await readCsvFile(c));
-    if (!result.ok) {
-      return c.json(
-        { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
-        400,
-      );
-    }
-    const { ok: _ok, ...summary } = result;
-    return c.json(summary);
-  })
+  .post('/users/registrations/import', csvBodyLimit, async (c) =>
+    csvImportJson(c, await importUserRegistrations(c.get('db'), await readCsvFile(c))))
   .post('/users/deactivate', validate('json', deactivateUsersSchema), async (c) =>
     c.json(await deactivateUsers(c.get('db'), c.req.valid('json').userIds)))
-  .post('/users/deactivate/import', csvBodyLimit, async (c) => {
-    const result = await importUserDeactivations(c.get('db'), await readCsvFile(c));
-    if (!result.ok) {
-      return c.json(
-        { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
-        400,
-      );
-    }
-    const { ok: _ok, ...summary } = result;
-    return c.json(summary);
-  })
+  .post('/users/deactivate/import', csvBodyLimit, async (c) =>
+    csvImportJson(c, await importUserDeactivations(c.get('db'), await readCsvFile(c))))
   .patch('/users/:id', validate('json', updateUserByAdminSchema), async (c) => {
     requireUuidParam(c.req.param('id'), 'ユーザーが見つかりません');
     const updated = await updateUserByAdmin(c.get('db'), c.req.param('id'), c.req.valid('json'));
     return c.json(updated);
   })
-  .post('/users/import', csvBodyLimit, async (c) => {
-    const result = await importUserOrg(c.get('db'), await readCsvFile(c));
-    if (!result.ok) {
-      return c.json(
-        { code: 'CSV_IMPORT_FAILED' as const, message: 'CSV にエラーがあります', details: result.errors },
-        400,
-      );
-    }
-    const { ok: _ok, ...summary } = result;
-    return c.json(summary);
-  })
+  .post('/users/import', csvBodyLimit, async (c) =>
+    csvImportJson(c, await importUserOrg(c.get('db'), await readCsvFile(c))))
   .delete('/users/:id', async (c) => {
     requireUuidParam(c.req.param('id'), 'ユーザーが見つかりません');
     await deletePendingUser(c.get('db'), c.req.param('id'));

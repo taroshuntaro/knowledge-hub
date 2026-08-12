@@ -1,10 +1,12 @@
-import { and, eq, inArray, ne } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { SessionUser } from '@knowledge-hub/shared';
-import { departments, positions, uploads, users } from '../db/schema';
+import { departments, positions, sessions, uploads, users } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
 import { hashPassword, verifyPassword } from './password';
+import { isForeignKeyViolation } from './pg-error';
 import { deleteUserSessions, toSessionUser } from './session-service';
+import { claimedUserWhere } from './user-visibility';
 
 const AVATAR_URL_PREFIX = '/api/uploads/';
 
@@ -13,7 +15,7 @@ const AVATAR_URL_PREFIX = '/api/uploads/';
 // してしまい、最後の実ログイン可能管理者を降格・無効化できてしまう事故になる。
 // 降格ガード（updateUserByAdmin）・一括無効化（deactivateUsers）の両方でこれを使う。
 const loginableAdminWhere = () =>
-  and(eq(users.role, 'admin'), eq(users.isActive, true), ne(users.authProvider, 'pending'));
+  and(eq(users.role, 'admin'), eq(users.isActive, true), claimedUserWhere());
 
 // loginableAdminWhere の JS 版（1 行に対する判定用）。SQL 述語と意味を揃えること。
 // target 行自身が「今まさにログイン可能な管理者か」を見るのに使う。role='admin' だけを
@@ -22,15 +24,6 @@ const loginableAdminWhere = () =>
 // 含まれていないため、降格してもログイン可能管理者数は減らない）。
 const isLoginableAdmin = (u: { role: string; isActive: boolean; authProvider: string }) =>
   u.role === 'admin' && u.isActive && u.authProvider !== 'pending';
-
-// master-service.ts / user-provision-service.ts の isUniqueViolation と同形。code は
-// err.code か err.cause.code のどちらかに出る（pg ドライバのラップの都合）。
-// FK 違反（他テーブルからの参照が残っている）を検出し、生の 500 ではなく
-// AppError(CONFLICT) に変換するために使う。
-function isForeignKeyViolation(e: unknown): boolean {
-  const code = (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
-  return code === '23503';
-}
 
 export async function updateProfile(
   db: Db,
@@ -91,7 +84,7 @@ export async function getPublicProfile(db: Db, id: string): Promise<PublicProfil
     .from(users)
     .leftJoin(departments, eq(users.departmentId, departments.id))
     .leftJoin(positions, eq(users.positionId, positions.id))
-    .where(and(eq(users.id, id), ne(users.authProvider, 'pending')));
+    .where(and(eq(users.id, id), claimedUserWhere()));
   if (!row) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
   return {
     id: row.id,
@@ -247,7 +240,10 @@ export async function deactivateUsers(db: Db, userIds: string[]): Promise<{ deac
     return toDeactivate;
   });
 
-  await Promise.all(targets.map((id) => deleteUserSessions(db, id)));
+  // CSV 一括経由では数百人になりうるため、1 ユーザー 1 DELETE ではなく 1 文にまとめる。
+  if (targets.length > 0) {
+    await db.delete(sessions).where(inArray(sessions.userId, targets));
+  }
   return { deactivated: targets.length };
 }
 
@@ -258,7 +254,7 @@ export async function listMentionCandidates(db: Db): Promise<MentionCandidate[]>
   return db
     .select({ id: users.id, displayName: users.displayName, avatarUrl: users.avatarUrl })
     .from(users)
-    .where(and(eq(users.isActive, true), ne(users.authProvider, 'pending')))
+    .where(and(eq(users.isActive, true), claimedUserWhere()))
     .orderBy(users.displayName);
 }
 

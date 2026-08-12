@@ -1,7 +1,8 @@
-import { and, asc, eq, ne } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { departments, positions, users } from '../db/schema';
 import type { Db } from '../types';
 import { listDepartments, listPositions, type Master } from './master-service';
+import { claimedUserWhere } from './user-visibility';
 
 /** メンバー名簿の 1 件。email 等の非公開情報は絶対に含めない。 */
 export type ProfileItem = {
@@ -39,7 +40,7 @@ export async function listProfiles(db: Db): Promise<ProfilesResponse> {
       .from(users)
       .leftJoin(departments, eq(users.departmentId, departments.id))
       .leftJoin(positions, eq(users.positionId, positions.id))
-      .where(and(eq(users.isActive, true), ne(users.authProvider, 'pending')))
+      .where(and(eq(users.isActive, true), claimedUserWhere()))
       .orderBy(asc(users.displayName)),
     listDepartments(db),
     listPositions(db),

@@ -25,33 +25,25 @@ async function upsertByEmail(db: Db, email: string, emailVerified: boolean) {
       );
     }
     if (!existing.isActive) throw new AppError('OIDC_INACTIVE', 'このアカウントは無効化されています', 403);
-    if (existing.authProvider === 'pending') {
-      // 事前作成された行を初回 SSO ログインでクレーム: displayName は事前作成時のまま維持する
-      const [claimed] = await tx
-        .update(users)
-        .set({ authProvider: 'oidc', passwordHash: null })
-        .where(eq(users.id, existing.id))
-        .returning();
-      return claimed;
+    // 既存パスワードアカウントへの自動リンクは email 検証済みのときのみ許可する。
+    // 未検証（claim 省略/false）の email で他人のパスワードアカウントを乗っ取る
+    // （passwordHash を null 化して SSO 専用化する）攻撃を防ぐ。
+    if (existing.authProvider === 'password' && !emailVerified) {
+      throw new AppError(
+        'OIDC_LINK_UNVERIFIED',
+        'このメールアドレスはパスワード認証で登録済みです。SSO と連携するには IdP 側でメールアドレスの検証が必要です',
+        403,
+      );
     }
-    if (existing.authProvider === 'password') {
-      // 既存パスワードアカウントへの自動リンクは email 検証済みのときのみ許可する。
-      // 未検証（claim 省略/false）の email で他人のパスワードアカウントを乗っ取る
-      // （passwordHash を null 化して SSO 専用化する）攻撃を防ぐ。
-      if (!emailVerified) {
-        throw new AppError(
-          'OIDC_LINK_UNVERIFIED',
-          'このメールアドレスはパスワード認証で登録済みです。SSO と連携するには IdP 側でメールアドレスの検証が必要です',
-          403,
-        );
-      }
-      // 自動リンク: 以降パスワードログイン・リセットは既存の provider チェックで拒否される（SSO 専用化）
-      const [linked] = await tx
+    if (existing.authProvider !== 'oidc') {
+      // pending の初回クレーム / password の自動リンク（どちらも displayName は既存のまま維持）。
+      // 以降パスワードログイン・リセットは既存の provider チェックで拒否される（SSO 専用化）
+      const [converted] = await tx
         .update(users)
         .set({ authProvider: 'oidc', passwordHash: null })
         .where(eq(users.id, existing.id))
         .returning();
-      return linked;
+      return converted;
     }
     return existing;
   });

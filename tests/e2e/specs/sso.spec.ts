@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { ensurePendingUser } from '../helpers/api';
 import { ADMIN } from '../helpers/data';
 
 const BASE = 'http://localhost:54173';
@@ -19,13 +20,7 @@ test('SSO ログイン: Keycloak → pending クレーム → member 到達', as
     headers: { origin: BASE },
   });
   expect(loginRes.ok(), 'admin ログイン').toBeTruthy();
-  const createRes = await request.post('/api/admin/users', {
-    data: { email: SSO_MEMBER.email, displayName: SSO_MEMBER.displayName },
-    headers: { origin: BASE },
-  });
-  if (createRes.status() !== 201) {
-    expect(createRes.status(), 'sso member の事前作成').toBe(409);
-  }
+  await ensurePendingUser(request, SSO_MEMBER);
 
   await page.goto('/login');
   await page.getByRole('link', { name: 'SSO でログイン' }).click();
