@@ -1,4 +1,5 @@
 import { expect, test as setup } from '@playwright/test';
+import { ensurePendingUser } from '../helpers/api';
 import { ADMIN, MEMBER } from '../helpers/data';
 
 const BASE = 'http://localhost:54173';
@@ -25,15 +26,7 @@ setup('admin ログインと member クレーム（storageState 準備）', asyn
     expect(codeRes.status(), '登録コードの発行').toBe(201);
     const { code } = (await codeRes.json()) as { code: string };
 
-    const createRes = await page.request.post('/api/admin/users', {
-      data: { email: MEMBER.email, displayName: MEMBER.name },
-    });
-    // 201: 新規事前作成 / 409 EMAIL_TAKEN: 既に事前作成済み（いずれもクレーム可能）
-    if (createRes.status() !== 201) {
-      expect(createRes.status(), 'member の事前作成').toBe(409);
-      const body = (await createRes.json()) as { code?: string };
-      expect(body.code).toBe('EMAIL_TAKEN');
-    }
+    await ensurePendingUser(page.request, { email: MEMBER.email, displayName: MEMBER.name });
 
     const memberPage = await memberContext.newPage();
     await memberPage.goto('/claim');
