@@ -161,7 +161,11 @@ export async function updateUserByAdmin(
   // 降格判定と更新を1トランザクションにまとめ、アクティブ管理者行を FOR UPDATE で
   // ロックすることで、複数の管理者を同時に降格して0人になる TOCTOU レースを防ぐ。
   const row = await db.transaction(async (tx) => {
-    const target = await tx.query.users.findFirst({ where: eq(users.id, targetId) });
+    // target 行も FOR UPDATE で読む。非ロック読みだと、並行する unclaimUser と交錯した際に
+    // 「クレーム済み」を見て admin 昇格を通した直後に unclaim が確定し、pending かつ admin の
+    // 行（下の不変条件違反）が生まれうる。ロック順は deactivateUsers/unclaimUser と同じ
+    // 「target → 管理者一覧」に揃える。
+    const [target] = await tx.select().from(users).where(eq(users.id, targetId)).for('update');
     if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
 
     // 「pending 行は常に member」という不変条件（unclaimUser の admin 降格と対）。
@@ -297,7 +301,10 @@ export async function deletePendingUser(db: Db, id: string): Promise<void> {
  */
 export async function unclaimUser(db: Db, id: string): Promise<AdminUserView> {
   const row = await db.transaction(async (tx) => {
-    const target = await tx.query.users.findFirst({ where: eq(users.id, id) });
+    // updateUserByAdmin と対で target を FOR UPDATE で読む。非ロック読みだと並行する
+    // admin 昇格と交錯した際に stale な role を見て降格をスキップし、pending かつ admin の
+    // 行が生まれうる（「pending 行は常に member」の不変条件違反）。
+    const [target] = await tx.select().from(users).where(eq(users.id, id)).for('update');
     if (!target) throw new AppError('NOT_FOUND', 'ユーザーが見つかりません', 404);
     if (target.authProvider === 'pending') {
       throw new AppError('CONFLICT', '未ログインのユーザーです', 409);
