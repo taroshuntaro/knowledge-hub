@@ -31,6 +31,17 @@ export const passwordResetLimiter = new RateLimiter(5, 15 * 60 * 1000);
 // claim も login と同じ理由（総当たり防止）で email 単位に絞る。
 export const claimLimiter = new RateLimiter(10, 15 * 60 * 1000);
 
+// login / password-reset / claim 共通: email 単位（小文字化）で消費し、超過は 429。
+function consumeOrThrow(limiter: RateLimiter, email: string): void {
+  if (!limiter.consume(email.toLowerCase())) {
+    throw new AppError(
+      'RATE_LIMITED',
+      '試行回数が上限に達しました。しばらくしてから再試行してください',
+      429,
+    );
+  }
+}
+
 export const authRoutes = new Hono<AppEnv>()
   .get('/methods', (c) =>
     c.json({
@@ -41,13 +52,7 @@ export const authRoutes = new Hono<AppEnv>()
   .post('/login', requirePasswordAuth, validate('json', loginSchema), async (c) => {
     const config = c.get('config');
     const { email, password } = c.req.valid('json');
-    if (!loginLimiter.consume(email.toLowerCase())) {
-      throw new AppError(
-        'RATE_LIMITED',
-        '試行回数が上限に達しました。しばらくしてから再試行してください',
-        429,
-      );
-    }
+    consumeOrThrow(loginLimiter, email);
 
     const result = await loginWithPassword(c.get('db'), email, password);
     if (!result) {
@@ -70,13 +75,7 @@ export const authRoutes = new Hono<AppEnv>()
   .get('/me', requireAuth, (c) => c.json(c.get('user')))
   .post('/password-reset/request', requirePasswordAuth, validate('json', passwordResetRequestSchema), async (c) => {
     const { email } = c.req.valid('json');
-    if (!passwordResetLimiter.consume(email.toLowerCase())) {
-      throw new AppError(
-        'RATE_LIMITED',
-        '試行回数が上限に達しました。しばらくしてから再試行してください',
-        429,
-      );
-    }
+    consumeOrThrow(passwordResetLimiter, email);
     await requestPasswordReset(c.get('db'), c.get('mailer'), c.get('config'), email);
     return c.body(null, 204);
   })
@@ -86,13 +85,7 @@ export const authRoutes = new Hono<AppEnv>()
   })
   .post('/claim', requirePasswordAuth, validate('json', claimSchema), async (c) => {
     const { email, code, password } = c.req.valid('json');
-    if (!claimLimiter.consume(email.toLowerCase())) {
-      throw new AppError(
-        'RATE_LIMITED',
-        '試行回数が上限に達しました。しばらくしてから再試行してください',
-        429,
-      );
-    }
+    consumeOrThrow(claimLimiter, email);
 
     const result = await claimAccount(c.get('db'), { email, code, password });
     if (!result) {

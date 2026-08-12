@@ -2,13 +2,9 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { departments, positions } from '../db/schema';
 import { AppError } from '../errors';
 import type { Db } from '../types';
+import { isUniqueViolation } from './pg-error';
 
 export type Master = { id: string; name: string; sortOrder: number };
-
-function isUniqueViolation(e: unknown): boolean {
-  const code = (e as { code?: string })?.code ?? (e as { cause?: { code?: string } })?.cause?.code;
-  return code === '23505';
-}
 
 // ---- departments ----
 

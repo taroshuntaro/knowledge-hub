@@ -2,10 +2,9 @@ import { eq, inArray, sql } from 'drizzle-orm';
 import { HIRE_YEAR_MIN, hireYearMax } from '@knowledge-hub/shared';
 import { departments, positions, users } from '../db/schema';
 import type { Db } from '../types';
-import { parseCsv } from './csv';
-import { normalizeEmail } from './email';
+import { parseEmailCsv, type ImportError } from './csv';
 
-export type ImportError = { line: number; email?: string; message: string };
+export type { ImportError };
 export type ImportResult =
   | { ok: true; updated: number; createdDepartments: string[]; createdPositions: string[] }
   | { ok: false; errors: ImportError[] };
@@ -21,62 +20,37 @@ type ParsedRow = {
 };
 
 /**
+ * hire_year セルの共通検証（本 CSV と登録 CSV で同一ルール）。
+ * '' は null（未設定）、不正値は error を呼んで undefined を返す。
+ */
+export function parseHireYearCell(
+  raw: string,
+  error: (message: string) => void,
+): number | null | undefined {
+  if (raw === '') return null;
+  const y = Number(raw);
+  if (!/^\d{4}$/.test(raw) || !Number.isInteger(y) || y < HIRE_YEAR_MIN || y > hireYearMax()) {
+    error(`hire_year は ${HIRE_YEAR_MIN}〜${hireYearMax()} の整数か空欄にしてください`);
+    return undefined;
+  }
+  return y;
+}
+
+/**
  * CSV でユーザーの所属・役職・入社年を一括設定する。
  * - email をキーに更新。空欄はクリア（CSV は「記載ユーザーの正」）。未記載ユーザーは変更しない。
  * - 未知の所属・役職名はマスタへ自動登録（trim 後の完全一致、sortOrder は末尾）。
  * - all-or-nothing: 1 件でもエラーなら何も適用しない。適用は単一トランザクション。
  */
 export async function importUserOrg(db: Db, csvText: string): Promise<ImportResult> {
-  const table = parseCsv(csvText);
-  if (table.length === 0) {
-    return { ok: false, errors: [{ line: 1, message: 'CSV が空です' }] };
-  }
-  if (table[0].map((h) => h.trim()).join(',') !== HEADER.join(',')) {
-    return {
-      ok: false,
-      errors: [{ line: 1, message: `ヘッダー行は ${HEADER.join(',')} にしてください` }],
-    };
-  }
-
-  const errors: ImportError[] = [];
-  const rows: ParsedRow[] = [];
-  const seenEmails = new Set<string>();
-  for (let i = 1; i < table.length; i++) {
-    const line = i + 1;
-    const cells = table[i];
-    if (cells.length !== HEADER.length) {
-      errors.push({ line, message: `列数が不正です（${HEADER.length} 列必要）` });
-      continue;
-    }
-    const [emailRaw, department, position, hireYearRaw] = cells.map((v) => v.trim());
-    if (!emailRaw) {
-      errors.push({ line, message: 'email が空です' });
-      continue;
-    }
-    const email = normalizeEmail(emailRaw);
-    if (seenEmails.has(email)) {
-      errors.push({ line, email, message: '同じ email の行が重複しています' });
-      continue;
-    }
-    seenEmails.add(email);
-    let hireYear: number | null = null;
-    if (hireYearRaw !== '') {
-      const y = Number(hireYearRaw);
-      if (!/^\d{4}$/.test(hireYearRaw) || !Number.isInteger(y) || y < HIRE_YEAR_MIN || y > hireYearMax()) {
-        errors.push({
-          line, email,
-          message: `hire_year は ${HIRE_YEAR_MIN}〜${hireYearMax()} の整数か空欄にしてください`,
-        });
-        continue;
-      }
-      hireYear = y;
-    }
-    rows.push({ line, email, department, position, hireYear });
-  }
-
-  if (rows.length === 0 && errors.length === 0) {
-    return { ok: false, errors: [{ line: 1, message: 'データ行がありません' }] };
-  }
+  const parsed = parseEmailCsv<ParsedRow>(csvText, HEADER, ({ line, email, cells, error }) => {
+    const [department, position, hireYearRaw] = cells;
+    const hireYear = parseHireYearCell(hireYearRaw, error);
+    if (hireYear === undefined) return null;
+    return { line, email, department, position, hireYear };
+  });
+  if (!parsed.ok) return { ok: false, errors: parsed.errors };
+  const { rows, errors } = parsed;
 
   return db.transaction(async (tx) => {
     const found = rows.length > 0
