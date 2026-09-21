@@ -29,7 +29,7 @@
     "@uiw/react-codemirror": "^4.23.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "hono": "^4.12.34",
+    "hono": "^4.13.5",
     "lowlight": "^3.3.0",
     "lucide-react": "^1.23.0",
     "radix-ui": "^1.6.1",

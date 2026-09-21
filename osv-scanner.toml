@@ -4,3 +4,7 @@
 [[IgnoredVulns]]
 id = "GHSA-qwww-vcr4-c8h2"
 reason = "react-router の RSC モード（サーバーアクション）限定の CSRF バイパス。本アプリは createBrowserRouter の library mode 純 SPA で RSC/サーバーアクションを使用しない。修正版が v8 メジャーのみのため、v8 移行時にこの抑止を削除する (2026-08-04)"
+
+[[IgnoredVulns]]
+id = "GHSA-82fw-gwwq-j7x9"
+reason = "@vitest/mocker の redirect モックによるパストラバーサル。成立条件は mockerPlugin / interceptorPlugin を dev サーバに載せて Vite の無認証 HMR WebSocket を公開することだが、本リポジトリは vitest を environment: 'jsdom' のテストランナーとしてのみ使い、browser モードも当該プラグインの import も無い（devDependency のため配布物にも含まれない）。修正版が v4 メジャーのみのため、vitest v4 移行時にこの抑止を削除する (2026-09-21)"
