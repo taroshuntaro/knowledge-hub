@@ -20,33 +20,24 @@ services:
     ports:
       - "1025:1025"
       - "8025:8025"
+  # MinIO 公式イメージ（minio/minio・minio/mc）は Docker Hub から削除されたため Bitnami 版を使う。
+  # Bitnami 版は MINIO_DEFAULT_BUCKETS でバケットを起動時に作るので、mc の使い捨てジョブは不要。
   minio:
-    image: minio/minio:latest
-    command: server /data --console-address ":9001"
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_DEFAULT_BUCKETS: knowledge-hub   # S3_BUCKET と揃える
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - minio-data:/data
+      - minio-bitnami-data:/bitnami/minio/data
     healthcheck:
-      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:9000/minio/health/live || exit 1"]
       interval: 5s
       timeout: 3s
-      retries: 10
-  # 起動時に画像バケットを作成する使い捨てジョブ（S3_BUCKET と揃える）
-  minio-setup:
-    image: minio/mc:latest
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/knowledge-hub
-      "
+      retries: 20
   # 開発用 IdP（手動 SSO 検証用）。普段は起動しない: docker compose --profile idp up -d
   keycloak:
     image: quay.io/keycloak/keycloak:26.4
@@ -61,4 +52,4 @@ services:
       - ./docker/keycloak/realm.json:/opt/keycloak/data/import/realm.json:ro
 volumes:
   db-data: {}
-  minio-data: {}
+  minio-bitnami-data: {}
