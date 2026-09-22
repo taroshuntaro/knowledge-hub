@@ -8,24 +8,25 @@ import TaskItem from '@tiptap/extension-task-item';
 import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
-import { Markdown } from 'tiptap-markdown';
+import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
 
 const lowlight = createLowlight(common);
 
 /**
- * tiptap-markdown は型定義を同梱していない。v3 の `Editor['storage']` は各拡張が
- * モジュール拡張で宣言する方式に変わったため、この拡張が載せる storage をここで宣言する
- * （v2 では storage が any だったため宣言不要だった）。
+ * v3 の `Editor['storage']` は各拡張がモジュール拡張で宣言する方式に変わったため
+ * （v2 では any だったので宣言不要だった）、tiptap-markdown が載せる storage を
+ * ここで宣言する。型は 0.9.0 が同梱する MarkdownStorage をそのまま使う。
  */
 declare module '@tiptap/core' {
   interface Storage {
-    markdown: { getMarkdown(): string };
+    markdown: MarkdownStorage;
   }
 }
 
 /**
- * tiptap-markdown は型定義を同梱していないため、シリアライザのカスタム実装で
- * 使う最小限の形だけをここでローカルに定義する（ライブラリ内部実装の型と同義）。
+ * 同梱の MarkdownNodeSpec は node を汎用の ProseMirror Node として型付けするため
+ * attrs が未知のままになる。Image の attrs はライブラリ側が知り得ないので、
+ * シリアライザのカスタム実装で使う最小限の形だけをここでローカルに定義する。
  */
 interface MarkdownSerializeState {
   write(text: string): void;
@@ -37,7 +38,7 @@ interface MarkdownSerializeNode {
 }
 
 /**
- * tiptap-markdown 0.8.x の内蔵 MarkdownTightLists は listTypes: ['bulletList', 'orderedList']
+ * tiptap-markdown 0.9.x の内蔵 MarkdownTightLists は listTypes: ['bulletList', 'orderedList']
  * のみを対象とし taskList を含まない。そのため taskList には tight 属性が一切付与されず、
  * prosemirror-markdown のシリアライザは tightLists のデフォルト(false)にフォールバックし、
  * 各タスク項目の間に空行を挟んでしまう（往復不能）。
@@ -78,8 +79,6 @@ const ImageBlock = Image.extend({
   addStorage() {
     return {
       markdown: {
-        // tiptap-markdown は型定義を同梱しないため、他ノード実装（task-item.js 等）に
-        // 合わせて state/node は any 相当で扱う。
         serialize(state: MarkdownSerializeState, node: MarkdownSerializeNode) {
           state.write(
             '![' +
@@ -108,11 +107,17 @@ export const editorExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
     codeBlock: false, // CodeBlockLowlight に置き換え
-    // v3 の StarterKit は link と underline を内蔵するようになった。
+    // v3 の StarterKit は link / underline / trailingNode を内蔵するようになった。
     // link は下の Link.configure を活かすため、underline は §6 の対象外記法
-    // （Markdown へ serialize できず往復が壊れる）ため、いずれも無効化する。
+    // （Markdown へ serialize できず往復が壊れる）ため無効化する。
+    // trailingNode は末尾が段落以外（コードブロック・テーブル等）の文書を
+    // クリックしただけで段落を足して update を発火させる。記事を開いてクリック
+    // しただけで onChangeMarkdown → 自動保存の PATCH が走り、updatedAt が進んで
+    // 同時編集者が 409 を受けうるため（EditorPage の skipAutosaveRef は読み込み時
+    // しか効かない）、v2 と同じ挙動になるよう無効化する。
     link: false,
     underline: false,
+    trailingNode: false,
   }),
   Link.configure({ openOnClick: false }),
   ImageBlock,
