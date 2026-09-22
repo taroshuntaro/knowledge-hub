@@ -4,15 +4,24 @@ import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
-import Table from '@tiptap/extension-table';
-import TableRow from '@tiptap/extension-table-row';
-import TableHeader from '@tiptap/extension-table-header';
-import TableCell from '@tiptap/extension-table-cell';
+// v3 で行・ヘッダ・セルは @tiptap/extension-table に統合され、default export も無くなった。
+import { Table, TableRow, TableHeader, TableCell } from '@tiptap/extension-table';
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
 import { common, createLowlight } from 'lowlight';
 import { Markdown } from 'tiptap-markdown';
 
 const lowlight = createLowlight(common);
+
+/**
+ * tiptap-markdown は型定義を同梱していない。v3 の `Editor['storage']` は各拡張が
+ * モジュール拡張で宣言する方式に変わったため、この拡張が載せる storage をここで宣言する
+ * （v2 では storage が any だったため宣言不要だった）。
+ */
+declare module '@tiptap/core' {
+  interface Storage {
+    markdown: { getMarkdown(): string };
+  }
+}
 
 /**
  * tiptap-markdown は型定義を同梱していないため、シリアライザのカスタム実装で
@@ -99,6 +108,11 @@ export const editorExtensions = [
   StarterKit.configure({
     heading: { levels: [1, 2, 3] },
     codeBlock: false, // CodeBlockLowlight に置き換え
+    // v3 の StarterKit は link と underline を内蔵するようになった。
+    // link は下の Link.configure を活かすため、underline は §6 の対象外記法
+    // （Markdown へ serialize できず往復が壊れる）ため、いずれも無効化する。
+    link: false,
+    underline: false,
   }),
   Link.configure({ openOnClick: false }),
   ImageBlock,
