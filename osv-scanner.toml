@@ -9,6 +9,3 @@ reason = "react-router の RSC モード（サーバーアクション）限定�
 id = "GHSA-82fw-gwwq-j7x9"
 reason = "@vitest/mocker の redirect モックによるパストラバーサル。成立条件は mockerPlugin / interceptorPlugin を dev サーバに載せて Vite の無認証 HMR WebSocket を公開することだが、本リポジトリは vitest を environment: 'jsdom' のテストランナーとしてのみ使い、browser モードも当該プラグインの import も無い（devDependency のため配布物にも含まれない）。修正版が v4 メジャーのみのため、vitest v4 移行時にこの抑止を削除する (2026-09-21)"
 
-[[IgnoredVulns]]
-id = "GHSA-cp6q-959q-f8rh"
-reason = "@tiptap/core の mergeAttributes() が own __proto__ キーを持つ JSON でプロトタイプ汚染され、DOMSerializer が継承属性を setAttribute する XSS。成立には外部由来の JSON を属性として mergeAttributes に渡す必要があるが、本アプリの Tiptap 入口は EditorPage の RichEditor のみで入力は Markdown 文字列であり、属性名はスキーマの addAttributes / addGlobalAttributes に限定される。外部由来の ProseMirror JSON を editor へ流す経路は無く（唯一の setContent(json) である lib/editor/markdown-bridge.ts の docToMarkdown は呼び出し元ゼロ）、読者側の記事描画は Tiptap を通らない。この抑止は上記の不変条件に依存するため、editor へ JSON を入力する経路を追加する場合は再評価すること。修正版が v3 メジャーのみのため、Tiptap v3 移行時にこの抑止を削除する (2026-09-21)"
