@@ -25,6 +25,31 @@
 - **テスト:** Vitest + [Testcontainers](https://testcontainers.com/)（実 PostgreSQL 起動）/ [Playwright](https://playwright.dev/)（E2E）
 - **モノレポ:** pnpm workspaces
 
+## 構成図
+
+### アプリケーション構成
+
+![knowledge-hub のアプリケーション構成図](./docs/assets/architecture.svg)
+
+ブラウザの React SPA（`apps/web`）と Hono API（`apps/server`）は `packages/shared` の Zod スキーマを唯一の契約として共有し、`hc<AppType>` により end-to-end で型が通る。サーバーは `middleware → routes → services → Drizzle` の層構造で、本番では同じプロセスが SPA のビルド成果物も静的配信する。外部依存は PostgreSQL / S3 互換ストレージ / SMTP / OIDC IdP の 4 つに閉じている。
+
+### AWS デプロイ構成
+
+![knowledge-hub の AWS デプロイ構成図](./docs/assets/architecture-aws.svg)
+
+オンプレと**同一の app イメージ**を Amazon ECS（AWS Fargate）で実行する構成例。環境差分は環境変数のみで、コードに環境分岐を持ち込まない。オンプレ（`docker compose`）との対応は次のとおり。
+
+| AWS | オンプレ | 主な環境変数 |
+|---|---|---|
+| Amazon ECS / AWS Fargate | `app` コンテナ | — |
+| Amazon RDS for PostgreSQL | `db` コンテナ（pg_bigm） | `DATABASE_URL` |
+| Amazon S3 | MinIO | `S3_ENDPOINT` / `S3_BUCKET` / `S3_FORCE_PATH_STYLE` |
+| Amazon SES | 社内 SMTP / Mailpit | `SMTP_HOST` / `SMTP_PORT` / `SMTP_SECURE` |
+| Amazon CloudWatch Logs | `docker logs` | —（pino が stdout へ JSON 出力） |
+| AWS Secrets Manager | `apps/server/.env` | —（上記の環境変数の供給元） |
+
+図中の AWS リソースは [AWS Architecture Icons](https://aws.amazon.com/architecture/icons/)（AWS 公式のアーキテクチャアイコン）で表記している。
+
 ## リポジトリ構成
 
 ```
@@ -97,4 +122,4 @@ SSO spec は dev Keycloak（`docker compose --profile idp up -d`）起動時の�
 
 ## アーキテクチャ・貢献
 
-設計・アーキテクチャの要点と開発規約は [`AGENTS.md`](./AGENTS.md) にまとめている。設計書・実装計画の詳細は [`docs/`](./docs/) を参照。画面と API の一覧リファレンスは [`docs/screens.md`](./docs/screens.md) / [`docs/api.md`](./docs/api.md)。
+設計・アーキテクチャの要点と開発規約は [`AGENTS.md`](./AGENTS.md) にまとめている。設計書・実装計画の詳細は [`docs/`](./docs/) を参照。画面と API の一覧リファレンスは [`docs/screens.md`](./docs/screens.md) / [`docs/api.md`](./docs/api.md)。構成図の SVG は [`docs/assets/architecture.svg`](./docs/assets/architecture.svg) / [`docs/assets/architecture-aws.svg`](./docs/assets/architecture-aws.svg)。

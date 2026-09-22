@@ -1,6 +1,6 @@
 # E2E 用ポートオーバーレイ。dev スタックと同居できるよう公開ポートだけ差し替える。
 # 起動例:
-#   docker compose -p khub-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --wait db mailpit minio minio-setup
+#   docker compose -p khub-e2e -f docker-compose.yml -f docker-compose.e2e.yml up -d --wait db mailpit minio
 # ports の置換に !override を使うため Docker Compose v2.24.4+ が必要。
 services:
   db:
