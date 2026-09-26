@@ -1,77 +1,77 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="730" viewBox="0 0 1280 730" font-family="-apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', 'Noto Sans CJK JP', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Segoe UI', sans-serif" role="img"><rect width="1280" height="730" fill="#ffffff"/><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#94a3b8"/></marker><marker id="arrowi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#4f46e5"/></marker></defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="838" viewBox="0 0 1280 838" font-family="-apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', 'Noto Sans CJK JP', 'Yu Gothic UI', 'Yu Gothic', Meiryo, 'Segoe UI', sans-serif" role="img"><rect width="1280" height="838" fill="#ffffff"/><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#94a3b8"/></marker><marker id="arrowi" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#4f46e5"/></marker></defs>
 <!-- knowledge-hub architecture diagram. AWS resource icons: AWS Architecture Icons (official asset package). -->
 <title>knowledge-hub アプリケーション構成図</title>
 <desc>ブラウザの React SPA、app コンテナ（Hono）、PostgreSQL / オブジェクトストレージ / SMTP / OIDC IdP、および契約を担う packages/shared の関係を示した構成図。</desc>
 <text x="40" y="46" font-size="21" fill="#0f172a" font-weight="700" text-anchor="start">knowledge-hub — アプリケーション構成</text>
 <text x="40" y="72" font-size="12.5" fill="#475569" font-weight="400" text-anchor="start">ブラウザの React SPA と Hono API が packages/shared の Zod スキーマを契約として共有する。外部依存は PostgreSQL / S3 互換ストレージ / SMTP / OIDC IdP の 4 つ。</text>
-<rect x="40" y="112" width="240" height="440" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-<clipPath id="ac1"><rect x="40" y="112" width="240" height="440" rx="12"/></clipPath><rect x="40" y="112" width="240" height="5" fill="#4f46e5" clip-path="url(#ac1)"/>
+<rect x="40" y="112" width="240" height="548" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+<clipPath id="ac1"><rect x="40" y="112" width="240" height="548" rx="12"/></clipPath><rect x="40" y="112" width="240" height="5" fill="#4f46e5" clip-path="url(#ac1)"/>
 <text x="60" y="146" font-size="14.5" fill="#0f172a" font-weight="700" text-anchor="start">apps/web</text>
 <text x="60" y="166" font-size="11" fill="#64748b" font-weight="400" text-anchor="start">React 19 SPA（Vite）/ ブラウザ</text>
 <line x1="60" y1="184" x2="260" y2="184" stroke="#cbd5e1"/>
 <text x="60" y="210" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・React Router / TanStack Query</text>
-<text x="60" y="237" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・hc&lt;AppType&gt; 型付きクライアント</text>
-<text x="60" y="264" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・Tiptap ⇔ CodeMirror エディタ</text>
-<text x="60" y="291" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・shadcn/ui + Tailwind v4</text>
-<text x="60" y="318" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・RequireAuth / RequireRole 保護</text>
-<text x="60" y="345" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・useCursorList でページング</text>
-<text x="60" y="372" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・errorMessage() でエラー表示</text>
-<line x1="60" y1="400" x2="260" y2="400" stroke="#cbd5e1"/>
-<text x="60" y="426" font-size="11.5" fill="#4f46e5" font-weight="700" text-anchor="start">開発時</text>
-<text x="60" y="446" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">Vite dev server :5173</text>
-<text x="60" y="466" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">/api は :3000 へ proxy</text>
-<text x="60" y="496" font-size="11.5" fill="#4f46e5" font-weight="700" text-anchor="start">本番</text>
-<text x="60" y="518" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">Hono が web の dist を静的配信</text>
-<rect x="400" y="112" width="456" height="440" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" stroke-dasharray="7 6"/>
+<text x="60" y="246" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・hc&lt;AppType&gt; 型付きクライアント</text>
+<text x="60" y="282" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・Tiptap ⇔ CodeMirror エディタ</text>
+<text x="60" y="318" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・shadcn/ui + Tailwind v4</text>
+<text x="60" y="354" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・RequireAuth / RequireRole 保護</text>
+<text x="60" y="390" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・useCursorList でページング</text>
+<text x="60" y="426" font-size="11" fill="#0f172a" font-weight="400" text-anchor="start">・errorMessage() でエラー表示</text>
+<line x1="60" y1="460" x2="260" y2="460" stroke="#cbd5e1"/>
+<text x="60" y="490" font-size="11.5" fill="#4f46e5" font-weight="700" text-anchor="start">開発時</text>
+<text x="60" y="514" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">Vite dev server :5173</text>
+<text x="60" y="538" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">/api は :3000 へ proxy</text>
+<text x="60" y="574" font-size="11.5" fill="#4f46e5" font-weight="700" text-anchor="start">本番</text>
+<text x="60" y="598" font-size="10.5" fill="#475569" font-weight="400" text-anchor="start">Hono が web の dist を静的配信</text>
+<rect x="400" y="112" width="456" height="548" rx="14" fill="#f8fafc" stroke="#94a3b8" stroke-width="1" stroke-dasharray="7 6"/>
 <rect x="418" y="98" width="222.5" height="28" rx="14" fill="#ffffff" stroke="#94a3b8" stroke-width="1"/>
 <text x="529.24" y="117" font-size="12" fill="#0f172a" font-weight="700" text-anchor="middle">app コンテナ（Node.js 24 / Hono）</text>
-<rect x="420" y="150" width="416" height="66" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac2"><rect x="420" y="150" width="416" height="66" rx="10"/></clipPath><rect x="420" y="150" width="4" height="66" fill="#4f46e5" clip-path="url(#ac2)" opacity="0.65"/><text x="438" y="174" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">middleware</text><text x="438" y="194" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">request-logger / security-headers（CSP・HSTS）/ origin-check</text><text x="438" y="210" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">session（Cookie）/ admin / requirePasswordAuth</text>
-<rect x="420" y="232" width="416" height="66" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac3"><rect x="420" y="232" width="416" height="66" rx="10"/></clipPath><rect x="420" y="232" width="4" height="66" fill="#4f46e5" clip-path="url(#ac3)" opacity="0.65"/><text x="438" y="256" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">routes/*（Hono ルート）</text><text x="438" y="276" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">/api/auth /api/articles /api/comments /api/notifications</text><text x="438" y="292" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">/api/uploads /api/search /api/admin … + guards.requireUuidParam</text>
-<rect x="420" y="314" width="416" height="76" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac4"><rect x="420" y="314" width="416" height="76" rx="10"/></clipPath><rect x="420" y="314" width="4" height="76" fill="#4f46e5" clip-path="url(#ac4)" opacity="0.65"/><text x="438" y="338" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">services/*（ドメインロジック）</text><text x="438" y="358" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">記事・カテゴリ・タグ・コメント・エンゲージメント・通知</text><text x="438" y="374" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">検索（pg_bigm）・アップロード・認証 / セッション・OIDC</text><text x="438" y="390" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">article-visibility / cursor で可視性とページングを一元化</text>
-<rect x="420" y="406" width="416" height="62" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac5"><rect x="420" y="406" width="416" height="62" rx="10"/></clipPath><rect x="420" y="406" width="4" height="62" fill="#4f46e5" clip-path="url(#ac5)" opacity="0.65"/><text x="438" y="430" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">db — Drizzle ORM</text><text x="438" y="450" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">schema.ts が唯一の発生源</text><text x="438" y="466" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">db:generate → db:migrate で差分 SQL を適用</text>
-<rect x="420" y="484" width="416" height="54" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac6"><rect x="420" y="484" width="416" height="54" rx="10"/></clipPath><rect x="420" y="484" width="4" height="54" fill="#4f46e5" clip-path="url(#ac6)" opacity="0.65"/><text x="438" y="508" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">静的配信</text><text x="438" y="528" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">GET /* → apps/web の本番ビルド（WEB_DIST_DIR）</text>
-<polyline points="628,217 628,231" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="628,299 628,313" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="628,391 628,405" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="628,469 628,483" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<text x="340" y="238" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">HTTPS / Cookie</text>
-<polyline points="286,262 394,262" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
-<text x="340" y="284" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">SPA 配信</text>
-<text x="340" y="300" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">/api/*（JSON）</text>
+<rect x="420" y="150" width="416" height="85" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac2"><rect x="420" y="150" width="416" height="85" rx="10"/></clipPath><rect x="420" y="150" width="4" height="85" fill="#4f46e5" clip-path="url(#ac2)" opacity="0.65"/><text x="438" y="178" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">middleware</text><text x="438" y="200" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">request-logger / security-headers（CSP・HSTS）/ origin-check</text><text x="438" y="217" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">session（Cookie）/ admin / requirePasswordAuth</text>
+<rect x="420" y="251" width="416" height="85" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac3"><rect x="420" y="251" width="416" height="85" rx="10"/></clipPath><rect x="420" y="251" width="4" height="85" fill="#4f46e5" clip-path="url(#ac3)" opacity="0.65"/><text x="438" y="279" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">routes/*（Hono ルート）</text><text x="438" y="301" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">/api/auth /api/articles /api/comments /api/notifications</text><text x="438" y="318" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">/api/uploads /api/search /api/admin … + guards.requireUuidParam</text>
+<rect x="420" y="352" width="416" height="102" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac4"><rect x="420" y="352" width="416" height="102" rx="10"/></clipPath><rect x="420" y="352" width="4" height="102" fill="#4f46e5" clip-path="url(#ac4)" opacity="0.65"/><text x="438" y="380" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">services/*（ドメインロジック）</text><text x="438" y="402" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">記事・カテゴリ・タグ・コメント・エンゲージメント・通知</text><text x="438" y="419" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">検索（pg_bigm）・アップロード・認証 / セッション・OIDC</text><text x="438" y="436" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">article-visibility / cursor で可視性とページングを一元化</text>
+<rect x="420" y="470" width="416" height="85" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac5"><rect x="420" y="470" width="416" height="85" rx="10"/></clipPath><rect x="420" y="470" width="4" height="85" fill="#4f46e5" clip-path="url(#ac5)" opacity="0.65"/><text x="438" y="498" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">db — Drizzle ORM</text><text x="438" y="520" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">schema.ts が唯一の発生源</text><text x="438" y="537" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">db:generate → db:migrate で差分 SQL を適用</text>
+<rect x="420" y="571" width="416" height="68" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/><clipPath id="ac6"><rect x="420" y="571" width="416" height="68" rx="10"/></clipPath><rect x="420" y="571" width="4" height="68" fill="#4f46e5" clip-path="url(#ac6)" opacity="0.65"/><text x="438" y="599" font-size="12.5" fill="#0f172a" font-weight="700" text-anchor="start">静的配信</text><text x="438" y="621" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">GET /* → apps/web の本番ビルド（WEB_DIST_DIR）</text>
+<polyline points="628,236 628,250" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="628,337 628,351" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="628,455 628,469" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="628,556 628,570" fill="none" stroke="#94a3b8" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<text x="340" y="256" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">HTTPS / Cookie</text>
+<polyline points="286,280 394,280" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" marker-start="url(#arrow)"/>
+<text x="340" y="302" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">SPA 配信</text>
+<text x="340" y="318" font-size="10.5" fill="#475569" font-weight="400" text-anchor="middle">/api/*（JSON）</text>
 <rect x="940" y="132" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
 <clipPath id="ac7"><rect x="940" y="132" width="300" height="96" rx="12"/></clipPath><rect x="940" y="132" width="4" height="96" fill="#0f766e" clip-path="url(#ac7)" opacity="0.6"/>
 <text x="958" y="164" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">OIDC IdP（任意）</text>
 <rect x="1181" y="148" width="41" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1201.5" y="160.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">OIDC</text>
 <text x="958" y="188" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">openid-client + PKCE / 事前作成行にクレーム</text>
 <text x="958" y="205" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">開発: Keycloak（--profile idp）</text>
-<rect x="940" y="248" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-<clipPath id="ac8"><rect x="940" y="248" width="300" height="96" rx="12"/></clipPath><rect x="940" y="248" width="4" height="96" fill="#0f766e" clip-path="url(#ac8)" opacity="0.6"/>
-<text x="958" y="280" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">メール送信</text>
-<rect x="1178.22" y="264" width="43.8" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1200.1100000000001" y="276.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">SMTP</text>
-<text x="958" y="304" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">社内 SMTP / Amazon SES</text>
-<text x="958" y="321" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">開発: Mailpit（:8025）</text>
-<rect x="940" y="364" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-<clipPath id="ac9"><rect x="940" y="364" width="300" height="96" rx="12"/></clipPath><rect x="940" y="364" width="4" height="96" fill="#0f766e" clip-path="url(#ac9)" opacity="0.6"/>
-<text x="958" y="396" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">オブジェクトストレージ</text>
-<rect x="1174.69" y="380" width="47.3" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1198.345" y="392.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">S3 API</text>
-<text x="958" y="420" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">MinIO（オンプレ）/ Amazon S3（AWS）</text>
-<text x="958" y="437" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">記事画像・ヒーロー画像</text>
-<rect x="940" y="480" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
-<clipPath id="ac10"><rect x="940" y="480" width="300" height="96" rx="12"/></clipPath><rect x="940" y="480" width="4" height="96" fill="#0f766e" clip-path="url(#ac10)" opacity="0.6"/>
-<text x="958" y="512" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">PostgreSQL 16+</text>
-<rect x="1185.44" y="496" width="36.6" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1203.72" y="508.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">SQL</text>
-<text x="958" y="536" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">pg_bigm による日本語全文検索</text>
-<text x="958" y="553" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">（将来）pgvector — RAG の布石</text>
-<polyline points="838,352 888,352" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
-<polyline points="888,180 888,412" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+<rect x="940" y="268" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+<clipPath id="ac8"><rect x="940" y="268" width="300" height="96" rx="12"/></clipPath><rect x="940" y="268" width="4" height="96" fill="#0f766e" clip-path="url(#ac8)" opacity="0.6"/>
+<text x="958" y="300" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">メール送信</text>
+<rect x="1178.22" y="284" width="43.8" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1200.1100000000001" y="296.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">SMTP</text>
+<text x="958" y="324" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">社内 SMTP / Amazon SES</text>
+<text x="958" y="341" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">開発: Mailpit（:8025）</text>
+<rect x="940" y="404" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+<clipPath id="ac9"><rect x="940" y="404" width="300" height="96" rx="12"/></clipPath><rect x="940" y="404" width="4" height="96" fill="#0f766e" clip-path="url(#ac9)" opacity="0.6"/>
+<text x="958" y="436" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">オブジェクトストレージ</text>
+<rect x="1174.69" y="420" width="47.3" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1198.345" y="432.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">S3 API</text>
+<text x="958" y="460" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">MinIO（オンプレ）/ Amazon S3（AWS）</text>
+<text x="958" y="477" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">記事画像・ヒーロー画像</text>
+<rect x="940" y="540" width="300" height="96" rx="12" fill="#ffffff" stroke="#cbd5e1" stroke-width="1"/>
+<clipPath id="ac10"><rect x="940" y="540" width="300" height="96" rx="12"/></clipPath><rect x="940" y="540" width="4" height="96" fill="#0f766e" clip-path="url(#ac10)" opacity="0.6"/>
+<text x="958" y="572" font-size="13" fill="#0f172a" font-weight="700" text-anchor="start">PostgreSQL 16+</text>
+<rect x="1185.44" y="556" width="36.6" height="18" rx="9" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/><text x="1203.72" y="568.5" font-size="10" fill="#4f46e5" font-weight="600" text-anchor="middle">SQL</text>
+<text x="958" y="596" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">pg_bigm による日本語全文検索</text>
+<text x="958" y="613" font-size="10.5" fill="#64748b" font-weight="400" text-anchor="start">（将来）pgvector — RAG の布石</text>
+<polyline points="838,403 888,403" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
+<polyline points="888,180 888,452" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round"/>
 <polyline points="888,180 938,180" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="888,296 938,296" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="888,412 938,412" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<polyline points="838,437 908,437 908,528 938,528" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
-<rect x="40" y="600" width="816" height="58" rx="12" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
-<text x="62" y="634" font-size="13.5" fill="#4f46e5" font-weight="700" text-anchor="start">packages/shared</text>
-<text x="196" y="634" font-size="11.5" fill="#0f172a" font-weight="400" text-anchor="start">Zod スキーマ / 型 / ERROR_CODES — サーバーと Web が参照する唯一の契約</text>
-<polyline points="160,598 160,556" fill="none" stroke="#c7d2fe" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" marker-end="url(#arrowi)" marker-start="url(#arrowi)"/>
-<polyline points="628,598 628,556" fill="none" stroke="#c7d2fe" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" marker-end="url(#arrowi)" marker-start="url(#arrowi)"/>
-<text x="40" y="700" font-size="11" fill="#64748b" font-weight="400" text-anchor="start">実装との対応: apps/web ・ apps/server ・ packages/shared。AWS 上のデプロイ構成は architecture-aws.svg を参照。</text>
+<polyline points="888,316 938,316" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="888,452 938,452" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<polyline points="838,512 908,512 908,588 938,588" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)"/>
+<rect x="40" y="708" width="816" height="58" rx="12" fill="#eef2ff" stroke="#c7d2fe" stroke-width="1"/>
+<text x="62" y="742" font-size="13.5" fill="#4f46e5" font-weight="700" text-anchor="start">packages/shared</text>
+<text x="196" y="742" font-size="11.5" fill="#0f172a" font-weight="400" text-anchor="start">Zod スキーマ / 型 / ERROR_CODES — サーバーと Web が参照する唯一の契約</text>
+<polyline points="160,706 160,664" fill="none" stroke="#c7d2fe" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" marker-end="url(#arrowi)" marker-start="url(#arrowi)"/>
+<polyline points="628,706 628,664" fill="none" stroke="#c7d2fe" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="5 5" marker-end="url(#arrowi)" marker-start="url(#arrowi)"/>
+<text x="40" y="808" font-size="11" fill="#64748b" font-weight="400" text-anchor="start">実装との対応: apps/web ・ apps/server ・ packages/shared。AWS 上のデプロイ構成は architecture-aws.svg を参照。</text>
 </svg>
